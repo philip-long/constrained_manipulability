@@ -56,20 +56,21 @@ int main ( int argc, char **argv ) {
 
             recieved=false;
             ROS_INFO ( "------Displaying Robot Collision Model------" );
-            robot_polytope.displayCollisionModel ( joint_state );
-            ros::Duration ( 0.1 ).sleep();
-	    ROS_INFO ( "------Get Allowable Motion Polytope------" );
-            robot_polytope.getAllowableMotionPolytope ( joint_state,true );
-            ros::Duration ( 0.1 ).sleep();
-	    ROS_INFO ( "------Get Constrained Allowable Motion Polytope------" );
-            robot_polytope.getConstrainedAllowableMotionPolytope ( joint_state,true );
-            ros::Duration ( 0.1 ).sleep();
-	    ROS_INFO ( "------Get velocity Motion Polytope------" );
-            robot_polytope.getVelocityPolytope ( joint_state,true );
-            ros::Duration ( 0.1 ).sleep();
-	    ROS_INFO ( "------Get Constrained Motion Polytope------" );
-            robot_polytope.getConstrainedVelocityPolytope ( joint_state,true );
-            ros::Duration ( 0.1 ).sleep();
+            std::cout<<" In Collision "<<robot_polytope.checkCollision ( joint_state ) <<std::endl;
+            std::cout<<robot_polytope.displayCollisionModel ( joint_state ) <<std::endl;
+//             ros::Duration ( 0.1 ).sleep();
+// 	    ROS_INFO ( "------Get Allowable Motion Polytope------" );
+//             std::cout<<robot_polytope.getAllowableMotionPolytope ( joint_state,true )<<std::endl;
+//             ros::Duration ( 0.1 ).sleep();
+// 	    ROS_INFO ( "------Get Constrained Allowable Motion Polytope------" );
+//             std::cout<<robot_polytope.getConstrainedAllowableMotionPolytope ( joint_state,true )<<std::endl;
+//             ros::Duration ( 0.1 ).sleep();
+// 	    ROS_INFO ( "------Get velocity Motion Polytope------" );
+//             std::cout<<robot_polytope.getVelocityPolytope ( joint_state,false )<<std::endl;
+//             ros::Duration ( 0.1 ).sleep();
+// 	    ROS_INFO ( "------Get Constrained Motion Polytope------" );
+//             std::cout<<robot_polytope.getConstrainedVelocityPolytope ( joint_state,false )<<std::endl;
+//             ros::Duration ( 0.1 ).sleep();
 
 
 

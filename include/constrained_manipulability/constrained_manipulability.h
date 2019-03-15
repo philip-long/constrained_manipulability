@@ -25,6 +25,9 @@
 #include "sensor_msgs/JointState.h"
 #include "geometry_msgs/TransformStamped.h"
 
+#include <geometric_shapes/shapes.h>
+#include <geometric_shapes/mesh_operations.h>
+
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/chain.hpp>
 #include <kdl/chainfksolver.hpp>
@@ -43,7 +46,22 @@
 #define ROBOT_POLYTOPE_HPP
 
 
-
+/// GeometryInformation contains all geomertic information obtained from chain
+struct GeometryInformation
+{
+   std::vector<std::unique_ptr<shapes::Shape>> shapes;
+   TransformVector & geometry_transforms;
+   JacobianVector  & geometry_jacobians;
+   
+   
+   void clear()
+   {
+     shapes.clear();
+     geometry_transforms.clear();
+     geometry_jacobians.clear();
+   }
+  
+};
 
 class ConstrainedManipulability
 {
@@ -83,6 +101,9 @@ private:
     /// Statically convert a joint state message to a KDL joint array based on segment names
     static void jointStatetoKDLJointArray ( KDL::Chain & chain, const sensor_msgs::JointState & joint_states,
                                             KDL::JntArray & kdl_joint_positions );
+            
+    // This function is taken from https://github.com/tu-darmstadt-ros-pkg with a tiny change
+     static std::unique_ptr<shapes::Shape> constructShape(const urdf::Geometry *geom);
 protected:
 
 
@@ -97,6 +118,11 @@ protected:
                              TransformVector & geometry_transforms,
                              JacobianVector  & geometric_jacobians
                            );
+    
+    bool getCollisionModel ( const  KDL::JntArray & jointpositions,
+                            GeometryInformation geometry_information
+                           );
+    
     /** getCollisionModel returns  kinematic information about collision geometry
     * For ith link (segment) in the kinematic serial chain, we return
     *  geometry_mkrs[i]: the shape description of geometery [i]
