@@ -455,7 +455,7 @@ public:
             double linearization_limit=0.1
                                              );
 
-    /** getVelocityManipulabilityPolytope returns the manipulability polytope
+    /** getVelocityPolytope returns the manipulability polytope
     *   considering joint velocity limits
     *  chain KDL::Chain already initialized
     *  model  urdf::Model already initialized
@@ -467,7 +467,7 @@ public:
     *  color_line  -> polytope lines color
     *  returns the volume of the manipulability polytope
     */
-    static double getVelocityManipulabilityPolytope ( KDL::Chain &  chain,
+    static double getVelocityPolytope ( KDL::Chain &  chain,
             urdf::Model & model,
             const sensor_msgs::JointState & joint_states,
             Eigen::MatrixXd & AHrep,
