@@ -615,7 +615,8 @@ bool    ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kd
             model_.links_.at ( seg.getName() )->collision->origin.rotation.y,
             model_.links_.at ( seg.getName() )->collision->origin.rotation.z
         );
-
+	link_origin_T_collision_origin.translation()=origin_Trans_collision;
+	link_origin_T_collision_origin.linear()=origin_Quat_collision.toRotationMatrix();
         // Finds cartesian pose w.r.t to base frame
 
         KDL::Frame cartpos;
@@ -633,53 +634,77 @@ bool    ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kd
 }
 
 
- std::unique_ptr<shapes::Shape> ConstrainedManipulability::constructShape(const urdf::Geometry *geom)
-    {
-      ROS_ASSERT(geom);
-	
-      std::unique_ptr<shapes::Shape> result = NULL;
-      switch (geom->type)
-      {
-        case urdf::Geometry::SPHERE:
-        {
-          result =  std::unique_ptr<shapes::Shape>( new shapes::Sphere(dynamic_cast<const urdf::Sphere*>(geom)->radius));
-          break;
+std::unique_ptr<shapes::Shape> ConstrainedManipulability::constructShape ( const urdf::Geometry *geom ) {
+    ROS_ASSERT ( geom );
+
+    std::unique_ptr<shapes::Shape> result = NULL;
+    switch ( geom->type ) {
+    case urdf::Geometry::SPHERE: {
+        result =  std::unique_ptr<shapes::Shape> ( new shapes::Sphere ( dynamic_cast<const urdf::Sphere*> ( geom )->radius ) );
+        break;
+    }
+    case urdf::Geometry::BOX: {
+        urdf::Vector3 dim = dynamic_cast<const urdf::Box*> ( geom )->dim;
+        result =  std::unique_ptr<shapes::Shape> ( new shapes::Box ( dim.x, dim.y, dim.z ) );
+        break;
+    }
+    case urdf::Geometry::CYLINDER: {
+        result =  std::unique_ptr<shapes::Shape> ( new shapes::Cylinder ( dynamic_cast<const urdf::Cylinder*> ( geom )->radius,
+                  dynamic_cast<const urdf::Cylinder*> ( geom )->length ) );
+        break;
+    }
+    case urdf::Geometry::MESH: {
+        const urdf::Mesh *mesh = dynamic_cast<const urdf::Mesh*> ( geom );
+        if ( !mesh->filename.empty() ) {
+            Eigen::Vector3d scale ( mesh->scale.x, mesh->scale.y, mesh->scale.z );
+            result =  std::unique_ptr<shapes::Shape> ( shapes::createMeshFromResource ( mesh->filename, scale ) );
+        } else {
+            ROS_WARN ( "Empty mesh filename" );
         }
-        case urdf::Geometry::BOX:
-        {
-          urdf::Vector3 dim = dynamic_cast<const urdf::Box*>(geom)->dim;
-          result =  std::unique_ptr<shapes::Shape>( new shapes::Box(dim.x, dim.y, dim.z));
-          break;
-        }
-        case urdf::Geometry::CYLINDER:
-        {
-          result =  std::unique_ptr<shapes::Shape>( new shapes::Cylinder(dynamic_cast<const urdf::Cylinder*>(geom)->radius,
-                  dynamic_cast<const urdf::Cylinder*>(geom)->length));
-          break;
-        }
-        case urdf::Geometry::MESH:
-        {
-          const urdf::Mesh *mesh = dynamic_cast<const urdf::Mesh*>(geom);
-          if (!mesh->filename.empty())
-          {
-            Eigen::Vector3d scale(mesh->scale.x, mesh->scale.y, mesh->scale.z);
-            result =  std::unique_ptr<shapes::Shape>(shapes::createMeshFromResource(mesh->filename, scale));
-          } else
-            ROS_WARN("Empty mesh filename");
-          break;
-        }
-      default:
-        {
-          ROS_ERROR("Unknown geometry type: %d", (int)geom->type);
-          break;
-        }
+        break;
+    }
+    default: {
+        ROS_ERROR ( "Unknown geometry type: %d", ( int ) geom->type );
+        break;
+    }
+    }
+    return ( result );
+}
+
+bool ConstrainedManipulability::displayCollisionModel ( sensor_msgs::JointState const & joint_state ) {
+
+      KDL::JntArray 	kdl_joint_positions ( ndof_ );
+      jointStatetoKDLJointArray ( joint_state,kdl_joint_positions );
+      std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
+//     // Collision Link transforms
+       TransformVector geometry_transforms; 
+       getCollisionModel ( kdl_joint_positions,geometry_mkrs,geometry_transforms );
+      for ( int i=0; i<geometry_transforms.size(); ++i ) {
+        rvizDisplay.displayMarker ( geometry_mkrs[i],geometry_transforms[i],base_link_,i, {0.1,0.5,0.2,0.5} );
       }
-      return (result);
+    return false;
 }
 
 
+bool ConstrainedManipulability::displayCollisionModel ( sensor_msgs::JointState const & joint_state, bool mesh ) {
+    GeometryInformation geometry_information;
+    KDL::JntArray 	kdl_joint_positions ( ndof_ );
+    jointStatetoKDLJointArray ( joint_state,kdl_joint_positions );
+    getCollisionModel ( kdl_joint_positions,geometry_information );
+    
+    for ( int i=0; i<geometry_information.geometry_transforms.size(); ++i ) {
+	visualization_msgs::Marker mk;
+	shapes::constructMarkerFromShape( geometry_information.shapes[i].get(),mk, false);
+        rvizDisplay.displayMarker ( mk,
+                                    geometry_information.geometry_transforms[i],
+                                    base_link_,i, {0.1,0.5,0.2,0.5} );
+    }
+    return true;
+
+}
+
 bool ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kdl_joint_positions,
-        GeometryInformation geometry_information
+        GeometryInformation & geometry_information
                                                   ) {
 
     geometry_information.clear();
@@ -692,8 +717,8 @@ bool ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kdl_j
         KDL::Segment seg=chain_.getSegment ( i ); // Get current segment
 
         // Get Collision Geometry
-	std::unique_ptr<shapes::Shape> shape = constructShape(model_.links_.at ( seg.getName() )->collision->geometry.get());
-	
+        std::unique_ptr<shapes::Shape> shape = constructShape ( model_.links_.at ( seg.getName() )->collision->geometry.get() );
+
 
         // Get Collision Origin
         Eigen::Vector3d origin_Trans_collision ( model_.links_.at ( seg.getName() )->collision->origin.position.x,
@@ -705,6 +730,9 @@ bool ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kdl_j
             model_.links_.at ( seg.getName() )->collision->origin.rotation.y,
             model_.links_.at ( seg.getName() )->collision->origin.rotation.z
         );
+	
+	link_origin_T_collision_origin.translation()=origin_Trans_collision;
+	link_origin_T_collision_origin.linear()=origin_Quat_collision.toRotationMatrix();
 
         // Finds cartesian pose w.r.t to base frame
         KDL::Frame cartpos;
@@ -730,7 +758,7 @@ bool ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kdl_j
         screwTransform ( base_J_link_origin.data,base_J_collision_origin,base_L_link_collision );
 
         // Push back solutions
-	geometry_information.shapes.push_back ( std::move(shape) );
+        geometry_information.shapes.push_back ( std::move ( shape ) );
         geometry_information.geometry_transforms.push_back ( base_T_collision_origin );
         geometry_information.geometry_jacobians.push_back ( base_J_collision_origin );
     }
@@ -808,7 +836,9 @@ bool    ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kd
             model_.links_.at ( seg.getName() )->collision->origin.rotation.y,
             model_.links_.at ( seg.getName() )->collision->origin.rotation.z
         );
-
+	
+	link_origin_T_collision_origin.translation()=origin_Trans_collision;
+	link_origin_T_collision_origin.linear()=origin_Quat_collision.toRotationMatrix();
         // Finds cartesian pose w.r.t to base frame
 
         KDL::Frame cartpos;
@@ -871,87 +901,7 @@ bool ConstrainedManipulability::screwTransform ( const Eigen::Matrix<double,6,Ei
 }
 
 
-bool ConstrainedManipulability::displayCollisionModel ( sensor_msgs::JointState const & joint_state ) {
 
-    KDL::JntArray 	kdl_joint_positions ( ndof_ );
-
-    // UPDATE JOINT STATE
-    unsigned int jnt ( 0 );
-    for ( int i=0; i<chain_.getNrOfSegments(); ++i ) {
-
-        KDL::Segment seg=chain_.getSegment ( i );
-        KDL::Joint kdl_joint=seg.getJoint();
-        for ( int j=0; j<joint_state.name.size(); ++j ) {
-            if ( kdl_joint.getName() ==joint_state.name[j] ) {
-                kdl_joint_positions ( jnt ) =joint_state.position[j];
-                jnt++;
-            }
-        }
-    }
-
-    Eigen::Affine3d origin_T_collision,base_T_origin,base_T_collision;
-
-    for ( int i=0; i<chain_.getNrOfSegments(); ++i ) {
-        KDL::Segment seg=chain_.getSegment ( i ); // Get current segment
-
-        // Get Collision Geometry
-        shape_msgs::SolidPrimitive s1;
-
-        if ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::BOX ) {
-            boost::shared_ptr<urdf::Box> box =
-                boost::dynamic_pointer_cast<urdf::Box>
-                ( model_.links_.at ( seg.getName() )->collision->geometry );
-
-            s1.type=shape_msgs::SolidPrimitive::BOX;
-            s1.dimensions.resize ( 3 );
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_X]=box->dim.x;
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Y]=box->dim.y;
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Z]=box->dim.z;
-
-        } else if ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::CYLINDER ) {
-            boost::shared_ptr<urdf::Cylinder> cylinder =
-                boost::dynamic_pointer_cast<urdf::Cylinder>
-                ( model_.links_.at ( seg.getName() )->collision->geometry );
-
-            s1.dimensions.resize ( 2 );
-            s1.type=shape_msgs::SolidPrimitive::CYLINDER;
-            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_HEIGHT]=cylinder->length;
-            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_RADIUS]=cylinder->radius;
-
-        } else if ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::SPHERE ) {
-            s1.type=shape_msgs::SolidPrimitive::SPHERE;
-            boost::shared_ptr<urdf::Sphere> sphere =
-                boost::dynamic_pointer_cast<urdf::Sphere>
-                ( model_.links_.at ( seg.getName() )->collision->geometry );
-            s1.dimensions.resize ( 1 );
-            s1.dimensions[shape_msgs::SolidPrimitive::SPHERE_RADIUS]=sphere->radius;
-        } else {
-            ROS_ERROR ( "Unsupported Collision Geometry" );
-        }
-
-
-        // Get Collision Origin
-        Eigen::Vector3d origin_Trans_collision ( model_.links_.at ( seg.getName() )->collision->origin.position.x,
-                model_.links_.at ( seg.getName() )->collision->origin.position.y,
-                model_.links_.at ( seg.getName() )->collision->origin.position.z );
-        Eigen::Quaterniond origin_Quat_collision (
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.w,
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.x,
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.y,
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.z
-        );
-        origin_T_collision.translation() =origin_Trans_collision;
-        origin_T_collision.linear() =origin_Quat_collision.toRotationMatrix();
-
-        // Finds cartesian pose w.r.t to base frame
-        KDL::Frame cartpos;
-        kdl_fk_solver_->JntToCart ( kdl_joint_positions,cartpos,i+1 );
-        tf::transformKDLToEigen ( cartpos,base_T_origin );
-        base_T_collision=base_T_origin*origin_T_collision;
-        rvizDisplay.displayMarker ( s1,base_T_collision,base_link_,i, {0.1,0.5,0.2,0.5} );
-    }
-    return false;
-}
 
 
 
@@ -1438,6 +1388,9 @@ bool    ConstrainedManipulability::getCollisionModel ( KDL::Chain &  chain,
             model.links_.at ( seg.getName() )->collision->origin.rotation.z
         );
 
+	link_origin_T_collision_origin.translation()=origin_Trans_collision;
+	link_origin_T_collision_origin.linear()=origin_Quat_collision.toRotationMatrix();
+	
         // Finds cartesian pose w.r.t to base frame
 
         KDL::Frame cartpos;

@@ -26,6 +26,7 @@
 #include "geometry_msgs/TransformStamped.h"
 
 #include <geometric_shapes/shapes.h>
+#include <geometric_shapes/shape_operations.h>
 #include <geometric_shapes/mesh_operations.h>
 
 #include <kdl_parser/kdl_parser.hpp>
@@ -50,8 +51,8 @@
 struct GeometryInformation
 {
    std::vector<std::unique_ptr<shapes::Shape>> shapes;
-   TransformVector & geometry_transforms;
-   JacobianVector  & geometry_jacobians;
+   TransformVector geometry_transforms;
+   JacobianVector  geometry_jacobians;
    
    
    void clear()
@@ -120,7 +121,7 @@ protected:
                            );
     
     bool getCollisionModel ( const  KDL::JntArray & jointpositions,
-                            GeometryInformation geometry_information
+                            GeometryInformation & geometry_information
                            );
     
     /** getCollisionModel returns  kinematic information about collision geometry
@@ -176,6 +177,8 @@ public:
     bool displayObjects();
     /// Display calculated collision model in rviz
     bool displayCollisionModel ( sensor_msgs::JointState const & joint_state );
+    /// Display calculated collision model in rviz
+    bool displayCollisionModel ( sensor_msgs::JointState const & joint_state, bool mesh );
     /// Checks the current state for collision
     bool checkCollision ( const sensor_msgs::JointState & joint_states );
 
