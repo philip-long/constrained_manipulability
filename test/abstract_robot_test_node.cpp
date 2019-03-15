@@ -23,6 +23,8 @@ int main ( int argc, char **argv ) {
 
     ConstrainedManipulability robot_polytope ( nh,root,tip );
 
+    ros::Duration ( 1.0 ).sleep();
+
     std::vector<int> object_primitive;
     std::vector<std::vector<double>> obj_dimensions;
     std::vector<std::vector<double>> obj_poses;
@@ -55,8 +57,19 @@ int main ( int argc, char **argv ) {
             recieved=false;
             ROS_INFO ( "------Displaying Robot Collision Model------" );
             robot_polytope.displayCollisionModel ( joint_state );
+            ros::Duration ( 0.1 ).sleep();
+	    ROS_INFO ( "------Get Allowable Motion Polytope------" );
             robot_polytope.getAllowableMotionPolytope ( joint_state,true );
+            ros::Duration ( 0.1 ).sleep();
+	    ROS_INFO ( "------Get Constrained Allowable Motion Polytope------" );
             robot_polytope.getConstrainedAllowableMotionPolytope ( joint_state,true );
+            ros::Duration ( 0.1 ).sleep();
+	    ROS_INFO ( "------Get velocity Motion Polytope------" );
+            robot_polytope.getVelocityPolytope ( joint_state,true );
+            ros::Duration ( 0.1 ).sleep();
+	    ROS_INFO ( "------Get Constrained Motion Polytope------" );
+            robot_polytope.getConstrainedVelocityPolytope ( joint_state,true );
+            ros::Duration ( 0.1 ).sleep();
 
 
 

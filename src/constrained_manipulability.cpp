@@ -9,7 +9,7 @@ ConstrainedManipulability::ConstrainedManipulability ( ros::NodeHandle nh,
         double linearization_limit,
         double dangerfield
                                                      ) :
-nh_ ( nh ),rvizDisplay ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dangerfield ( dangerfield ) {
+nh_ ( nh ),rvizDisplay ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dangerfield_ ( dangerfield ) {
 
 
     std::string robot_desc_string;
@@ -177,23 +177,23 @@ double ConstrainedManipulability::getAllowableMotionPolytope ( const sensor_msgs
     return vol;
 }
 
-double ConstrainedManipulability::getVelocityManipulabilityPolytope ( const sensor_msgs::JointState & joint_states,
+double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::JointState & joint_states,
         bool show_polytope,
         std::vector<double>  color_pts,
         std::vector<double>  color_line ) {
     Eigen::MatrixXd AHrep;
     Eigen::VectorXd bhrep;
 
-    double vol=getVelocityManipulabilityPolytope ( joint_states,
-               show_polytope,
-               AHrep,
-               bhrep,
-               color_pts,color_line );
+    double vol=getVelocityPolytope ( joint_states,
+                                     show_polytope,
+                                     AHrep,
+                                     bhrep,
+                                     color_pts,color_line );
     return vol;
 }
 
 
-double ConstrainedManipulability::getVelocityManipulabilityPolytope ( const sensor_msgs::JointState & joint_states,
+double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::JointState & joint_states,
         bool show_polytope,
         Eigen::MatrixXd AHrep,
         Eigen::VectorXd bhrep,
@@ -484,7 +484,7 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
                 projectTranslationalJacobian ( nt,w_J_out_p1,J_proj );
                 J_constraints.push_back ( J_proj );
                 if ( velocity_polytope ) {
-                    distances.push_back ( dangerfield* ( obj_distances[j] *obj_distances[j] )-obj_distances[j] );
+                    distances.push_back ( dangerfield_* ( obj_distances[j] *obj_distances[j] )-obj_distances[j] );
                 } else {
                     distances.push_back ( obj_distances[j] );
                 }
@@ -943,6 +943,419 @@ void ConstrainedManipulability::jointStatetoKDLJointArray ( KDL::Chain & chain, 
         }
     }
 }
+
+
+double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( KDL::Chain &  chain,
+        urdf::Model & model,
+        FCLObjectSet objects,
+        const sensor_msgs::JointState & joint_states,
+        Eigen::MatrixXd & AHrep,
+        Eigen::VectorXd & bhrep,
+        double linearization_limit,
+        double distance_threshold ) {
+
+    int ndof=chain.getNrOfJoints();
+
+    Eigen::MatrixXd Qset,Vset;
+
+    Eigen::MatrixXd ndof_identity_matrix;
+    ndof_identity_matrix.resize ( ndof,ndof );
+    ndof_identity_matrix.setZero();
+    for ( int i = 0; i<ndof_identity_matrix.rows(); i++ ) {
+        for ( int j = 0; j<ndof_identity_matrix.cols(); j++ ) {
+            if ( i==j ) {
+                ndof_identity_matrix ( i,j ) =1;
+            }
+        }
+    }
+
+    KDL::JntArray 	kdl_joint_positions ( ndof );
+    jointStatetoKDLJointArray ( chain,joint_states,kdl_joint_positions );
+
+    boost::scoped_ptr<KDL::ChainJntToJacSolver>  kdl_dfk_solver;
+    boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> kdl_fk_solver;
+
+
+    //     // Collision model
+    std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
+//     // Collision Link transforms
+    TransformVector geometry_transforms;
+//     // Collision Link Jacobians
+    JacobianVector geometry_jacobians;
+
+
+    getCollisionModel ( chain,model, kdl_joint_positions,geometry_mkrs,geometry_transforms,geometry_jacobians );
+
+
+    bool collision_free=getPolytopeHyperPlanes ( chain,
+                        model,
+                        objects,
+                        kdl_joint_positions,
+                        geometry_mkrs,
+                        geometry_transforms,
+                        geometry_jacobians ,
+                        AHrep,
+                        bhrep,
+                        distance_threshold,
+                        linearization_limit );
+
+    if ( !collision_free ) {
+        return 0.0;
+    }
+
+
+    bool valid_poly=getVrepPolytope ( AHrep,bhrep,Qset );
+
+    if ( !valid_poly ) {
+        return 0.0;
+    }
+    getCartesianPolytope ( Qset,geometry_jacobians.back().topRows ( 3 ),geometry_transforms.back().translation(),Vset );
+
+    double vol_reduced=getPolytopeVolume ( Vset );
+    return vol_reduced;
+
+}
+
+
+
+
+double ConstrainedManipulability::getConstrainedVelocityPolytope ( KDL::Chain &  chain,
+        urdf::Model & model,
+        FCLObjectSet objects,
+        const sensor_msgs::JointState & joint_states,
+        Eigen::MatrixXd & AHrep,
+        Eigen::VectorXd & bhrep,
+        double dangerfield,
+        double distance_threshold ) {
+
+    int ndof=chain.getNrOfJoints();
+
+    Eigen::MatrixXd Qset,Vset;
+
+    Eigen::MatrixXd ndof_identity_matrix;
+    ndof_identity_matrix.resize ( ndof,ndof );
+    ndof_identity_matrix.setZero();
+    for ( int i = 0; i<ndof_identity_matrix.rows(); i++ ) {
+        for ( int j = 0; j<ndof_identity_matrix.cols(); j++ ) {
+            if ( i==j ) {
+                ndof_identity_matrix ( i,j ) =1;
+            }
+        }
+    }
+
+    KDL::JntArray 	kdl_joint_positions ( ndof );
+    jointStatetoKDLJointArray ( chain,joint_states,kdl_joint_positions );
+
+    boost::scoped_ptr<KDL::ChainJntToJacSolver>  kdl_dfk_solver;
+    boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> kdl_fk_solver;
+
+
+    //     // Collision model
+    std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
+//     // Collision Link transforms
+    TransformVector geometry_transforms;
+//     // Collision Link Jacobians
+    JacobianVector geometry_jacobians;
+
+
+    getCollisionModel ( chain,model, kdl_joint_positions,geometry_mkrs,geometry_transforms,geometry_jacobians );
+
+
+    bool collision_free=getPolytopeHyperPlanes ( chain,
+                        model,
+                        objects,
+                        kdl_joint_positions,
+                        geometry_mkrs,
+                        geometry_transforms,
+                        geometry_jacobians ,
+                        AHrep,
+                        bhrep,
+                        distance_threshold,
+                        0.0,
+                        true,dangerfield);
+
+    if ( !collision_free ) {
+        return 0.0;
+    }
+
+
+    bool valid_poly=getVrepPolytope ( AHrep,bhrep,Qset );
+
+    if ( !valid_poly ) {
+        return 0.0;
+    }
+    getCartesianPolytope ( Qset,geometry_jacobians.back().topRows ( 3 ),geometry_transforms.back().translation(),Vset );
+
+    double vol_reduced=getPolytopeVolume ( Vset );
+    return vol_reduced;
+
+}
+
+
+
+bool ConstrainedManipulability::getPolytopeHyperPlanes ( KDL::Chain &  chain,
+        urdf::Model & model,
+        FCLObjectSet objects,
+        const  KDL::JntArray & kdl_joint_positions,
+        const  std::vector<shape_msgs::SolidPrimitive> &	geometry_mkrs,
+        const TransformVector & geometry_transforms,
+        const JacobianVector  & geometry_jacobians,
+        Eigen::MatrixXd & AHrep,
+        Eigen::VectorXd & bhrep,
+        double distance_threshold,
+        double linearization_limit,
+        bool velocity_polytope,
+        double dangerfield
+                                                       ) {
+
+    int ndof=chain.getNrOfJoints();
+    std::vector<double> qmax ( ndof ),qmin ( ndof ),qdotmax ( ndof ),qdotmin ( ndof );
+
+    int mvable_jnt ( 0 );
+    for ( int i=0; i<ndof+1; ++i ) {
+        KDL::Segment seg=chain.getSegment ( i );
+        KDL::Joint kdl_joint=seg.getJoint();
+
+        if ( kdl_joint.getType() !=KDL::Joint::None ) {
+            qmax[mvable_jnt]=model.joints_.at ( kdl_joint.getName() )->limits->upper;
+            qmin[mvable_jnt]=model.joints_.at ( kdl_joint.getName() )->limits->lower;
+
+            qdotmax[mvable_jnt]=model.joints_.at ( kdl_joint.getName() )->limits->velocity;
+            qdotmin[mvable_jnt]=-model.joints_.at ( kdl_joint.getName() )->limits->velocity;
+
+
+            mvable_jnt++;
+        }
+
+    }
+
+    Eigen::MatrixXd ndof_identity_matrix;
+    ndof_identity_matrix.resize ( ndof,ndof );
+    ndof_identity_matrix.setZero();
+    for ( int i = 0; i<ndof_identity_matrix.rows(); i++ ) {
+        for ( int j = 0; j<ndof_identity_matrix.cols(); j++ ) {
+            if ( i==j ) {
+                ndof_identity_matrix ( i,j ) =1;
+            }
+        }
+    }
+    // Object ids
+    std::vector<int> obj_ids;
+    // Closest points
+    std::vector<Eigen::Vector3d> p1w,p2w;
+    // Min distance to object
+    std::vector<double> obj_distances;
+    Eigen::Vector3d nt;
+    std::vector<double> distances;
+    distances.clear();
+    std::vector<Eigen::Matrix<double,1,Eigen::Dynamic>> J_constraints;
+    J_constraints.clear();
+    // For all robot links
+    for ( int i = 0; i<geometry_mkrs.size(); i++ ) {
+
+        FCLInterface::checkDistanceObjectWorld ( geometry_mkrs[i],
+                geometry_transforms[i],
+                objects,
+                obj_distances,
+                p1w,
+                p2w );
+
+        for ( unsigned int j=0
+                             ; j<obj_distances.size(); j++ ) {
+            Eigen::Matrix<double,6,Eigen::Dynamic> w_J_out_p1; //
+            Eigen::Matrix<double,1,Eigen::Dynamic> J_proj;
+            J_proj.setZero();
+            w_J_out_p1.setZero();
+
+            if ( obj_distances[j]<0.0 ) {
+                // in collision
+                ROS_WARN ( " In collision" );
+                return false;
+            } else if ( obj_distances[j]<distance_threshold ) {
+
+                // Save the distance
+                Eigen::Vector3d rdiff=p2w[j] - p1w[j];
+                nt=rdiff; // direction of obstacle
+                nt.normalize();
+                // Get Jacobian at link
+                Eigen::Vector3d w_delta_p1_collision_origin=p1w[j]-geometry_transforms[i].translation();
+                // Get the Jacobian at p1
+
+                screwTransform ( geometry_jacobians[i],
+                                 w_J_out_p1,
+                                 w_delta_p1_collision_origin );
+                projectTranslationalJacobian ( nt,w_J_out_p1,J_proj );
+                J_constraints.push_back ( J_proj );
+                if ( velocity_polytope ) {
+                    distances.push_back ( dangerfield* ( obj_distances[j] *obj_distances[j] )-obj_distances[j] );
+                } else {
+                    distances.push_back ( obj_distances[j] );
+                }
+            }
+        }
+    }
+
+    // For velocity polytope there are ndof*2 less hyperplanes
+    int offset ( 4 );
+    if ( velocity_polytope ) {
+        offset=2;
+    }
+    AHrep.resize ( offset*ndof+ J_constraints.size(),
+                   ndof );
+    bhrep.resize ( offset*ndof + distances.size(),1 );
+    AHrep.setZero();
+    bhrep.setZero();
+
+    if ( velocity_polytope ) { // If velocity , then the joint position constraints simply scale max velocity
+        AHrep.topRows ( ndof ) =ndof_identity_matrix;  // ndof_*ndof block at row  0 colum 0;ndof_
+        AHrep.block ( ndof,0,ndof,ndof ) =-ndof_identity_matrix; // ndof_*ndof block at row  ndof_ colum 0;ndof_
+
+        for ( int i = 0; i < ndof; ++i ) {
+            double qmean= ( qmax[i]+qmin[i] ) /2;
+            double val_max=fmax ( qmean,kdl_joint_positions ( i ) )-qmean;
+            double val_min=fmin ( qmean,kdl_joint_positions ( i ) )-qmean;
+            double dmax=pow ( ( ( ( val_max ) / ( ( qmax[i]-qmean ) ) ) ),2 );
+            double dmin=pow ( ( ( ( val_min ) / ( ( qmin[i]-qmean ) ) ) ),2 );
+            // Make sure the value is witin joint limits and these limits are correctly defined.
+            ROS_ASSERT ( ~std::isnan ( dmax ) && ~std::isnan ( dmin ) && ~std::isinf ( dmax ) && ~std::isinf ( dmin ) );
+            bhrep ( i ) =dmax*qdotmax[i];
+            bhrep ( i+ndof ) =-dmin*qdotmin[i];
+        }
+
+    } else {
+      
+        AHrep.topRows ( ndof ) =ndof_identity_matrix;  // ndof_*ndof block at row  0 colum 0;ndof_
+        AHrep.block ( ndof,0,ndof,ndof ) =ndof_identity_matrix; // ndof_*ndof block at row  ndof_ colum 0;ndof_
+        AHrep.block ( ndof*2,0,ndof,ndof ) =ndof_identity_matrix; // ndof_*ndof block at row  ndof_*2 colum 0;ndof_
+        AHrep.block ( ndof*3,0,ndof,ndof ) =-ndof_identity_matrix; // ndof_*ndof block at row  ndof_*3 colum 0;ndof_ -ndof_identity_matrix_ for negative joint limits
+        for ( int i = 0; i < ndof; ++i ) {
+            bhrep ( i ) =qmax[i]-kdl_joint_positions ( i );
+            bhrep ( i+ndof ) =kdl_joint_positions ( i )-qmin[i];
+            bhrep ( i+2*ndof ) =linearization_limit;
+            bhrep ( i+3*ndof ) =-linearization_limit;
+        }
+    }
+
+    for ( int var = 0; var < J_constraints.size(); ++var ) {
+        AHrep.row ( offset*ndof+var ) =J_constraints[var];
+        bhrep ( offset*ndof+var ) =distances[var]; // Small tolerance to stop passing through
+    }
+
+    return true;
+}
+
+
+
+
+bool    ConstrainedManipulability::getCollisionModel ( KDL::Chain &  chain,
+        urdf::Model & model,
+        const  KDL::JntArray & kdl_joint_positions,
+        std::vector<shape_msgs::SolidPrimitive> & geometry_mkrs,
+        TransformVector & geometry_transforms,
+        JacobianVector  & geometry_jacobians
+                                                     ) {
+
+
+
+
+    geometry_mkrs.clear();
+    geometry_transforms.clear();
+    geometry_jacobians.clear();
+    boost::scoped_ptr<KDL::ChainJntToJacSolver>  kdl_dfk_solver;
+    boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> kdl_fk_solver;
+    Eigen::Affine3d link_origin_T_collision_origin,base_T_link_origin,base_T_collision_origin;
+
+    int ndof=chain.getNrOfJoints();
+
+    // Calculates the segement's collision geomtery
+    //  The transform to the origin of the collision geometry
+    //  The Jacobian matrix at the origin of the collisiNon geometry
+    for ( int i=0; i<chain.getNrOfSegments(); ++i ) {
+        KDL::Segment seg=chain.getSegment ( i ); // Get current segment
+
+        // Get Collision Geometry
+        shape_msgs::SolidPrimitive s1;
+
+        if ( model.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::BOX ) {
+            boost::shared_ptr<urdf::Box> box =
+                boost::dynamic_pointer_cast<urdf::Box>
+                ( model.links_.at ( seg.getName() )->collision->geometry );
+
+            s1.type=shape_msgs::SolidPrimitive::BOX;
+            s1.dimensions.resize ( 3 );
+            s1.dimensions[shape_msgs::SolidPrimitive::BOX_X]=box->dim.x;
+            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Y]=box->dim.y;
+            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Z]=box->dim.z;
+
+        } else if ( model.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::CYLINDER ) {
+            boost::shared_ptr<urdf::Cylinder> cylinder =
+                boost::dynamic_pointer_cast<urdf::Cylinder>
+                ( model.links_.at ( seg.getName() )->collision->geometry );
+
+            s1.dimensions.resize ( 2 );
+            s1.type=shape_msgs::SolidPrimitive::CYLINDER;
+            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_HEIGHT]=cylinder->length;
+            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_RADIUS]=cylinder->radius;
+
+        } else if ( model.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::SPHERE ) {
+            s1.type=shape_msgs::SolidPrimitive::SPHERE;
+            boost::shared_ptr<urdf::Sphere> sphere =
+                boost::dynamic_pointer_cast<urdf::Sphere>
+                ( model.links_.at ( seg.getName() )->collision->geometry );
+            s1.dimensions.resize ( 1 );
+            s1.dimensions[shape_msgs::SolidPrimitive::SPHERE_RADIUS]=sphere->radius;
+        } else {
+            ROS_ERROR ( "Unsupported Collision Geometry" );
+            return false;
+
+        }
+
+
+        // Get Collision Origin
+        Eigen::Vector3d origin_Trans_collision ( model.links_.at ( seg.getName() )->collision->origin.position.x,
+                model.links_.at ( seg.getName() )->collision->origin.position.y,
+                model.links_.at ( seg.getName() )->collision->origin.position.z );
+        Eigen::Quaterniond origin_Quat_collision (
+            model.links_.at ( seg.getName() )->collision->origin.rotation.w,
+            model.links_.at ( seg.getName() )->collision->origin.rotation.x,
+            model.links_.at ( seg.getName() )->collision->origin.rotation.y,
+            model.links_.at ( seg.getName() )->collision->origin.rotation.z
+        );
+
+        // Finds cartesian pose w.r.t to base frame
+
+        KDL::Frame cartpos;
+        kdl_fk_solver->JntToCart ( kdl_joint_positions,cartpos,i+1 );
+
+        tf::transformKDLToEigen ( cartpos,base_T_link_origin );
+
+        base_T_collision_origin=base_T_link_origin*link_origin_T_collision_origin;
+
+        // Get Jacobian at collision geometry origin
+        KDL::Jacobian base_J_link_origin;
+        base_J_link_origin.resize ( ndof );
+
+        kdl_dfk_solver->JntToJac ( kdl_joint_positions,base_J_link_origin,i+1 );
+        Eigen::MatrixXd Jac=base_J_link_origin.data;
+
+        Eigen::Vector3d base_L_link_collision= ( base_T_link_origin.linear() * link_origin_T_collision_origin.translation() );
+
+
+
+        Eigen::Matrix<double,6,Eigen::Dynamic> _base_J_collision_origin;
+
+        screwTransform ( base_J_link_origin.data,_base_J_collision_origin,base_L_link_collision );
+
+        // Push back solutions
+        geometry_mkrs.push_back ( s1 );
+        geometry_transforms.push_back ( base_T_collision_origin );
+        geometry_jacobians.push_back ( _base_J_collision_origin );
+    }
+    return true;
+}
+
+
+
 
 
 

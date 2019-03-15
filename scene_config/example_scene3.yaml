@@ -1,7 +1,3 @@
-waypoints: 10
-pose_weight: 1000.0
-poly_weight: 1.0
-timestep: 0.075
 object_primitive: [1,2,2,1,1,3,1,1]
 object_dimensions: [
 [1.4,1.5,0.2],
