@@ -103,7 +103,9 @@ private:
     static void jointStatetoKDLJointArray ( KDL::Chain & chain, const sensor_msgs::JointState & joint_states,
                                             KDL::JntArray & kdl_joint_positions );
             
-    // This function is taken from https://github.com/tu-darmstadt-ros-pkg with a tiny change
+    /** This function is taken from https://github.com/tu-darmstadt-ros-pkg with a tiny change
+    * https://github.com/tu-darmstadt-ros-pkg/robot_self_filter/blob/master/src/self_mask.cpp#L76
+    **/
      static std::unique_ptr<shapes::Shape> constructShape(const urdf::Geometry *geom);
 protected:
 
@@ -181,7 +183,8 @@ public:
     bool displayCollisionModel ( sensor_msgs::JointState const & joint_state, bool mesh );
     /// Checks the current state for collision
     bool checkCollision ( const sensor_msgs::JointState & joint_states );
-
+    /// Checks the current state for collision
+    bool checkCollision ( const sensor_msgs::JointState & joint_states,bool mesh );
 
 
 

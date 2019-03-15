@@ -124,6 +124,7 @@ bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState &
     getCollisionModel ( kdl_joint_positions,geometry_mkrs,geometry_transforms );
 
 
+
     for ( int i = 0; i<geometry_mkrs.size(); i++ ) {
         if ( fclInterface.checkCollisionObjectWorld ( geometry_mkrs[i],
                 geometry_transforms[i] )
@@ -133,6 +134,40 @@ bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState &
     }
     return false;
 }
+
+
+
+bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState & joint_states,bool mesh ) {
+    KDL::JntArray 	kdl_joint_positions ( ndof_ );
+    jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
+    GeometryInformation geometry_information;
+    getCollisionModel ( kdl_joint_positions,geometry_information );
+
+
+
+    for ( int i = 0; i<geometry_information.geometry_transforms.size(); i++ ) {
+        shapes::ShapeMsg sj;
+        shapes::constructMsgFromShape ( geometry_information.shapes[i].get(),sj );
+
+
+        if ( sj.which() ==0 ) {
+            if ( fclInterface.checkCollisionObjectWorld ( boost::get<shape_msgs::SolidPrimitive> ( sj ),
+                    geometry_information.geometry_transforms[i] )
+               ) {
+                return true;
+            } else if ( sj.which() ==1 ) {
+                if ( fclInterface.checkCollisionObjectWorld ( boost::get<shape_msgs::Mesh> ( sj ),
+                        geometry_information.geometry_transforms[i] )
+                   ) {
+                    return true;
+                }
+
+            }
+        }
+    }
+    return false;
+}
+
 
 
 
@@ -615,8 +650,8 @@ bool    ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kd
             model_.links_.at ( seg.getName() )->collision->origin.rotation.y,
             model_.links_.at ( seg.getName() )->collision->origin.rotation.z
         );
-	link_origin_T_collision_origin.translation()=origin_Trans_collision;
-	link_origin_T_collision_origin.linear()=origin_Quat_collision.toRotationMatrix();
+        link_origin_T_collision_origin.translation() =origin_Trans_collision;
+        link_origin_T_collision_origin.linear() =origin_Quat_collision.toRotationMatrix();
         // Finds cartesian pose w.r.t to base frame
 
         KDL::Frame cartpos;
@@ -673,15 +708,15 @@ std::unique_ptr<shapes::Shape> ConstrainedManipulability::constructShape ( const
 
 bool ConstrainedManipulability::displayCollisionModel ( sensor_msgs::JointState const & joint_state ) {
 
-      KDL::JntArray 	kdl_joint_positions ( ndof_ );
-      jointStatetoKDLJointArray ( joint_state,kdl_joint_positions );
-      std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
+    KDL::JntArray 	kdl_joint_positions ( ndof_ );
+    jointStatetoKDLJointArray ( joint_state,kdl_joint_positions );
+    std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
 //     // Collision Link transforms
-       TransformVector geometry_transforms; 
-       getCollisionModel ( kdl_joint_positions,geometry_mkrs,geometry_transforms );
-      for ( int i=0; i<geometry_transforms.size(); ++i ) {
+    TransformVector geometry_transforms;
+    getCollisionModel ( kdl_joint_positions,geometry_mkrs,geometry_transforms );
+    for ( int i=0; i<geometry_transforms.size(); ++i ) {
         rvizDisplay.displayMarker ( geometry_mkrs[i],geometry_transforms[i],base_link_,i, {0.1,0.5,0.2,0.5} );
-      }
+    }
     return false;
 }
 
@@ -691,10 +726,10 @@ bool ConstrainedManipulability::displayCollisionModel ( sensor_msgs::JointState 
     KDL::JntArray 	kdl_joint_positions ( ndof_ );
     jointStatetoKDLJointArray ( joint_state,kdl_joint_positions );
     getCollisionModel ( kdl_joint_positions,geometry_information );
-    
+
     for ( int i=0; i<geometry_information.geometry_transforms.size(); ++i ) {
-	visualization_msgs::Marker mk;
-	shapes::constructMarkerFromShape( geometry_information.shapes[i].get(),mk, false);
+        visualization_msgs::Marker mk;
+        shapes::constructMarkerFromShape ( geometry_information.shapes[i].get(),mk, false );
         rvizDisplay.displayMarker ( mk,
                                     geometry_information.geometry_transforms[i],
                                     base_link_,i, {0.1,0.5,0.2,0.5} );
@@ -730,9 +765,9 @@ bool ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kdl_j
             model_.links_.at ( seg.getName() )->collision->origin.rotation.y,
             model_.links_.at ( seg.getName() )->collision->origin.rotation.z
         );
-	
-	link_origin_T_collision_origin.translation()=origin_Trans_collision;
-	link_origin_T_collision_origin.linear()=origin_Quat_collision.toRotationMatrix();
+
+        link_origin_T_collision_origin.translation() =origin_Trans_collision;
+        link_origin_T_collision_origin.linear() =origin_Quat_collision.toRotationMatrix();
 
         // Finds cartesian pose w.r.t to base frame
         KDL::Frame cartpos;
@@ -836,9 +871,9 @@ bool    ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kd
             model_.links_.at ( seg.getName() )->collision->origin.rotation.y,
             model_.links_.at ( seg.getName() )->collision->origin.rotation.z
         );
-	
-	link_origin_T_collision_origin.translation()=origin_Trans_collision;
-	link_origin_T_collision_origin.linear()=origin_Quat_collision.toRotationMatrix();
+
+        link_origin_T_collision_origin.translation() =origin_Trans_collision;
+        link_origin_T_collision_origin.linear() =origin_Quat_collision.toRotationMatrix();
         // Finds cartesian pose w.r.t to base frame
 
         KDL::Frame cartpos;
@@ -1388,9 +1423,9 @@ bool    ConstrainedManipulability::getCollisionModel ( KDL::Chain &  chain,
             model.links_.at ( seg.getName() )->collision->origin.rotation.z
         );
 
-	link_origin_T_collision_origin.translation()=origin_Trans_collision;
-	link_origin_T_collision_origin.linear()=origin_Quat_collision.toRotationMatrix();
-	
+        link_origin_T_collision_origin.translation() =origin_Trans_collision;
+        link_origin_T_collision_origin.linear() =origin_Quat_collision.toRotationMatrix();
+
         // Finds cartesian pose w.r.t to base frame
 
         KDL::Frame cartpos;
