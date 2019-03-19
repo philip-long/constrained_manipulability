@@ -114,54 +114,36 @@ bool ConstrainedManipulability::displayObjects() {
     fclInterface.displayObjects ( base_link_ );
 }
 
-bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState & joint_states ) {
-    KDL::JntArray 	kdl_joint_positions ( ndof_ );
-    jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
-    std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
-//     // Collision Link transforms
-    TransformVector geometry_transforms;
-
-    getCollisionModel ( kdl_joint_positions,geometry_mkrs,geometry_transforms );
-
-
-
-    for ( int i = 0; i<geometry_mkrs.size(); i++ ) {
-        if ( fclInterface.checkCollisionObjectWorld ( geometry_mkrs[i],
-                geometry_transforms[i] )
-           ) {
-            return true;
-        }
-    }
-    return false;
-}
-
 
 
 bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState & joint_states,bool mesh ) {
     KDL::JntArray 	kdl_joint_positions ( ndof_ );
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
+
     GeometryInformation geometry_information;
     getCollisionModel ( kdl_joint_positions,geometry_information );
 
 
 
     for ( int i = 0; i<geometry_information.geometry_transforms.size(); i++ ) {
-        shapes::ShapeMsg sj;
-        shapes::constructMsgFromShape ( geometry_information.shapes[i].get(),sj );
+        shapes::ShapeMsg current_shape;
+        shapes::constructMsgFromShape ( geometry_information.shapes[i].get(),current_shape );
 
 
-        if ( sj.which() ==0 ) {
-            if ( fclInterface.checkCollisionObjectWorld ( boost::get<shape_msgs::SolidPrimitive> ( sj ),
+        if ( current_shape.which() ==0 ) {
+            if ( fclInterface.checkCollisionObjectWorld ( boost::get<shape_msgs::SolidPrimitive> ( current_shape ),
                     geometry_information.geometry_transforms[i] )
                ) {
                 return true;
-            } else if ( sj.which() ==1 ) {
-                if ( fclInterface.checkCollisionObjectWorld ( boost::get<shape_msgs::Mesh> ( sj ),
+            } else if ( current_shape.which() ==1 ) {
+                if ( fclInterface.checkCollisionObjectWorld ( boost::get<shape_msgs::Mesh> ( current_shape ),
                         geometry_information.geometry_transforms[i] )
                    ) {
                     return true;
                 }
 
+            } else {
+                ROS_ERROR ( "Collision Geometry not support" );
             }
         }
     }
@@ -361,21 +343,14 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const 
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
 
 
-//     // Collision model
-    std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
-//     // Collision Link transforms
-    TransformVector geometry_transforms;
-//     // Collision Link Jacobians
-    JacobianVector geometry_jacobians;
+    GeometryInformation geometry_information;
 
 
-    getCollisionModel ( kdl_joint_positions,geometry_mkrs,geometry_transforms,geometry_jacobians );
+    getCollisionModel ( kdl_joint_positions,geometry_information );
 
 
     bool collision_free=getPolytopeHyperPlanes ( kdl_joint_positions,
-                        geometry_mkrs,
-                        geometry_transforms,
-                        geometry_jacobians ,
+                        geometry_information,
                         AHrep,
                         bhrep );
 
@@ -389,14 +364,19 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const 
     if ( !valid_poly ) {
         return 0.0;
     }
-    getCartesianPolytope ( Qset,geometry_jacobians.back().topRows ( 3 ),geometry_transforms.back().translation(),Vset );
+    getCartesianPolytope ( Qset,
+                           geometry_information.geometry_jacobians.back().topRows ( 3 ),
+                           geometry_information.geometry_transforms.back().translation(),
+                           Vset );
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "polytope", Vset,geometry_transforms.back().translation(),color_pts, color_line );
+        rvizDisplay.plotPolytope ( "polytope", Vset,geometry_information.geometry_transforms.back().translation(),color_pts, color_line );
     }
 
     vol_reduced=getPolytopeVolume ( Vset );
     return vol_reduced;
 }
+
+
 
 double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_msgs::JointState & joint_states,
         bool show_polytope,
@@ -427,26 +407,16 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_
     double vol_reduced ( 0.0 );
     KDL::JntArray 	kdl_joint_positions ( ndof_ );
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
+    GeometryInformation geometry_information;
 
 
-//     // Collision model
-    std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
-//     // Collision Link transforms
-    TransformVector geometry_transforms;
-//     // Collision Link Jacobians
-    JacobianVector geometry_jacobians;
-
-
-    getCollisionModel ( kdl_joint_positions,geometry_mkrs,geometry_transforms,geometry_jacobians );
+    getCollisionModel ( kdl_joint_positions,geometry_information );
 
 
     bool collision_free=getPolytopeHyperPlanes ( kdl_joint_positions,
-                        geometry_mkrs,
-                        geometry_transforms,
-                        geometry_jacobians ,
+                        geometry_information,
                         AHrep,
-                        bhrep,
-                        true );
+                        bhrep,true );
 
     if ( !collision_free ) {
         return 0.0;
@@ -458,21 +428,21 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_
     if ( !valid_poly ) {
         return 0.0;
     }
-    getCartesianPolytope ( Qset,geometry_jacobians.back().topRows ( 3 ),geometry_transforms.back().translation(),Vset );
+    getCartesianPolytope ( Qset,
+                           geometry_information.geometry_jacobians.back().topRows ( 3 ),
+                           geometry_information.geometry_transforms.back().translation(),
+                           Vset );
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "polytope", Vset,geometry_transforms.back().translation(),color_pts, color_line );
+        rvizDisplay.plotPolytope ( "polytope", Vset,geometry_information.geometry_transforms.back().translation(),color_pts, color_line );
     }
 
     vol_reduced=getPolytopeVolume ( Vset );
     return vol_reduced;
 }
 
-
 bool ConstrainedManipulability::getPolytopeHyperPlanes (
     const  KDL::JntArray & kdl_joint_positions,
-    const  std::vector<shape_msgs::SolidPrimitive> &	geometry_mkrs,
-    const TransformVector & geometry_transforms,
-    const JacobianVector  & geometry_jacobians,
+    GeometryInformation & geometry_information,
     Eigen::MatrixXd & AHrep,
     Eigen::VectorXd & bhrep,
     bool velocity_polytope
@@ -491,13 +461,30 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
     std::vector<Eigen::Matrix<double,1,Eigen::Dynamic>> J_constraints;
     J_constraints.clear();
     // For all robot links
-    for ( int i = 0; i<geometry_mkrs.size(); i++ ) {
-        fclInterface.checkDistanceObjectWorld ( geometry_mkrs[i],
-                                                geometry_transforms[i],
-                                                obj_ids,
-                                                obj_distances,
-                                                p1w,
-                                                p2w );
+    for ( int i = 0; i<geometry_information.shapes.size(); i++ ) {
+
+        shapes::ShapeMsg current_shape;
+        shapes::constructMsgFromShape ( geometry_information.shapes[i].get(),current_shape );
+
+        if ( current_shape.which() ==0 ) {
+            fclInterface.checkDistanceObjectWorld ( boost::get<shape_msgs::SolidPrimitive> ( current_shape ),
+                                                    geometry_information.geometry_transforms[i],
+                                                    obj_ids,
+                                                    obj_distances,
+                                                    p1w,
+                                                    p2w );
+        } else if ( current_shape.which() ==1 ) {
+            fclInterface.checkDistanceObjectWorld ( boost::get<shape_msgs::Mesh> ( current_shape ),
+                                                    geometry_information.geometry_transforms[i],
+                                                    obj_ids,
+                                                    obj_distances,
+                                                    p1w,
+                                                    p2w );
+        } else {
+            ROS_ERROR ( "Collision Geometry not support" );
+        }
+
+
 
         for ( unsigned int j=0
                              ; j<obj_distances.size(); j++ ) {
@@ -517,10 +504,10 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
                 nt=rdiff; // direction of obstacle
                 nt.normalize();
                 // Get Jacobian at link
-                Eigen::Vector3d w_delta_p1_collision_origin=p1w[j]-geometry_transforms[i].translation();
+                Eigen::Vector3d w_delta_p1_collision_origin=p1w[j]-geometry_information.geometry_transforms[i].translation();
                 // Get the Jacobian at p1
 
-                screwTransform ( geometry_jacobians[i],
+                screwTransform ( geometry_information.geometry_jacobians[i],
                                  w_J_out_p1,
                                  w_delta_p1_collision_origin );
                 projectTranslationalJacobian ( nt,w_J_out_p1,J_proj );
@@ -583,92 +570,6 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
 }
 
 
-
-
-bool    ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kdl_joint_positions,
-        std::vector<shape_msgs::SolidPrimitive> & geometry_mkrs,
-        TransformVector & geometry_transforms ) {
-
-    geometry_mkrs.clear();
-    geometry_transforms.clear();
-
-    Eigen::Affine3d link_origin_T_collision_origin,base_T_link_origin,base_T_collision_origin;
-
-    // Calculates the segement's collision geomtery
-    //  The transform to the origin of the collision geometry
-    //  The Jacobian matrix at the origin of the collision geometry
-    for ( int i=0; i<chain_.getNrOfSegments(); ++i ) {
-        KDL::Segment seg=chain_.getSegment ( i ); // Get current segment
-
-        // Get Collision Geometry
-        shape_msgs::SolidPrimitive s1;
-
-        if ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::BOX ) {
-            boost::shared_ptr<urdf::Box> box =
-                boost::dynamic_pointer_cast<urdf::Box>
-                ( model_.links_.at ( seg.getName() )->collision->geometry );
-
-            s1.type=shape_msgs::SolidPrimitive::BOX;
-            s1.dimensions.resize ( 3 );
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_X]=box->dim.x;
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Y]=box->dim.y;
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Z]=box->dim.z;
-
-        } else if ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::CYLINDER ) {
-            boost::shared_ptr<urdf::Cylinder> cylinder =
-                boost::dynamic_pointer_cast<urdf::Cylinder>
-                ( model_.links_.at ( seg.getName() )->collision->geometry );
-
-            s1.dimensions.resize ( 2 );
-            s1.type=shape_msgs::SolidPrimitive::CYLINDER;
-            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_HEIGHT]=cylinder->length;
-            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_RADIUS]=cylinder->radius;
-
-        } else if ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::SPHERE ) {
-            s1.type=shape_msgs::SolidPrimitive::SPHERE;
-            boost::shared_ptr<urdf::Sphere> sphere =
-                boost::dynamic_pointer_cast<urdf::Sphere>
-                ( model_.links_.at ( seg.getName() )->collision->geometry );
-            s1.dimensions.resize ( 1 );
-            s1.dimensions[shape_msgs::SolidPrimitive::SPHERE_RADIUS]=sphere->radius;
-        } else if ( ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::MESH ) ) {
-
-        } else {
-            ROS_ERROR ( "Unsupported Collision Geometry" );
-            return false;
-
-        }
-
-
-        // Get Collision Origin
-        Eigen::Vector3d origin_Trans_collision ( model_.links_.at ( seg.getName() )->collision->origin.position.x,
-                model_.links_.at ( seg.getName() )->collision->origin.position.y,
-                model_.links_.at ( seg.getName() )->collision->origin.position.z );
-        Eigen::Quaterniond origin_Quat_collision (
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.w,
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.x,
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.y,
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.z
-        );
-        link_origin_T_collision_origin.translation() =origin_Trans_collision;
-        link_origin_T_collision_origin.linear() =origin_Quat_collision.toRotationMatrix();
-        // Finds cartesian pose w.r.t to base frame
-
-        KDL::Frame cartpos;
-        kdl_fk_solver_->JntToCart ( kdl_joint_positions,cartpos,i+1 );
-
-        tf::transformKDLToEigen ( cartpos,base_T_link_origin );
-
-        base_T_collision_origin=base_T_link_origin*link_origin_T_collision_origin;
-
-        // Push back solutions
-        geometry_mkrs.push_back ( s1 );
-        geometry_transforms.push_back ( base_T_collision_origin );
-    }
-    return true;
-}
-
-
 std::unique_ptr<shapes::Shape> ConstrainedManipulability::constructShape ( const urdf::Geometry *geom ) {
     ROS_ASSERT ( geom );
 
@@ -710,12 +611,13 @@ bool ConstrainedManipulability::displayCollisionModel ( sensor_msgs::JointState 
 
     KDL::JntArray 	kdl_joint_positions ( ndof_ );
     jointStatetoKDLJointArray ( joint_state,kdl_joint_positions );
-    std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
-//     // Collision Link transforms
-    TransformVector geometry_transforms;
-    getCollisionModel ( kdl_joint_positions,geometry_mkrs,geometry_transforms );
-    for ( int i=0; i<geometry_transforms.size(); ++i ) {
-        rvizDisplay.displayMarker ( geometry_mkrs[i],geometry_transforms[i],base_link_,i, {0.1,0.5,0.2,0.5} );
+    GeometryInformation geometry_information;
+    //     // Collision Link transforms
+    getCollisionModel ( kdl_joint_positions,geometry_information );
+    for ( int i=0; i<geometry_information.geometry_transforms.size(); ++i ) {
+        visualization_msgs::Marker mk;
+        shapes::constructMarkerFromShape ( geometry_information.shapes[i].get(),mk, false );
+        rvizDisplay.displayMarker ( mk,geometry_information.geometry_transforms[i],base_link_,i, {0.1,0.5,0.2,0.5} );
     }
     return false;
 }
@@ -801,109 +703,6 @@ bool ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kdl_j
 
 
 
-}
-
-
-bool    ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kdl_joint_positions,
-        std::vector<shape_msgs::SolidPrimitive> & geometry_mkrs,
-        TransformVector & geometry_transforms,
-        JacobianVector  & geometry_jacobians ) {
-
-
-    geometry_mkrs.clear();
-    geometry_transforms.clear();
-    geometry_jacobians.clear();
-
-
-    Eigen::Affine3d link_origin_T_collision_origin,base_T_link_origin,base_T_collision_origin;
-
-    // Calculates the segement's collision geomtery
-    //  The transform to the origin of the collision geometry
-    //  The Jacobian matrix at the origin of the collision geometry
-    for ( int i=0; i<chain_.getNrOfSegments(); ++i ) {
-        KDL::Segment seg=chain_.getSegment ( i ); // Get current segment
-
-        // Get Collision Geometry
-        shape_msgs::SolidPrimitive s1;
-
-        if ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::BOX ) {
-            boost::shared_ptr<urdf::Box> box =
-                boost::dynamic_pointer_cast<urdf::Box>
-                ( model_.links_.at ( seg.getName() )->collision->geometry );
-
-            s1.type=shape_msgs::SolidPrimitive::BOX;
-            s1.dimensions.resize ( 3 );
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_X]=box->dim.x;
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Y]=box->dim.y;
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Z]=box->dim.z;
-
-        } else if ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::CYLINDER ) {
-            boost::shared_ptr<urdf::Cylinder> cylinder =
-                boost::dynamic_pointer_cast<urdf::Cylinder>
-                ( model_.links_.at ( seg.getName() )->collision->geometry );
-
-            s1.dimensions.resize ( 2 );
-            s1.type=shape_msgs::SolidPrimitive::CYLINDER;
-            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_HEIGHT]=cylinder->length;
-            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_RADIUS]=cylinder->radius;
-
-        } else if ( model_.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::SPHERE ) {
-            s1.type=shape_msgs::SolidPrimitive::SPHERE;
-            boost::shared_ptr<urdf::Sphere> sphere =
-                boost::dynamic_pointer_cast<urdf::Sphere>
-                ( model_.links_.at ( seg.getName() )->collision->geometry );
-            s1.dimensions.resize ( 1 );
-            s1.dimensions[shape_msgs::SolidPrimitive::SPHERE_RADIUS]=sphere->radius;
-        } else {
-            ROS_ERROR ( "Unsupported Collision Geometry" );
-            return false;
-
-        }
-
-
-        // Get Collision Origin
-        Eigen::Vector3d origin_Trans_collision ( model_.links_.at ( seg.getName() )->collision->origin.position.x,
-                model_.links_.at ( seg.getName() )->collision->origin.position.y,
-                model_.links_.at ( seg.getName() )->collision->origin.position.z );
-        Eigen::Quaterniond origin_Quat_collision (
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.w,
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.x,
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.y,
-            model_.links_.at ( seg.getName() )->collision->origin.rotation.z
-        );
-
-        link_origin_T_collision_origin.translation() =origin_Trans_collision;
-        link_origin_T_collision_origin.linear() =origin_Quat_collision.toRotationMatrix();
-        // Finds cartesian pose w.r.t to base frame
-
-        KDL::Frame cartpos;
-        kdl_fk_solver_->JntToCart ( kdl_joint_positions,cartpos,i+1 );
-
-        tf::transformKDLToEigen ( cartpos,base_T_link_origin );
-
-        base_T_collision_origin=base_T_link_origin*link_origin_T_collision_origin;
-
-        // Get Jacobian at collision geometry origin
-        KDL::Jacobian base_J_link_origin;
-        base_J_link_origin.resize ( ndof_ );
-
-        kdl_dfk_solver_->JntToJac ( kdl_joint_positions,base_J_link_origin,i+1 );
-        Eigen::MatrixXd Jac=base_J_link_origin.data;
-
-        Eigen::Vector3d base_L_link_collision= ( base_T_link_origin.linear() * link_origin_T_collision_origin.translation() );
-
-
-
-        Eigen::Matrix<double,6,Eigen::Dynamic> _base_J_collision_origin;
-
-        screwTransform ( base_J_link_origin.data,_base_J_collision_origin,base_L_link_collision );
-
-        // Push back solutions
-        geometry_mkrs.push_back ( s1 );
-        geometry_transforms.push_back ( base_T_collision_origin );
-        geometry_jacobians.push_back ( _base_J_collision_origin );
-    }
-    return true;
 }
 
 
@@ -1077,24 +876,17 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( KDL::C
     boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> kdl_fk_solver;
 
 
-    //     // Collision model
-    std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
-//     // Collision Link transforms
-    TransformVector geometry_transforms;
-//     // Collision Link Jacobians
-    JacobianVector geometry_jacobians;
+    GeometryInformation geometry_information;
 
 
-    getCollisionModel ( chain,model, kdl_joint_positions,geometry_mkrs,geometry_transforms,geometry_jacobians );
+    getCollisionModel ( chain,model, kdl_joint_positions,geometry_information );
 
 
     bool collision_free=getPolytopeHyperPlanes ( chain,
                         model,
                         objects,
                         kdl_joint_positions,
-                        geometry_mkrs,
-                        geometry_transforms,
-                        geometry_jacobians ,
+                        geometry_information,
                         AHrep,
                         bhrep,
                         distance_threshold,
@@ -1110,7 +902,7 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( KDL::C
     if ( !valid_poly ) {
         return 0.0;
     }
-    getCartesianPolytope ( Qset,geometry_jacobians.back().topRows ( 3 ),geometry_transforms.back().translation(),Vset );
+    getCartesianPolytope ( Qset,geometry_information.geometry_jacobians.back().topRows ( 3 ),geometry_information.geometry_transforms.back().translation(),Vset );
 
     double vol_reduced=getPolytopeVolume ( Vset );
     return vol_reduced;
@@ -1151,24 +943,17 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( KDL::Chain & 
     boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> kdl_fk_solver;
 
 
-    //     // Collision model
-    std::vector<shape_msgs::SolidPrimitive> 	geometry_mkrs;
-//     // Collision Link transforms
-    TransformVector geometry_transforms;
-//     // Collision Link Jacobians
-    JacobianVector geometry_jacobians;
+    GeometryInformation geometry_information;
 
 
-    getCollisionModel ( chain,model, kdl_joint_positions,geometry_mkrs,geometry_transforms,geometry_jacobians );
+    getCollisionModel ( chain,model, kdl_joint_positions,geometry_information );
 
 
     bool collision_free=getPolytopeHyperPlanes ( chain,
                         model,
                         objects,
                         kdl_joint_positions,
-                        geometry_mkrs,
-                        geometry_transforms,
-                        geometry_jacobians ,
+                        geometry_information,
                         AHrep,
                         bhrep,
                         distance_threshold,
@@ -1185,7 +970,7 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( KDL::Chain & 
     if ( !valid_poly ) {
         return 0.0;
     }
-    getCartesianPolytope ( Qset,geometry_jacobians.back().topRows ( 3 ),geometry_transforms.back().translation(),Vset );
+    getCartesianPolytope ( Qset,geometry_information.geometry_jacobians.back().topRows ( 3 ),geometry_information.geometry_transforms.back().translation(),Vset );
 
     double vol_reduced=getPolytopeVolume ( Vset );
     return vol_reduced;
@@ -1198,9 +983,7 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes ( KDL::Chain &  chain,
         urdf::Model & model,
         FCLObjectSet objects,
         const  KDL::JntArray & kdl_joint_positions,
-        const  std::vector<shape_msgs::SolidPrimitive> &	geometry_mkrs,
-        const TransformVector & geometry_transforms,
-        const JacobianVector  & geometry_jacobians,
+        const GeometryInformation & geometry_information,
         Eigen::MatrixXd & AHrep,
         Eigen::VectorXd & bhrep,
         double distance_threshold,
@@ -1252,14 +1035,35 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes ( KDL::Chain &  chain,
     std::vector<Eigen::Matrix<double,1,Eigen::Dynamic>> J_constraints;
     J_constraints.clear();
     // For all robot links
-    for ( int i = 0; i<geometry_mkrs.size(); i++ ) {
+    for ( int i = 0; i<geometry_information.shapes.size(); i++ ) {
 
-        FCLInterface::checkDistanceObjectWorld ( geometry_mkrs[i],
-                geometry_transforms[i],
-                objects,
-                obj_distances,
-                p1w,
-                p2w );
+//         FCLInterface::checkDistanceObjectWorld ( geometry_information.geometry_mkrs[i],
+//                 geometry_information.geometry_transforms[i],
+//                 objects,
+//                 obj_distances,
+//                 p1w,
+//                 p2w );
+
+        shapes::ShapeMsg current_shape;
+        shapes::constructMsgFromShape ( geometry_information.shapes[i].get(),current_shape );
+
+        if ( current_shape.which() ==0 ) {
+            FCLInterface::checkDistanceObjectWorld ( boost::get<shape_msgs::SolidPrimitive> ( current_shape ),
+                    geometry_information.geometry_transforms[i],
+                    objects,
+                    obj_distances,
+                    p1w,
+                    p2w );
+        } else if ( current_shape.which() ==1 ) {
+            FCLInterface::checkDistanceObjectWorld ( boost::get<shape_msgs::Mesh> ( current_shape ),
+                    geometry_information.geometry_transforms[i],
+                    objects,
+                    obj_distances,
+                    p1w,
+                    p2w );
+        } else {
+            ROS_ERROR ( "Collision Geometry not support" );
+        }
 
         for ( unsigned int j=0
                              ; j<obj_distances.size(); j++ ) {
@@ -1279,10 +1083,10 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes ( KDL::Chain &  chain,
                 nt=rdiff; // direction of obstacle
                 nt.normalize();
                 // Get Jacobian at link
-                Eigen::Vector3d w_delta_p1_collision_origin=p1w[j]-geometry_transforms[i].translation();
+                Eigen::Vector3d w_delta_p1_collision_origin=p1w[j]-geometry_information.geometry_transforms[i].translation();
                 // Get the Jacobian at p1
 
-                screwTransform ( geometry_jacobians[i],
+                screwTransform ( geometry_information.geometry_jacobians[i],
                                  w_J_out_p1,
                                  w_delta_p1_collision_origin );
                 projectTranslationalJacobian ( nt,w_J_out_p1,J_proj );
@@ -1351,17 +1155,13 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes ( KDL::Chain &  chain,
 bool    ConstrainedManipulability::getCollisionModel ( KDL::Chain &  chain,
         urdf::Model & model,
         const  KDL::JntArray & kdl_joint_positions,
-        std::vector<shape_msgs::SolidPrimitive> & geometry_mkrs,
-        TransformVector & geometry_transforms,
-        JacobianVector  & geometry_jacobians
-                                                     ) {
+        GeometryInformation & geometry_information ) {
 
 
 
 
-    geometry_mkrs.clear();
-    geometry_transforms.clear();
-    geometry_jacobians.clear();
+    geometry_information.clear();
+
     boost::scoped_ptr<KDL::ChainJntToJacSolver>  kdl_dfk_solver;
     boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> kdl_fk_solver;
     Eigen::Affine3d link_origin_T_collision_origin,base_T_link_origin,base_T_collision_origin;
@@ -1375,41 +1175,9 @@ bool    ConstrainedManipulability::getCollisionModel ( KDL::Chain &  chain,
         KDL::Segment seg=chain.getSegment ( i ); // Get current segment
 
         // Get Collision Geometry
-        shape_msgs::SolidPrimitive s1;
+        // Get Collision Geometry
+        std::unique_ptr<shapes::Shape> shape = constructShape ( model.links_.at ( seg.getName() )->collision->geometry.get() );
 
-        if ( model.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::BOX ) {
-            boost::shared_ptr<urdf::Box> box =
-                boost::dynamic_pointer_cast<urdf::Box>
-                ( model.links_.at ( seg.getName() )->collision->geometry );
-
-            s1.type=shape_msgs::SolidPrimitive::BOX;
-            s1.dimensions.resize ( 3 );
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_X]=box->dim.x;
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Y]=box->dim.y;
-            s1.dimensions[shape_msgs::SolidPrimitive::BOX_Z]=box->dim.z;
-
-        } else if ( model.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::CYLINDER ) {
-            boost::shared_ptr<urdf::Cylinder> cylinder =
-                boost::dynamic_pointer_cast<urdf::Cylinder>
-                ( model.links_.at ( seg.getName() )->collision->geometry );
-
-            s1.dimensions.resize ( 2 );
-            s1.type=shape_msgs::SolidPrimitive::CYLINDER;
-            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_HEIGHT]=cylinder->length;
-            s1.dimensions[shape_msgs::SolidPrimitive::CYLINDER_RADIUS]=cylinder->radius;
-
-        } else if ( model.links_.at ( seg.getName() )->collision->geometry->type==urdf::Geometry::SPHERE ) {
-            s1.type=shape_msgs::SolidPrimitive::SPHERE;
-            boost::shared_ptr<urdf::Sphere> sphere =
-                boost::dynamic_pointer_cast<urdf::Sphere>
-                ( model.links_.at ( seg.getName() )->collision->geometry );
-            s1.dimensions.resize ( 1 );
-            s1.dimensions[shape_msgs::SolidPrimitive::SPHERE_RADIUS]=sphere->radius;
-        } else {
-            ROS_ERROR ( "Unsupported Collision Geometry" );
-            return false;
-
-        }
 
 
         // Get Collision Origin
@@ -1446,14 +1214,14 @@ bool    ConstrainedManipulability::getCollisionModel ( KDL::Chain &  chain,
 
 
 
-        Eigen::Matrix<double,6,Eigen::Dynamic> _base_J_collision_origin;
+        Eigen::Matrix<double,6,Eigen::Dynamic> base_J_collision_origin;
 
-        screwTransform ( base_J_link_origin.data,_base_J_collision_origin,base_L_link_collision );
+        screwTransform ( base_J_link_origin.data,base_J_collision_origin,base_L_link_collision );
 
         // Push back solutions
-        geometry_mkrs.push_back ( s1 );
-        geometry_transforms.push_back ( base_T_collision_origin );
-        geometry_jacobians.push_back ( _base_J_collision_origin );
+        geometry_information.shapes.push_back ( std::move ( shape ) );
+        geometry_information.geometry_transforms.push_back ( base_T_collision_origin );
+        geometry_information.geometry_jacobians.push_back ( base_J_collision_origin );
     }
     return true;
 }
@@ -1585,3 +1353,4 @@ double ConstrainedManipulability::getVelocityPolytope ( KDL::Chain &  chain,
     double vol_initial=getPolytopeVolume ( Vset_undeformed );
     return vol_initial;
 }
+

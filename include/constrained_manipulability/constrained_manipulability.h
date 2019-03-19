@@ -39,7 +39,7 @@
 #include <urdf/model.h>
 #include <boost/scoped_ptr.hpp>
 
-#include <ros_collision_checking/fcl_interface.h>
+#include <robot_collision_checking/fcl_interface.h>
 #include <rviz_display/rviz_display.h>
 #include "constrained_manipulability/utility_funcs.h"
 
@@ -48,20 +48,18 @@
 
 
 /// GeometryInformation contains all geomertic information obtained from chain
-struct GeometryInformation
-{
-   std::vector<std::unique_ptr<shapes::Shape>> shapes;
-   TransformVector geometry_transforms;
-   JacobianVector  geometry_jacobians;
-   
-   
-   void clear()
-   {
-     shapes.clear();
-     geometry_transforms.clear();
-     geometry_jacobians.clear();
-   }
-  
+struct GeometryInformation {
+    std::vector<std::unique_ptr<shapes::Shape>> shapes;
+    TransformVector geometry_transforms;
+    JacobianVector  geometry_jacobians;
+
+
+    void clear() {
+        shapes.clear();
+        geometry_transforms.clear();
+        geometry_jacobians.clear();
+    }
+
 };
 
 class ConstrainedManipulability
@@ -102,39 +100,23 @@ private:
     /// Statically convert a joint state message to a KDL joint array based on segment names
     static void jointStatetoKDLJointArray ( KDL::Chain & chain, const sensor_msgs::JointState & joint_states,
                                             KDL::JntArray & kdl_joint_positions );
-            
-    /** This function is taken from https://github.com/tu-darmstadt-ros-pkg with a tiny change
+
+    /** This function is taken from https://github.com/tu-darmstadt-ros-pkg with a tiny change to smart ptrs
     * https://github.com/tu-darmstadt-ros-pkg/robot_self_filter/blob/master/src/self_mask.cpp#L76
     **/
-     static std::unique_ptr<shapes::Shape> constructShape(const urdf::Geometry *geom);
+    static std::unique_ptr<shapes::Shape> constructShape ( const urdf::Geometry *geom );
 protected:
 
 
     /** getCollisionModel returns  kinematic information about collision geometry
      * For ith link (segment) in the kinematic serial chain, we return
-     *  geometry_mkrs[i]: the shape description of geometery [i]
-     *  geometry_transforms[i]: the transform of the collision geometry's [i] origin
-     *  geometric_jacobians[i]: the jacobian matrix in the base frame at the collision geometry's [i] origin
+     * GeometryInformation:
+     *  	shapes[i]: the shape description of geometery [i]
+     *  	geometry_transforms[i]: the transform of the collision geometry's [i] origin
+     *  	geometric_jacobians[i]: the jacobian matrix in the base frame at the collision geometry's [i] origin
      */
     bool getCollisionModel ( const  KDL::JntArray & jointpositions,
-                             std::vector<shape_msgs::SolidPrimitive> & geometry_mkrs,
-                             TransformVector & geometry_transforms,
-                             JacobianVector  & geometric_jacobians
-                           );
-    
-    bool getCollisionModel ( const  KDL::JntArray & jointpositions,
-                            GeometryInformation & geometry_information
-                           );
-    
-    /** getCollisionModel returns  kinematic information about collision geometry
-    * For ith link (segment) in the kinematic serial chain, we return
-    *  geometry_mkrs[i]: the shape description of geometery [i]
-    *  geometry_transforms[i]: the transform of the collision geometry's [i] origin
-    */
-    bool getCollisionModel ( const  KDL::JntArray & jointpositions,
-                             std::vector<shape_msgs::SolidPrimitive> & geometry_mkrs,
-                             TransformVector & geometry_transforms
-                           );
+                             GeometryInformation & geometry_information);
 
 
     /** getPolytopeHyperPlanes returns hyperplanes for constrained joint polytope
@@ -147,13 +129,13 @@ protected:
     */
     bool getPolytopeHyperPlanes (
         const  KDL::JntArray & jointpositions,
-        const  std::vector<shape_msgs::SolidPrimitive> &	geometry_mkrs,
-        const TransformVector & geometry_transforms,
-        const JacobianVector  & geometric_jacobians,
+        GeometryInformation & geometry_information,
         Eigen::MatrixXd & AHrep,
         Eigen::VectorXd & bhrep,
         bool velocity_polytope=false
     );
+
+
 public:
 
     ConstrainedManipulability ( ros::NodeHandle nh,
@@ -221,7 +203,6 @@ public:
             bool show_polytope,
             std::vector<double>  color_pts= {0.0,0.0,0.5,1.0},
             std::vector<double>  color_line= {0.0,0.0,1.0,0.8} );
-
 
 
     /** getConstrainedVelocityPolytope returns the polytope
@@ -344,6 +325,7 @@ public:
         return true;
     }
 
+    /// Project translational Jacobian matrix along a vector
     static bool projectTranslationalJacobian ( Eigen::Vector3d nT,
             const Eigen::Matrix<double,6,Eigen::Dynamic>& J0N_in,
             Eigen::Matrix<double,1,Eigen::Dynamic>& J0N_out );
@@ -393,14 +375,14 @@ public:
     */
     static double getConstrainedAllowableMotionPolytope ( KDL::Chain &  chain,
             urdf::Model & model,
-	    FCLObjectSet objects,
+            FCLObjectSet objects,
             const sensor_msgs::JointState & joint_states,
             Eigen::MatrixXd & AHrep,
             Eigen::VectorXd & bhrep,
             double linearization_limit=0.1,
-	    double distance_threshold=0.3 );
-    
-       /** getConstrainedVelocityPolytope returns the polytope
+            double distance_threshold=0.3 );
+
+    /** getConstrainedVelocityPolytope returns the polytope
     *   approximating the constrained velocity end effector motion, considering
     *  joint limits and objstacles & linearization
     *  chain KDL::Chain already initialized
@@ -413,17 +395,17 @@ public:
     *  color_pts -> polytope points color
     *  color_line  -> polytope lines color
     *  returns the volume of the constrained allowable motion polytope
-    */ 
+    */
     static double getConstrainedVelocityPolytope ( KDL::Chain &  chain,
-	urdf::Model & model,
-	FCLObjectSet objects,
-	const sensor_msgs::JointState & joint_states,
-	Eigen::MatrixXd & AHrep,
-	Eigen::VectorXd & bhrep,
-	double dangerfield=10,
-	double distance_threshold=0.3 );
-	
-    
+            urdf::Model & model,
+            FCLObjectSet objects,
+            const sensor_msgs::JointState & joint_states,
+            Eigen::MatrixXd & AHrep,
+            Eigen::VectorXd & bhrep,
+            double dangerfield=10,
+            double distance_threshold=0.3 );
+
+
     /** getPolytopeHyperPlanes returns hyperplanes for constrained joint polytope
     * For ith link (segment) in the kinematic serial chain
     *  chain KDL::Chain already initialized
@@ -435,21 +417,19 @@ public:
     * Polytope is then defined as P= { A x <= b }
     * velocity_polytope true means returns hyperplanes based on velocity and dangerfield
     *                   false means the free space approximation is returned.
-    */    
+    */
     static bool getPolytopeHyperPlanes ( KDL::Chain &  chain,
-        urdf::Model & model,
-	FCLObjectSet objects,
-        const  KDL::JntArray & kdl_joint_positions,
-        const  std::vector<shape_msgs::SolidPrimitive> &	geometry_mkrs,
-        const TransformVector & geometry_transforms,
-        const JacobianVector  & geometry_jacobians,
-        Eigen::MatrixXd & AHrep,
-        Eigen::VectorXd & bhrep,
-        double distance_threshold=0.3,
-        double linearization_limit=0.1,
-        bool velocity_polytope=false,
-        double dangerfield=10.0 );
-    
+                                         urdf::Model & model,
+                                         FCLObjectSet objects,
+                                         const  KDL::JntArray & kdl_joint_positions,
+                                         const GeometryInformation & geometry_information,
+                                         Eigen::MatrixXd & AHrep,
+                                         Eigen::VectorXd & bhrep,
+                                         double distance_threshold=0.3,
+                                         double linearization_limit=0.1,
+                                         bool velocity_polytope=false,
+                                         double dangerfield=10.0 );
+
     /** getCollisionModel returns  kinematic information about collision geometry
      * For ith link (segment) in the kinematic serial chain, we return
      *  chain KDL::Chain already initialized
@@ -459,11 +439,9 @@ public:
      *  geometric_jacobians[i]: the jacobian matrix in the base frame at the collision geometry's [i] origin
      */
     static bool getCollisionModel ( KDL::Chain &  chain,
-        urdf::Model & model,
-        const  KDL::JntArray & kdl_joint_positions,
-        std::vector<shape_msgs::SolidPrimitive> & geometry_mkrs,
-        TransformVector & geometry_transforms,
-        JacobianVector  & geometry_jacobians );
+                                    urdf::Model & model,
+                                    const  KDL::JntArray & kdl_joint_positions,
+                                    GeometryInformation & geometry_information);
 
 
 
@@ -500,12 +478,12 @@ public:
     *  returns the volume of the manipulability polytope
     */
     static double getVelocityPolytope ( KDL::Chain &  chain,
-            urdf::Model & model,
-            const sensor_msgs::JointState & joint_states,
-            Eigen::MatrixXd & AHrep,
-            Eigen::VectorXd & bhrep,
-            std::vector<double> qdot_max,
-            std::vector<double> qdot_min );
+                                        urdf::Model & model,
+                                        const sensor_msgs::JointState & joint_states,
+                                        Eigen::MatrixXd & AHrep,
+                                        Eigen::VectorXd & bhrep,
+                                        std::vector<double> qdot_max,
+                                        std::vector<double> qdot_min );
 
 
 

@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometric_shapes
   kdl_parser
   pcl_ros
-  ros_collision_checking
+  robot_collision_checking
   roscpp
   rospy
   rviz_display
@@ -114,7 +114,7 @@ find_library(EIGEN_CDDLIB_LIB eigen-cddlib)
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES constrained_manipulability
-#  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros ros_collision_checking roscpp rospy rviz_display
+#  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy rviz_display
 #  DEPENDS system_lib
 )
 
