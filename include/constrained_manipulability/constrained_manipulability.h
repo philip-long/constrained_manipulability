@@ -141,6 +141,7 @@ public:
     ConstrainedManipulability ( ros::NodeHandle nh,
                                 std::string root,
                                 std::string tip,
+				std::string robot_description="robot_description",
                                 double distance_threshold=0.3,
                                 double linearization_limit=0.1,
                                 double dangerfield=10
@@ -149,24 +150,20 @@ public:
     ~ConstrainedManipulability();
 
 
-    /// Add a solid primitive object to FCLInterface collision world
+    /// Add a solid primitive object to FCLInterface collision world transform w.r.t base_link of chain
     bool addCollisionObject ( const shape_msgs::SolidPrimitive & s1,
                               const  Eigen::Affine3d  & wT1,unsigned int object_id );
-    /// Add a mesh object to FCLInterface collision world
+    /// Add a mesh object to FCLInterface collision world transform w.r.t base_link of chain
     bool addCollisionObject ( const shape_msgs::Mesh & s1,
                               const  Eigen::Affine3d  & wT1,unsigned int object_id );
-    /// Add a set of object to FCLInterface collision world
+    /// Add a set of object to FCLInterface collision world transform w.r.t base_link of chain
     bool addCollisionObject ( FCLObjectSet objects );
     /// Display Collision world objects
     bool displayObjects();
     /// Display calculated collision model in rviz
-    bool displayCollisionModel ( sensor_msgs::JointState const & joint_state );
-    /// Display calculated collision model in rviz
-    bool displayCollisionModel ( sensor_msgs::JointState const & joint_state, bool mesh );
+    bool displayCollisionModel ( sensor_msgs::JointState const & joint_state );        
     /// Checks the current state for collision
     bool checkCollision ( const sensor_msgs::JointState & joint_states );
-    /// Checks the current state for collision
-    bool checkCollision ( const sensor_msgs::JointState & joint_states,bool mesh );
 
 
 
@@ -342,12 +339,12 @@ public:
                                   Eigen::VectorXd& b_left );
     /// Transform polytope to Cartesian space
     static void getCartesianPolytope ( Eigen::MatrixXd Q,
-                                       Eigen::Matrix<double,3,7> Jp,
+                                       Eigen::Matrix<double,3,Eigen::Dynamic> Jp,
                                        Eigen::Vector3d P,
                                        Eigen::MatrixXd& V
                                      );
     // Linear transformation defined by J of vertex set
-    static void transformVertexSet ( Eigen::Matrix<double,3,7> J,
+    static void transformVertexSet ( Eigen::Matrix<double,3,Eigen::Dynamic> J,
                                      const Eigen::MatrixXd &vertex_set,
                                      Eigen::MatrixXd& vertex_set_out );
 
@@ -481,9 +478,7 @@ public:
                                         urdf::Model & model,
                                         const sensor_msgs::JointState & joint_states,
                                         Eigen::MatrixXd & AHrep,
-                                        Eigen::VectorXd & bhrep,
-                                        std::vector<double> qdot_max,
-                                        std::vector<double> qdot_min );
+                                        Eigen::VectorXd & bhrep );
 
 
 

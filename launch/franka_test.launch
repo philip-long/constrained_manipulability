@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <arg name="load_gripper" default="true" />
+
+ <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find franka_description)/robots/panda_arm_hand.urdf.xacro'" if="$(arg load_gripper)" />
+
+ <node pkg="joint_state_publisher" type="joint_state_publisher"
+
+ name="test_joint_state_publisher" output="screen" args="_use_gui:=true">
+  <rosparam param="source_list">["alternative_input/joint_states"]</rosparam>
+ </node>
+
+ <node name="test_robot_state_publisher" type="robot_state_publisher" pkg="robot_state_publisher" output="screen"/>
+ 
+  <node name="rviz" pkg="rviz" type="rviz"/>
+</launch>

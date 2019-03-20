@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<launch>
+
+ <include file="$(find ur_description)/launch/test.launch"/>
+ <include file="$(find ur_description)/launch/ur5_upload.launch"/>
+
+</launch>

@@ -1,0 +1,6 @@
+<?xml version="1.0" ?>
+<launch>
+
+ <include file="$(find sawyer_description)/launch/test_sawyer_description.launch.test"/>
+
+</launch>
