@@ -42,7 +42,7 @@
 #include <robot_collision_checking/fcl_interface.h>
 #include <rviz_display/rviz_display.h>
 #include "constrained_manipulability/utility_funcs.h"
-
+#include "constrained_manipulability/PolytopeVolume.h"
 #ifndef ROBOT_POLYTOPE_HPP
 #define ROBOT_POLYTOPE_HPP
 
@@ -105,6 +105,12 @@ private:
     * https://github.com/tu-darmstadt-ros-pkg/robot_self_filter/blob/master/src/self_mask.cpp#L76
     **/
     static std::unique_ptr<shapes::Shape> constructShape ( const urdf::Geometry *geom );
+    
+    /// Convenience function to convert kdl to eigen stuff, segment=-1 returns terminal point information
+    void   getKDLKinematicInformation ( const KDL::JntArray & kdl_joint_positions,
+        Eigen::Affine3d & T,
+        Eigen::Matrix<double,6,Eigen::Dynamic> & Jac,int segment=-1);
+    
 protected:
 
 

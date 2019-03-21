@@ -2,7 +2,7 @@
 
         <arg name="config" default="example_scene1" />
         <arg name="root_link" default="base" />
-	<arg name="tip_link" default="ee" />
+	      <arg name="tip_link" default="ee" />
         <arg name="mp_display" default="false"/>
         <arg name="cmp_display" default="false"/>
 
@@ -18,5 +18,3 @@
 </node>
 
 </launch>
-
-

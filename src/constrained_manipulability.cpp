@@ -90,7 +90,7 @@ nh_ ( nh ),rvizDisplay ( nh ), fclInterface ( nh ),distance_threshold_ ( distanc
     std::fill ( max_lin_limit_.begin(), max_lin_limit_.end(),linearization_limit );
     std::fill ( min_lin_limit_.begin(), min_lin_limit_.end(),-linearization_limit );
 
-   ROS_INFO("Initialized");
+    ROS_INFO ( "Initialized" );
 
 }
 
@@ -114,6 +114,25 @@ bool ConstrainedManipulability::displayObjects() {
     fclInterface.displayObjects ( base_link_ );
 }
 
+
+void   ConstrainedManipulability::getKDLKinematicInformation ( const KDL::JntArray & kdl_joint_positions,
+        Eigen::Affine3d & T,
+        Eigen::Matrix<double,6,Eigen::Dynamic> & Jac,int segment ) {
+
+    KDL::Frame cartpos;
+    KDL::Jacobian base_J_link_origin;
+    base_J_link_origin.resize ( ndof_ );
+    if ( segment!=-1 ) {
+        kdl_fk_solver_->JntToCart ( kdl_joint_positions,cartpos,segment );
+        kdl_dfk_solver_->JntToJac ( kdl_joint_positions,base_J_link_origin,segment );
+    } else {
+        kdl_fk_solver_->JntToCart ( kdl_joint_positions,cartpos );
+        kdl_dfk_solver_->JntToJac ( kdl_joint_positions,base_J_link_origin );
+    }
+    tf::transformKDLToEigen ( cartpos,T );
+
+    Jac=base_J_link_origin.data;
+}
 
 
 bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState & joint_states ) {
@@ -157,6 +176,7 @@ double ConstrainedManipulability::getPolytopeVolume ( Eigen::MatrixXd  vertices 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull ( new pcl::PointCloud<pcl::PointXYZ> );
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected ( new pcl::PointCloud<pcl::PointXYZ> );
     double vol ( 0.0 );
+    // We are using PCL for the convex hull interface to qhull
     for ( int var = 0; var < vertices.rows(); ++var ) {
         pcl::PointXYZ p ( vertices ( var,0 ),
                           vertices ( var,1 ) ,
@@ -220,38 +240,47 @@ double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::Joint
 
 
     double vol_initial ( -1 );
-    KDL::JntArray 	kdl_joint_positions ( ndof_ );
-    jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
+    KDL::JntArray kdl_joint_positions ( ndof_ );
     Eigen::Affine3d base_T_ee;
-    KDL::Frame cartpos;
-    KDL::Jacobian base_J_link_origin;
-    base_J_link_origin.resize ( ndof_ );
-    kdl_fk_solver_->JntToCart ( kdl_joint_positions,cartpos );
-    tf::transformKDLToEigen ( cartpos,base_T_ee );
-    kdl_dfk_solver_->JntToJac ( kdl_joint_positions,base_J_link_origin );
-    Eigen::MatrixXd base_J_ee=base_J_link_origin.data;
+    Eigen::Matrix<double,6,Eigen::Dynamic> base_J_ee;
+    Eigen::MatrixXd Qset,Vset;
 
-    Eigen::MatrixXd Ahrep_undeformed;
-    Eigen::VectorXd bhrep_underformed;
-    Eigen::MatrixXd Qset_undeformed,Vset_undeformed;
-    Ahrep_undeformed.resize ( 2*ndof_,ndof_ );
-    Ahrep_undeformed.topRows ( ndof_ ) =ndof_identity_matrix_;  // ndof_*ndof block at row  0 colum 0;ndof_
-    Ahrep_undeformed.block ( ndof_,0,ndof_,ndof_ ) =-ndof_identity_matrix_; // ndof_*ndof block at row  ndof_ colum 0;ndof_
-    bhrep_underformed.resize ( 2*ndof_,1 );
+    jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
+    getKDLKinematicInformation ( kdl_joint_positions,base_T_ee,base_J_ee );
+
+
+    // Define Hyperplanes
+    AHrep.resize ( 2*ndof_,ndof_ );
+    AHrep.topRows ( ndof_ ) =ndof_identity_matrix_;  // ndof_*ndof block at row  0 colum 0;ndof_
+    AHrep.block ( ndof_,0,ndof_,ndof_ ) =-ndof_identity_matrix_; // ndof_*ndof block at row  ndof_ colum 0;ndof_
+
+    // Define shifted distance from origin
+    bhrep.resize ( 2*ndof_,1 );
     for ( int i = 0; i < ndof_; ++i ) {
-        bhrep_underformed ( i ) =qdotmax_[i];
-        bhrep_underformed ( i+ndof_ ) =-qdotmin_[i];
+        bhrep ( i ) =qdotmax_[i];
+        bhrep ( i+ndof_ ) =-qdotmin_[i];
     }
-    getVrepPolytope ( Ahrep_undeformed,bhrep_underformed,Qset_undeformed );
-    getCartesianPolytope ( Qset_undeformed,base_J_ee.topRows ( 3 ),base_T_ee.translation(),Vset_undeformed );
-    vol_initial=getPolytopeVolume ( Vset_undeformed );
 
-    
+    // Convert to V-representation
+    getVrepPolytope ( AHrep,
+                      bhrep,
+                      Qset );
+    // Transform to Cartesian Space
+    getCartesianPolytope ( Qset,
+                           base_J_ee.topRows ( 3 ),
+                           base_T_ee.translation(),
+                           Vset );
+    // Calculate the volume
+    vol_initial=getPolytopeVolume ( Vset );
+
+    // Display if desired
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "polytope",
-                                   Vset_undeformed,
+        rvizDisplay.plotPolytope ( "velocity_polytope",
+                                   Vset,
                                    base_link_,
-                                   base_T_ee.translation(), {0.0,0.0,0.5,1.0}, {0.0,0.0,1.0,0.8} );
+                                   base_T_ee.translation(),
+                                   color_pts,
+                                   color_line );
     }
     return vol_initial;
 
@@ -265,42 +294,48 @@ double ConstrainedManipulability::getAllowableMotionPolytope ( const sensor_msgs
         bool show_polytope,
         std::vector<double>  color_pts,
         std::vector<double>  color_line ) {
+
     double vol_initial ( -1 );
+    Eigen::Affine3d base_T_ee;
+    Eigen::Matrix<double,6,Eigen::Dynamic> base_J_ee;
+    Eigen::MatrixXd Qset,Vset;
     KDL::JntArray kdl_joint_positions ( ndof_ );
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
-    Eigen::Affine3d base_T_ee;
-    KDL::Frame cartpos;
-    KDL::Jacobian base_J_link_origin;
-    base_J_link_origin.resize ( ndof_ );
-    kdl_fk_solver_->JntToCart ( kdl_joint_positions,cartpos );
-    tf::transformKDLToEigen ( cartpos,base_T_ee );
-    kdl_dfk_solver_->JntToJac ( kdl_joint_positions,base_J_link_origin );
-    Eigen::MatrixXd base_J_ee=base_J_link_origin.data;
-
-    Eigen::MatrixXd Qset_undeformed,Vset_undeformed;
+    getKDLKinematicInformation ( kdl_joint_positions,base_T_ee,base_J_ee );
 
 
+
+    // Define Hyperplanes
     AHrep.resize ( 2*ndof_,ndof_ );
     AHrep.topRows ( ndof_ ) =ndof_identity_matrix_;  // ndof_*ndof block at row  0 colum 0;ndof_
     AHrep.block ( ndof_,0,ndof_,ndof_ ) =-ndof_identity_matrix_; // ndof_*ndof block at row  ndof_ colum 0;ndof_
 
+    // Define shifted distance from origin
     bhrep.resize ( 2*ndof_,1 );
-
-
     for ( int i = 0; i < ndof_; ++i ) {
         bhrep ( i ) =max_lin_limit_[i];
         bhrep ( i+ndof_ ) =-min_lin_limit_[i];
     }
 
 
-    getVrepPolytope ( AHrep,bhrep,Qset_undeformed );
-    getCartesianPolytope ( Qset_undeformed,base_J_ee.topRows ( 3 ),base_T_ee.translation(),Vset_undeformed );
-    vol_initial=getPolytopeVolume ( Vset_undeformed );
+    getVrepPolytope ( AHrep,
+                      bhrep,
+                      Qset );
+
+    getCartesianPolytope ( Qset,
+                           base_J_ee.topRows ( 3 ),
+                           base_T_ee.translation(),
+                           Vset );
+
+    vol_initial=getPolytopeVolume ( Vset );
+
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "polytope",
-                                   Vset_undeformed,
+        rvizDisplay.plotPolytope ( "allowable_motion_polytope",
+                                   Vset,
                                    base_link_,
-                                   base_T_ee.translation(), {0.0,0.0,0.5,1.0}, {0.0,0.0,1.0,0.8} );
+                                   base_T_ee.translation(),
+                                   color_pts,
+                                   color_line );
     }
     return vol_initial;
 
@@ -344,18 +379,12 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const 
 
 
     Eigen::MatrixXd Qset,Vset;
-
+    GeometryInformation geometry_information;
     double vol_reduced ( 0.0 );
     KDL::JntArray 	kdl_joint_positions ( ndof_ );
+
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
-
-
-    GeometryInformation geometry_information;
-
-
     getCollisionModel ( kdl_joint_positions,geometry_information );
-
-
     bool collision_free=getPolytopeHyperPlanes ( kdl_joint_positions,
                         geometry_information,
                         AHrep,
@@ -376,8 +405,12 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const 
                            geometry_information.geometry_transforms.back().translation(),
                            Vset );
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "polytope", Vset,base_link_,
-                                   geometry_information.geometry_transforms.back().translation(),color_pts, color_line );
+        rvizDisplay.plotPolytope ( "constrained_allowable_motion_polytope",
+                                   Vset,
+                                   base_link_,
+                                   geometry_information.geometry_transforms.back().translation(),
+                                   color_pts,
+                                   color_line );
     }
 
     vol_reduced=getPolytopeVolume ( Vset );
@@ -390,8 +423,10 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_
         bool show_polytope,
         std::vector<double>  color_pts,
         std::vector<double>  color_line ) {
+
     Eigen::MatrixXd  AHrep;
     Eigen::VectorXd  bhrep;
+
     double vol=getConstrainedVelocityPolytope ( joint_states,
                AHrep,bhrep,
                show_polytope,
@@ -411,12 +446,10 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_
 
 
     Eigen::MatrixXd Qset,Vset;
-
+    GeometryInformation geometry_information;
     double vol_reduced ( 0.0 );
     KDL::JntArray 	kdl_joint_positions ( ndof_ );
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
-    GeometryInformation geometry_information;
-
 
     getCollisionModel ( kdl_joint_positions,geometry_information );
 
@@ -441,9 +474,12 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_
                            geometry_information.geometry_transforms.back().translation(),
                            Vset );
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "polytope", Vset,base_link_,
+        rvizDisplay.plotPolytope ( "constrained_velocity_polytope",
+                                   Vset,
+                                   base_link_,
                                    geometry_information.geometry_transforms.back().translation(),
-                                   color_pts, color_line );
+                                   color_pts,
+                                   color_line );
     }
 
     vol_reduced=getPolytopeVolume ( Vset );
@@ -465,7 +501,9 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
     std::vector<Eigen::Vector3d> p1w,p2w;
     // Min distance to object
     std::vector<double> obj_distances;
+    // vector towards the object
     Eigen::Vector3d nt;
+    // Vector of distance
     std::vector<double> distances;
     distances.clear();
     std::vector<Eigen::Matrix<double,1,Eigen::Dynamic>> J_constraints;
@@ -496,26 +534,24 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
 
 
 
-        for ( unsigned int j=0
-                             ; j<obj_distances.size(); j++ ) {
-            Eigen::Matrix<double,6,Eigen::Dynamic> w_J_out_p1; //
+        for ( unsigned int j=0; j<obj_distances.size(); j++ ) {
+
+            Eigen::Matrix<double,6,Eigen::Dynamic> w_J_out_p1;
             Eigen::Matrix<double,1,Eigen::Dynamic> J_proj;
             J_proj.setZero();
             w_J_out_p1.setZero();
 
             if ( obj_distances[j]<0.0 ) {
-                // in collision
                 ROS_WARN ( " In collision" );
                 return false;
             } else if ( obj_distances[j]<distance_threshold_ ) {
 
-                // Save the distance
                 Eigen::Vector3d rdiff=p2w[j] - p1w[j];
                 nt=rdiff; // direction of obstacle
                 nt.normalize();
-                // Get Jacobian at link
+
                 Eigen::Vector3d w_delta_p1_collision_origin=p1w[j]-geometry_information.geometry_transforms[i].translation();
-                // Get the Jacobian at p1
+
 
                 screwTransform ( geometry_information.geometry_jacobians[i],
                                  w_J_out_p1,
@@ -536,6 +572,7 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
     if ( velocity_polytope ) {
         offset=2;
     }
+    // Define Hyperplanes
     AHrep.resize ( offset*ndof_+ J_constraints.size(),
                    ndof_ );
     bhrep.resize ( offset*ndof_ + distances.size(),1 );
@@ -547,16 +584,18 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
         AHrep.block ( ndof_,0,ndof_,ndof_ ) =-ndof_identity_matrix_; // ndof_*ndof block at row  ndof_ colum 0;ndof_
 
         for ( int i = 0; i < ndof_; ++i ) {
+
             double qmean= ( qmax_[i]+qmin_[i] ) /2;
-            double val_max=fmax ( qmean,kdl_joint_positions ( i ) )-qmean;	    
+            double val_max=fmax ( qmean,kdl_joint_positions ( i ) )-qmean;
             double val_min=fmin ( qmean,kdl_joint_positions ( i ) )-qmean;
             double dmax=pow ( ( ( ( val_max ) / ( ( qmax_[i]-qmean ) ) ) ),2 );
             double dmin=pow ( ( ( ( val_min ) / ( ( qmin_[i]-qmean ) ) ) ),2 );
 
             // Make sure the value is witin joint limits and these limits are correctly defined.
             ROS_ASSERT ( ~std::isnan ( dmax ) && ~std::isnan ( dmin ) && ~std::isinf ( dmax ) && ~std::isinf ( dmin ) );
-            bhrep ( i ) =(1-dmax)*qdotmax_[i];
-            bhrep ( i+ndof_ ) =(1-dmin)*-qdotmin_[i];
+            // Scale the maximum joint velocity based on joint position limits
+            bhrep ( i ) = ( 1-dmax ) *qdotmax_[i];
+            bhrep ( i+ndof_ ) = ( 1-dmin ) *-qdotmin_[i];
         }
 
     } else {
@@ -666,27 +705,13 @@ bool ConstrainedManipulability::getCollisionModel ( const  KDL::JntArray & kdl_j
         link_origin_T_collision_origin.linear() =origin_Quat_collision.toRotationMatrix();
 
         // Finds cartesian pose w.r.t to base frame
-        KDL::Frame cartpos;
-        kdl_fk_solver_->JntToCart ( kdl_joint_positions,cartpos,i+1 );
 
-        tf::transformKDLToEigen ( cartpos,base_T_link_origin );
-
+        Eigen::Matrix<double,6,Eigen::Dynamic> base_J_collision_origin,base_J_link_origin;
+        getKDLKinematicInformation ( kdl_joint_positions,base_T_link_origin,base_J_link_origin,i+1 );
         base_T_collision_origin=base_T_link_origin*link_origin_T_collision_origin;
-
-        // Get Jacobian at collision geometry origin
-        KDL::Jacobian base_J_link_origin;
-        base_J_link_origin.resize ( ndof_ );
-
-        kdl_dfk_solver_->JntToJac ( kdl_joint_positions,base_J_link_origin,i+1 );
-        Eigen::MatrixXd Jac=base_J_link_origin.data;
-
         Eigen::Vector3d base_L_link_collision= ( base_T_link_origin.linear() * link_origin_T_collision_origin.translation() );
-
-
-
-        Eigen::Matrix<double,6,Eigen::Dynamic> base_J_collision_origin;
-
-        screwTransform ( base_J_link_origin.data,base_J_collision_origin,base_L_link_collision );
+        // Screw transform to collision origin
+        screwTransform ( base_J_link_origin,base_J_collision_origin,base_L_link_collision );
 
         // Push back solutions
         geometry_information.shapes.push_back ( std::move ( shape ) );
@@ -817,6 +842,8 @@ void ConstrainedManipulability::jointStatetoKDLJointArray ( const sensor_msgs::J
         }
     }
 }
+
+
 
 // --------- STATIC FUNCTIONS FOR OPTIMIZATION-------------------------
 
@@ -1110,8 +1137,8 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes ( KDL::Chain &  chain,
             double dmin=pow ( ( ( ( val_min ) / ( ( qmin[i]-qmean ) ) ) ),2 );
             // Make sure the value is witin joint limits and these limits are correctly defined.
             ROS_ASSERT ( ~std::isnan ( dmax ) && ~std::isnan ( dmin ) && ~std::isinf ( dmax ) && ~std::isinf ( dmin ) );
-            bhrep ( i ) =(1-dmax)*qdotmax[i];
-            bhrep ( i+ndof ) =(1-dmin)*-qdotmin[i];
+            bhrep ( i ) = ( 1-dmax ) *qdotmax[i];
+            bhrep ( i+ndof ) = ( 1-dmin ) *-qdotmin[i];
         }
 
     } else {
@@ -1184,7 +1211,7 @@ bool    ConstrainedManipulability::getCollisionModel ( KDL::Chain &  chain,
         link_origin_T_collision_origin.linear() =origin_Quat_collision.toRotationMatrix();
 
         // Finds cartesian pose w.r.t to base frame
-
+        Eigen::Matrix<double,6,Eigen::Dynamic> base_J_collision_origin;
         KDL::Frame cartpos;
         kdl_fk_solver.JntToCart ( kdl_joint_positions,cartpos,i+1 );
 
@@ -1199,12 +1226,8 @@ bool    ConstrainedManipulability::getCollisionModel ( KDL::Chain &  chain,
         kdl_dfk_solver.JntToJac ( kdl_joint_positions,base_J_link_origin,i+1 );
         Eigen::MatrixXd Jac=base_J_link_origin.data;
 
+        base_T_collision_origin=base_T_link_origin*link_origin_T_collision_origin;
         Eigen::Vector3d base_L_link_collision= ( base_T_link_origin.linear() * link_origin_T_collision_origin.translation() );
-
-
-
-        Eigen::Matrix<double,6,Eigen::Dynamic> base_J_collision_origin;
-
         screwTransform ( base_J_link_origin.data,base_J_collision_origin,base_L_link_collision );
 
         // Push back solutions
@@ -1214,7 +1237,6 @@ bool    ConstrainedManipulability::getCollisionModel ( KDL::Chain &  chain,
     }
     return true;
 }
-
 
 
 
