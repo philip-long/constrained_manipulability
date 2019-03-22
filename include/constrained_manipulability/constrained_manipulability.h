@@ -187,8 +187,14 @@ public:
     /// Add a mesh object to FCLInterface collision world transform w.r.t base_link of chain
     bool addCollisionObject ( const shape_msgs::Mesh & s1,
                               const  Eigen::Affine3d  & wT1,unsigned int object_id );
+     /// Remove an object from FCLInterface collision world
+    bool removeCollisionObject (unsigned int object_id );
+    
     /// Add a set of object to FCLInterface collision world transform w.r.t base_link of chain
     bool addCollisionObject ( FCLObjectSet objects );
+    
+    
+    
     /// Display Collision world objects
     bool displayObjects();
     /// Display calculated collision model in rviz

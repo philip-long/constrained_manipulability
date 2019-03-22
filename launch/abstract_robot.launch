@@ -4,7 +4,7 @@
         <arg name="root_link" default="base" />
 	      <arg name="tip_link" default="ee" />
         <arg name="mp_display" default="false"/>
-        <arg name="cmp_display" default="false"/>
+        <arg name="cmp_display" default="true"/>
 
 <node name="abstract_robot_test"
     pkg="constrained_manipulability"

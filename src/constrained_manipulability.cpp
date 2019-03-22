@@ -251,13 +251,18 @@ bool ConstrainedManipulability::addCollisionObject ( const shape_msgs::Mesh & s1
     fclInterface.addCollisionObject ( s1,wT1,object_id );
 }
 
+bool ConstrainedManipulability::removeCollisionObject (unsigned int object_id ) {
+    fclInterface.removeCollisionObject (object_id );
+}
 bool ConstrainedManipulability::addCollisionObject ( FCLObjectSet objects ) {
-    fclInterface.addCollisionObject ( objects );
+    fclInterface.addCollisionObject ( objects );    
 }
 
 bool ConstrainedManipulability::displayObjects() {
     fclInterface.displayObjects ( base_link_ );
 }
+
+
 
 
 void   ConstrainedManipulability::getKDLKinematicInformation ( const KDL::JntArray & kdl_joint_positions,

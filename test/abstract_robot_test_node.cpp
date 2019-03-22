@@ -96,10 +96,13 @@ int main ( int argc, char **argv ) {
 
             robot_polytope.checkCollision ( joint_state );
             polytope_volumes.volumes[0]=  robot_polytope.getAllowableMotionPolytope ( joint_state,
-                                          show_mp );
+                                          show_mp,
+            {0.0,0.0,0.5,0.0},
+            {0.0,0.0,1.0,0.4}
+                                                                                    );
             polytope_volumes.volumes[1]=  robot_polytope.getConstrainedAllowableMotionPolytope ( joint_state,
                                           show_cmp,
-            {0.0,0.0,0.5,0.4},
+            {0.0,0.0,0.5,0.0},
             {1.0,0.0,0.0,0.4} );
             polytope_volumes.volumes[2]=  robot_polytope.getVelocityPolytope ( joint_state,false );
             polytope_volumes.volumes[3]=  robot_polytope.getConstrainedVelocityPolytope ( joint_state,false );
