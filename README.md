@@ -84,7 +84,7 @@ AHrep and bhrep represent the joint space polytope constraints i.e.
 ```
 AHrep*dq <= bhrep
 ```
-conversion from H-representation to V-representation is achieved using the Double Description method accessed via [eigen-cddlib]((https://github.com/philip-long/eigen-cddlib)). Static functions are also available for all the different polytopes where, both the urdf model, the KDL chain and the object set much be explicity passed:
+conversion from H-representation to V-representation is achieved using the Double Description method accessed via [eigen-cddlib]((https://github.com/philip-long/eigen-cddlib)). Static functions are also available for all the different polytopes where, both the urdf model, the KDL chain and the object set must be explicity passed:
 ```
     static double getConstrainedAllowableMotionPolytope ( KDL::Chain &  chain,
             urdf::Model & model,
