@@ -17,8 +17,8 @@ Constrained Manipulability is a library used to compute and vizualize a robot's 
     - [pcl_ros](http://wiki.ros.org/pcl_ros)
     - [kdl_parser](https://wiki.ros.org/kdl_parser)
 - [Eigen 3](https://eigen.tuxfamily.org/dox/GettingStarted.html)
-- [robot_collision_checking]((https://github.com/philip-long/ros_collision_checking))
-- [eigen-cddlib]((https://github.com/philip-long/eigen-cddlib))
+- [robot_collision_checking](https://github.com/philip-long/ros_collision_checking)
+- [eigen-cddlib](https://github.com/philip-long/eigen-cddlib)
 
 
 ### Install instructions
@@ -70,9 +70,7 @@ AHrep and bhrep represent the joint space polytope constraints i.e.
 ```
 AHrep*dq <= bhrep
 ```
-conversion from H-representation to V-representation is achieved using the Double Description method accessed via [eigen-cddlib]((https://github.com/philip-long/eigen-cddlib)).
-
-Static functions are also available for all the different polytopes where, both the urdf model, the KDL chain and the object set much be explicity passed:
+conversion from H-representation to V-representation is achieved using the Double Description method accessed via [eigen-cddlib]((https://github.com/philip-long/eigen-cddlib)). Static functions are also available for all the different polytopes where, both the urdf model, the KDL chain and the object set much be explicity passed:
 ```
     static double getConstrainedAllowableMotionPolytope ( KDL::Chain &  chain,
             urdf::Model & model,
@@ -84,9 +82,7 @@ Static functions are also available for all the different polytopes where, both 
             double distance_threshold=0.3 );
 ```
 
-Different Polytopes are available more information about allowable motion polytope is available here __Optimization-Based Human-in-the-Loop Manipulation  Using Joint Space Polytopes, Long et al 2019__ more information about the constrained velocity polytope is available here __Evaluating Robot Manipulability in Constrained Environments by Velocity Polytope Reduction Long et al 2018.__  
-
-Demos can be launched for a robot, using a test file
+Different Polytopes are available more information about allowable motion polytope is available here __Optimization-Based Human-in-the-Loop Manipulation  Using Joint Space Polytopes, Long et al 2019__ more information about the constrained velocity polytope is available here __Evaluating Robot Manipulability in Constrained Environments by Velocity Polytope Reduction Long et al 2018.__ Demos can be launched for a robot, using the provided test file
 ```
 roslaunch constrained_manipulability abstract_robot.launch root_link:=<your root link> root_link:=<your end effector>  config:=<your scene stored in .yaml>
 ```
@@ -103,17 +99,17 @@ A video showing the applications of the constrained allowable motion polytope is
 
 
 
-#### Motion planning
+#### 1. Motion planning
 Planning collision free paths can be achieved by maximizing the volume of the allowable motion polytope, however since no analytical gradient is available this is typically slower than other motion planning algorithms. Nevertheless, since the polytopes are returned they can be used for fast on-line inverse kinematic solutions and guard teleoperation. 
 
 ![Planning collision free path by maximizing volume](doc/trajplanning.png)
 
-#### Guarded tele-operation
+#### 2. Guarded tele-operation
 The polytopes are convex constraints that represent feasible configuration for the whole robot. By respecting them a guaranteed feasible inverse kinematic solution can be obtained very quickly, this can be useful for generating virtual fixtures for teleoperation tasks. The polytope can be vizualized (in red below) showing an operator the Cartesian motions available at all times due to joint limits, kinematic constraints and obstacles in the workspace. The original polytope is shown below in blue/
 
 ![Comparison of UR's allowable motions with and without constraints](doc/ur.png)
 
-#### Workspace Analysis
+#### 3. Workspace Analysis
 By evaluating the volume of the CMP at points in the workspace, a reachability map can be obtained see this [video](https://youtu.be/jc7X4WakdoE)
 
 
@@ -149,6 +145,7 @@ month={Nov},}
 ```
 
 #### TODO: 
-- [ ] Add install instructions 
-- [ ] Add about package 
+- [ ] Add sample optimization
+- [ ] Add server to add and remove objects 
+
 
