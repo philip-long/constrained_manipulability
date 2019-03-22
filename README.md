@@ -31,8 +31,22 @@ Constrained Manipulability is a library used to compute and vizualize a robot's 
     catkin build
     ```
 
+
+### Examples
+Demos can be launched for a robot, using the provided test file
+```
+roslaunch constrained_manipulability abstract_robot.launch root_link:=<your root link> root_link:=<your end effector>  config:=<your scene stored in .yaml>
+```
+There are several example scenes in scene_config folder. This has been tested with Rethink's Sawyer, Universal robot (requires ur-description), and Frannka Panda (requires franka-description): 
+```
+ roslaunch constrained_manipulability sawyer_test.launch
+ roslaunch constrained_manipulability ur_test.launch
+ roslaunch constrained_manipulability franka_test.launch
+```
+
+
 ## Usage:
-The library is initialized as follows:
+The main object is initialized as follows:
 ```
     ConstrainedManipulability ( ros::NodeHandle nh,
                                 std::string root,
@@ -82,16 +96,9 @@ conversion from H-representation to V-representation is achieved using the Doubl
             double distance_threshold=0.3 );
 ```
 
-Different Polytopes are available more information about allowable motion polytope is available here __Optimization-Based Human-in-the-Loop Manipulation  Using Joint Space Polytopes, Long et al 2019__ more information about the constrained velocity polytope is available here __Evaluating Robot Manipulability in Constrained Environments by Velocity Polytope Reduction Long et al 2018.__ Demos can be launched for a robot, using the provided test file
-```
-roslaunch constrained_manipulability abstract_robot.launch root_link:=<your root link> root_link:=<your end effector>  config:=<your scene stored in .yaml>
-```
-There are several example scenes in scene_config folder. This has been tested with Rethink's Sawyer, Universal robot, and Frannka Panda: 
-```
- roslaunch constrained_manipulability sawyer_test.launch
- roslaunch constrained_manipulability ur_test.launch
- roslaunch constrained_manipulability franka_test.launch
-```
+Different Polytopes are available more information about allowable motion polytope is available here __Optimization-Based Human-in-the-Loop Manipulation  Using Joint Space Polytopes, Long et al 2019__ more information about the constrained velocity polytope is available here __Evaluating Robot Manipulability in Constrained Environments by Velocity Polytope Reduction Long et al 2018.__ 
+
+
 ### Applications:
 A video showing the applications of the constrained allowable motion polytope is available [here](https://youtu.be/oeqj-m25t9c). A video showing the uses of the constrained velocity polytope for humanoid robots can be seen [here](https://www.youtube.com/watch?v=1Nouc4f_rIY) and [here](https://www.youtube.com/watch?v=FzlhsLH5IPU).
 
