@@ -15,7 +15,6 @@ find_package(catkin REQUIRED COMPONENTS
   robot_collision_checking
   roscpp
   rospy
-  rviz_display
   message_generation
 )
 
@@ -38,7 +37,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES constrained_manipulability
-#  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy rviz_display
+#  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy
 #  DEPENDS system_lib
 )
 
@@ -66,8 +65,7 @@ include_directories(
 add_library(constrained_manipulability
             src/constrained_manipulability.cpp
             include/${PROJECT_NAME}/constrained_manipulability.h)
-target_link_libraries(constrained_manipulability ${catkin_LIBRARIES} ${EIGEN_CDDLIB_LIB} ${fcl_interface_LIBRARIES} ${rviz_display_LIBRARIES})
+target_link_libraries(constrained_manipulability ${catkin_LIBRARIES} ${EIGEN_CDDLIB_LIB} ${fcl_interface_LIBRARIES})
 
 add_executable(abstract_robot_test test/abstract_robot_test_node.cpp)
 target_link_libraries(abstract_robot_test ${catkin_LIBRARIES} constrained_manipulability)
-

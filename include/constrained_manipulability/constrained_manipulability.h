@@ -40,9 +40,9 @@
 #include <boost/scoped_ptr.hpp>
 
 #include <robot_collision_checking/fcl_interface.h>
-#include <rviz_display/rviz_display.h>
 #include "constrained_manipulability/utility_funcs.h"
 #include "constrained_manipulability/PolytopeVolume.h"
+#include <pcl/surface/concave_hull.h>
 #ifndef ROBOT_POLYTOPE_HPP
 #define ROBOT_POLYTOPE_HPP
 
@@ -68,9 +68,32 @@ private:
     /// number of degrees of freedom
     unsigned int ndof_;
     ros::NodeHandle nh_;
-
-    /// Rviz display object
-    RvizDisplay rvizDisplay;
+    /// RVIZ DISPLAY
+    ros::Publisher mkr_pub;
+    
+   
+    /** Plot a Polytope defined a a set of vertices
+    *   The vertices are shifted to the offset position (offset_position), for instance the robot end effector
+    *   std::string frame, to define the frame of reference.
+    *   PCL is used to obtain the convex hull
+    *   A mesh message is created from the convex hull and published to RVIZ
+    *   The facet color is defined by color_line, while points by color_pts
+    *   The return value is the volume of the polytope
+    */
+    bool plotPolytope ( std::string polytope_name,
+                        Eigen::MatrixXd  vertices,
+                        std::string frame,
+                        Eigen::Vector3d offset_position,
+                        std::vector<double> color_pts= {1.0,0.4,0.4,1.0},
+                        std::vector<double> color_line= {1.0,0.4,0.4,1.0}
+                      );
+    /// Display a marker, in a given reference frame defined by a visualization_msgs::Marker
+    bool displayMarker ( visualization_msgs::Marker mkr,
+                         const Eigen::Affine3d & T,
+                         std::string frame,
+                         unsigned int obj_id,
+                         const Eigen::Vector4d & color );
+    
     /// Collision checker
     FCLInterface fclInterface;
 
@@ -84,6 +107,8 @@ private:
     /// desired Dangerfield value
     double dangerfield_;
 
+
+    bool wait_for_rviz;
 
     KDL::Tree my_tree_;
     KDL::Chain chain_;
@@ -171,7 +196,8 @@ public:
     /// Checks the current state for collision
     bool checkCollision ( const sensor_msgs::JointState & joint_states );
 
-
+    void setRvizWait(bool flag);
+    bool const getRvizWait(bool flag);
 
     /** getConstrainedAllowableMotionPolytope returns the polytope
     *   approximating the constrained allowable end effector motion, considering

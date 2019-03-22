@@ -26,7 +26,8 @@
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
  <build_depend>message_generation</build_depend>
-  <build_depend>rviz_display</build_depend>
+
+
   <build_export_depend>eigen_conversions</build_export_depend>
   <build_export_depend>geometric_shapes</build_export_depend>
   <build_export_depend>kdl_parser</build_export_depend>
@@ -34,7 +35,7 @@
   <build_export_depend>robot_collision_checking</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
-  <build_export_depend>rviz_display</build_export_depend>
+  
   <exec_depend>eigen_conversions</exec_depend>
   <exec_depend>geometric_shapes</exec_depend>
   <exec_depend>kdl_parser</exec_depend>

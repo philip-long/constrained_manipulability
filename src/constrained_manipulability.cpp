@@ -10,12 +10,16 @@ ConstrainedManipulability::ConstrainedManipulability ( ros::NodeHandle nh,
         double linearization_limit,
         double dangerfield
                                                      ) :
-nh_ ( nh ),rvizDisplay ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dangerfield_ ( dangerfield ) {
+nh_ ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dangerfield_ ( dangerfield ) {
 
-
+    wait_for_rviz=true;
+    mkr_pub=nh_.advertise<visualization_msgs::Marker>
+            ( "/visualization_marker",1 );
+	    
     std::string robot_desc_string;
     nh_.param ( robot_description, robot_desc_string, std::string() );
     model_.initParamWithNodeHandle ( robot_description,nh );
+        
 
     if ( !kdl_parser::treeFromString ( robot_desc_string, my_tree_ ) ) {
         ROS_ERROR ( "Failed to construct kdl tree" );
@@ -91,9 +95,150 @@ nh_ ( nh ),rvizDisplay ( nh ), fclInterface ( nh ),distance_threshold_ ( distanc
     std::fill ( min_lin_limit_.begin(), min_lin_limit_.end(),-linearization_limit );
 
     ROS_INFO ( "Initialized" );
-
+  
 }
 
+void ConstrainedManipulability::setRvizWait(bool flag)
+{
+  wait_for_rviz=flag;
+}
+bool const ConstrainedManipulability::getRvizWait(bool flag)
+{
+  return wait_for_rviz;
+}
+
+bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
+                                 Eigen::MatrixXd  vertices,
+                                 std::string frame,
+                                 Eigen::Vector3d position,
+                                 std::vector<double>  color_pts,
+                                 std::vector<double>  color_line ) {
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull ( new pcl::PointCloud<pcl::PointXYZ> );
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected ( new pcl::PointCloud<pcl::PointXYZ> );
+    double vol ( 0.0 );
+    // std::cout<<"Plotted Polytope Points "<<std::endl;
+    for ( int var = 0; var < vertices.rows(); ++var ) {
+        pcl::PointXYZ p ( vertices ( var,0 ) +position ( 0 ),
+                          vertices ( var,1 ) +position ( 1 ),
+                          vertices ( var,2 ) +position ( 2 ) );
+        cloud_projected->points.push_back ( p );
+        // std::cout<<p<<std::endl;
+    }
+
+
+    pcl::ConvexHull<pcl::PointXYZ> chull;
+    std::vector< pcl::Vertices > polygons;
+    try {
+        chull.setInputCloud ( cloud_projected );
+        chull.reconstruct ( *cloud_hull,polygons );
+    } catch ( ... ) {
+        ROS_ERROR ( "qhull error" );
+        return false;
+    }
+
+    if ( ! ( cloud_hull->points.empty() ) ) {
+
+        std::vector<geometry_msgs::Point> points;
+        points.clear();
+        //points.resize(cloud_hull->points.size());
+
+        // Plottling
+        visualization_msgs::Marker mkr;
+
+        mkr.ns=polytope_name;
+        mkr.action=visualization_msgs::Marker::ADD;
+        mkr.type=visualization_msgs::Marker::TRIANGLE_LIST;
+        mkr.header.frame_id=frame;
+
+        // polygons is a vector of triangles represented by 3 indices
+        // The indices correspond to points in cloud_hull
+        // Therefore for each triangle in the polgyon
+        // we find its three vertices and extract their x y z coordinates
+        // this is then put in a
+        for ( int tri = 0; tri<polygons.size(); ++tri ) {
+            pcl::Vertices triangle=polygons[tri];
+            for ( int var = 0; var<3; ++var ) {
+                geometry_msgs::Point pp;
+                pp.x=cloud_hull->points[triangle.vertices[var]].x;
+                pp.y=cloud_hull->points[triangle.vertices[var]].y;
+                pp.z=cloud_hull->points[triangle.vertices[var]].z;
+                points.push_back ( pp );
+            }
+        }
+
+           mkr.id=2;
+        mkr.lifetime=ros::Duration ( 0.0 );
+        mkr.color.r=color_line[0];
+        mkr.color.g=color_line[1];
+        mkr.color.b=color_line[2];
+        mkr.color.a=color_line[3];//fmax(auto_alpha,0.1);
+        mkr.scale.x=1.0;
+        mkr.scale.y=1.0;
+        mkr.scale.z=1.0;
+        mkr.points=points;
+        while ( mkr_pub.getNumSubscribers() <1 && wait_for_rviz) {
+            ROS_INFO ( "Waiting for subs" );
+            ros::spinOnce();
+        }
+        mkr_pub.publish ( mkr );
+
+
+        mkr.type=visualization_msgs::Marker::SPHERE_LIST;
+        mkr.header.frame_id=frame;
+        mkr.id=1;
+        mkr.lifetime=ros::Duration ( 0.0 );
+        mkr.color.r=color_pts[0];
+        mkr.color.g=color_pts[1];
+        mkr.color.b=color_pts[2];
+        mkr.color.a=color_pts[3];
+        mkr.scale.x=0.005;
+        mkr.scale.y=0.005;
+        mkr.scale.z=0.005;
+        mkr.points=points;
+
+        while ( mkr_pub.getNumSubscribers() <1 && wait_for_rviz) {
+            ROS_INFO ( "Waiting for subs" );
+            ros::spinOnce();
+        }
+        mkr_pub.publish ( mkr );
+    } else {
+        ROS_WARN ( "plotPolytope: Hull empty" );
+        return false;
+    }
+    return true;
+}
+
+bool ConstrainedManipulability::displayMarker ( visualization_msgs::Marker mkr,
+                                  const Eigen::Affine3d & T,
+                                  std::string frame,
+                                  unsigned int obj_id,
+                                  const Eigen::Vector4d & color ) {
+    while ( mkr_pub.getNumSubscribers() <1 && wait_for_rviz) {
+        ROS_INFO_ONCE ( "Waiting until marker is displayed in RVIZ" );
+        ros::spinOnce();
+        ros::Duration ( 0.05 ).sleep();
+    }
+    mkr.action=visualization_msgs::Marker::ADD;
+    mkr.header.frame_id=frame;
+    mkr.ns="Objects";
+    mkr.lifetime=ros::Duration ( 0.0 );
+    mkr.id=obj_id;
+    mkr.color.r=color ( 0 );
+    mkr.color.g=color ( 1 );
+    mkr.color.b=color ( 2 );
+    mkr.color.a=color ( 3 );
+    Eigen::Quaterniond q ( T.linear() );
+    mkr.pose.position.x=T ( 0,3 );
+    mkr.pose.position.y=T ( 1,3 );
+    mkr.pose.position.z=T ( 2,3 );
+    mkr.pose.orientation.w=q.w();
+    mkr.pose.orientation.x=q.x();
+    mkr.pose.orientation.y=q.y();
+    mkr.pose.orientation.z=q.z();
+    mkr_pub.publish ( mkr );
+    ros::spinOnce();
+}
 
 
 bool ConstrainedManipulability::addCollisionObject ( const shape_msgs::SolidPrimitive & s1,
@@ -275,7 +420,7 @@ double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::Joint
 
     // Display if desired
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "velocity_polytope",
+        plotPolytope ( "velocity_polytope",
                                    Vset,
                                    base_link_,
                                    base_T_ee.translation(),
@@ -330,7 +475,7 @@ double ConstrainedManipulability::getAllowableMotionPolytope ( const sensor_msgs
     vol_initial=getPolytopeVolume ( Vset );
 
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "allowable_motion_polytope",
+        plotPolytope ( "allowable_motion_polytope",
                                    Vset,
                                    base_link_,
                                    base_T_ee.translation(),
@@ -405,7 +550,7 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const 
                            geometry_information.geometry_transforms.back().translation(),
                            Vset );
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "constrained_allowable_motion_polytope",
+        plotPolytope ( "constrained_allowable_motion_polytope",
                                    Vset,
                                    base_link_,
                                    geometry_information.geometry_transforms.back().translation(),
@@ -474,7 +619,7 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_
                            geometry_information.geometry_transforms.back().translation(),
                            Vset );
     if ( show_polytope ) {
-        rvizDisplay.plotPolytope ( "constrained_velocity_polytope",
+        plotPolytope ( "constrained_velocity_polytope",
                                    Vset,
                                    base_link_,
                                    geometry_information.geometry_transforms.back().translation(),
@@ -667,7 +812,7 @@ bool ConstrainedManipulability::displayCollisionModel ( sensor_msgs::JointState 
     for ( int i=0; i<geometry_information.geometry_transforms.size(); ++i ) {
         visualization_msgs::Marker mk;
         shapes::constructMarkerFromShape ( geometry_information.shapes[i].get(),mk, false );
-        rvizDisplay.displayMarker ( mk,geometry_information.geometry_transforms[i],base_link_,i, {0.1,0.5,0.2,0.5} );
+        displayMarker ( mk,geometry_information.geometry_transforms[i],base_link_,i, {0.1,0.5,0.2,0.5} );
     }
     return false;
 }
