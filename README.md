@@ -51,7 +51,7 @@ The main object is initialized as follows:
     ConstrainedManipulability ( ros::NodeHandle nh,
                                 std::string root,
                                 std::string tip,
-				                std::string robot_description="robot_description",
+				std::string robot_description="robot_description",
                                 double distance_threshold=0.3,
                                 double linearization_limit=0.1,
                                 double dangerfield=10
