@@ -1,10 +1,14 @@
 #include <Eigen/StdVector>
 #include <shape_msgs/SolidPrimitive.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
 #include <ros/ros.h>
 #include <ros/package.h>
 
 typedef std::vector<Eigen::Affine3d,Eigen::aligned_allocator<Eigen::Affine3d>> TransformVector;
 typedef std::vector<Eigen::Matrix<double,6,Eigen::Dynamic>> JacobianVector;
+typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+typedef PointCloud::Ptr PointCloudPtr; 
 
 namespace utility_functions
 {

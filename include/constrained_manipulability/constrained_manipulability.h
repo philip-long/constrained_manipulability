@@ -70,7 +70,8 @@ private:
     ros::NodeHandle nh_;
     /// RVIZ DISPLAY
     ros::Publisher mkr_pub;
-    
+    ros::Publisher cloud_pub;
+
    
     /** Plot a Polytope defined a a set of vertices
     *   The vertices are shifted to the offset position (offset_position), for instance the robot end effector
@@ -142,9 +143,9 @@ protected:
     /** getCollisionModel returns  kinematic information about collision geometry
      * For ith link (segment) in the kinematic serial chain, we return
      * GeometryInformation:
-     *  	shapes[i]: the shape description of geometery [i]
-     *  	geometry_transforms[i]: the transform of the collision geometry's [i] origin
-     *  	geometric_jacobians[i]: the jacobian matrix in the base frame at the collision geometry's [i] origin
+     *          shapes[i]: the shape description of geometery [i]
+     *          geometry_transforms[i]: the transform of the collision geometry's [i] origin
+     *          geometric_jacobians[i]: the jacobian matrix in the base frame at the collision geometry's [i] origin
      */
     bool getCollisionModel ( const  KDL::JntArray & jointpositions,
                              GeometryInformation & geometry_information);
@@ -172,7 +173,7 @@ public:
     ConstrainedManipulability ( ros::NodeHandle nh,
                                 std::string root,
                                 std::string tip,
-				std::string robot_description="robot_description",
+                                std::string robot_description="robot_description",
                                 double distance_threshold=0.3,
                                 double linearization_limit=0.1,
                                 double dangerfield=10

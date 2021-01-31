@@ -15,7 +15,8 @@ nh_ ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dange
     wait_for_rviz=true;
     mkr_pub=nh_.advertise<visualization_msgs::Marker>
             ( "/visualization_marker",1 );
-	    
+    cloud_pub = nh_.advertise<PointCloud>("/polytope_cloud", 1); 
+
     std::string robot_desc_string;
     nh_.param ( robot_description, robot_desc_string, std::string() );
     model_.initParamWithNodeHandle ( robot_description,nh );
@@ -114,8 +115,9 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
                                  std::vector<double>  color_pts,
                                  std::vector<double>  color_line ) {
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull ( new pcl::PointCloud<pcl::PointXYZ> );
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected ( new pcl::PointCloud<pcl::PointXYZ> );
+    PointCloudPtr cloud_hull (new PointCloud);
+    PointCloudPtr cloud_projected (new PointCloud);
+
     double vol ( 0.0 );
     // std::cout<<"Plotted Polytope Points "<<std::endl;
     for ( int var = 0; var < vertices.rows(); ++var ) {
@@ -202,6 +204,9 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ros::spinOnce();
         }
         mkr_pub.publish ( mkr );
+
+        cloud_hull->header.frame_id = frame;
+        cloud_pub.publish(cloud_hull);
     } else {
         ROS_WARN ( "plotPolytope: Hull empty" );
         return false;
@@ -286,7 +291,7 @@ void   ConstrainedManipulability::getKDLKinematicInformation ( const KDL::JntArr
 
 
 bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState & joint_states ) {
-    KDL::JntArray 	kdl_joint_positions ( ndof_ );
+    KDL::JntArray   kdl_joint_positions ( ndof_ );
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
 
     GeometryInformation geometry_information;
@@ -323,8 +328,8 @@ bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState &
 
 
 double ConstrainedManipulability::getPolytopeVolume ( Eigen::MatrixXd  vertices ) {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull ( new pcl::PointCloud<pcl::PointXYZ> );
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected ( new pcl::PointCloud<pcl::PointXYZ> );
+    PointCloudPtr cloud_hull (new PointCloud);
+    PointCloudPtr cloud_projected (new PointCloud);
     double vol ( 0.0 );
     // We are using PCL for the convex hull interface to qhull
     for ( int var = 0; var < vertices.rows(); ++var ) {
@@ -531,7 +536,7 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const 
     Eigen::MatrixXd Qset,Vset;
     GeometryInformation geometry_information;
     double vol_reduced ( 0.0 );
-    KDL::JntArray 	kdl_joint_positions ( ndof_ );
+    KDL::JntArray   kdl_joint_positions ( ndof_ );
 
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
     getCollisionModel ( kdl_joint_positions,geometry_information );
@@ -598,7 +603,7 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_
     Eigen::MatrixXd Qset,Vset;
     GeometryInformation geometry_information;
     double vol_reduced ( 0.0 );
-    KDL::JntArray 	kdl_joint_positions ( ndof_ );
+    KDL::JntArray   kdl_joint_positions ( ndof_ );
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
 
     getCollisionModel ( kdl_joint_positions,geometry_information );
@@ -809,7 +814,7 @@ std::unique_ptr<shapes::Shape> ConstrainedManipulability::constructShape ( const
 
 bool ConstrainedManipulability::displayCollisionModel ( sensor_msgs::JointState const & joint_state ) {
 
-    KDL::JntArray 	kdl_joint_positions ( ndof_ );
+    KDL::JntArray   kdl_joint_positions ( ndof_ );
     jointStatetoKDLJointArray ( joint_state,kdl_joint_positions );
     GeometryInformation geometry_information;
     //     // Collision Link transforms
@@ -918,7 +923,7 @@ bool ConstrainedManipulability::getVrepPolytope ( const Eigen::MatrixXd & A_left
         auto vrep=Poly.vrep();
         reduced_joint_vertex_set=vrep.first;
         if ( reduced_joint_vertex_set.rows() <=0 ) {
-            ROS_ERROR ( "V representation error no rows" );
+            // ROS_ERROR ( "V representation error no rows" );
             return false;
         }
     } catch ( ... ) {
@@ -1028,7 +1033,7 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( KDL::C
     int ndof=chain.getNrOfJoints();
 
     Eigen::MatrixXd Qset,Vset;
-    KDL::JntArray 	kdl_joint_positions ( ndof );
+    KDL::JntArray   kdl_joint_positions ( ndof );
 
     Eigen::MatrixXd ndof_identity_matrix;
     ndof_identity_matrix.resize ( ndof,ndof );
@@ -1091,7 +1096,7 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( KDL::Chain & 
         double distance_threshold ) {
 
     int ndof=chain.getNrOfJoints();
-    KDL::JntArray 	kdl_joint_positions ( ndof );
+    KDL::JntArray   kdl_joint_positions ( ndof );
 
     Eigen::MatrixXd Qset,Vset;
 
@@ -1403,7 +1408,7 @@ double ConstrainedManipulability::getAllowableMotionPolytope ( KDL::Chain &  cha
 
 
     int ndof=chain.getNrOfJoints();
-    KDL::JntArray 	kdl_joint_positions ( ndof );
+    KDL::JntArray   kdl_joint_positions ( ndof );
     KDL::ChainJntToJacSolver kdl_dfk_solver ( chain );
     KDL::ChainFkSolverPos_recursive kdl_fk_solver ( chain );
 
@@ -1463,7 +1468,7 @@ double ConstrainedManipulability::getVelocityPolytope ( KDL::Chain &  chain,
 
 
     int ndof=chain.getNrOfJoints();
-    KDL::JntArray 	kdl_joint_positions ( ndof );
+    KDL::JntArray   kdl_joint_positions ( ndof );
     KDL::ChainJntToJacSolver kdl_dfk_solver ( chain );
     KDL::ChainFkSolverPos_recursive kdl_fk_solver ( chain );
 

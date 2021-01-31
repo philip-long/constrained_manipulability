@@ -11,7 +11,7 @@ void jointSensorCallback ( const sensor_msgs::JointState::ConstPtr& msg ) {
 
 int main ( int argc, char **argv ) {
     ros::init ( argc, argv, "constrained_manipulability" );
-    ROS_INFO ( "FCL SAWYER" );
+    // ROS_INFO ( "FCL SAWYER" );
     ros::NodeHandle nh; // Create a node handle and start the node
     constrained_manipulability::PolytopeVolume polytope_volumes;
 
