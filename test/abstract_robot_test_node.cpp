@@ -84,10 +84,10 @@ int main ( int argc, char **argv ) {
 
 
     polytope_volumes.names.resize ( 4 );
-    polytope_volumes.names[0]= "AllowableMotion";
-    polytope_volumes.names[1]="ConstrainedAllowableMotion";
-    polytope_volumes.names[2]="VelocityPolytope";
-    polytope_volumes.names[3]="ConstrainedVelocityPolytope";
+    polytope_volumes.names[0]="allowable_motion_polytope";
+    polytope_volumes.names[1]="constrained_allowable_motion_polytope";
+    polytope_volumes.names[2]="velocity_polytope";
+    polytope_volumes.names[3]="constrained_velocity_polytope";
 
     polytope_volumes.volumes.resize ( 4 );
     while ( ros::ok() ) {

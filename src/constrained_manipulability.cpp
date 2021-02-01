@@ -15,7 +15,8 @@ nh_ ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dange
     wait_for_rviz=true;
     mkr_pub=nh_.advertise<visualization_msgs::Marker>
             ( "/visualization_marker",1 );
-    cloud_pub = nh_.advertise<PointCloud>("/polytope_cloud", 1); 
+    poly_mkr_pub=nh_.advertise<constrained_manipulability::PolytopeMarker>
+                    ( "constrained_manipulability/polytope_marker",1 );
 
     std::string robot_desc_string;
     nh_.param ( robot_description, robot_desc_string, std::string() );
@@ -145,9 +146,9 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         points.clear();
         //points.resize(cloud_hull->points.size());
 
-        // Plottling
+        // Plotting
         visualization_msgs::Marker mkr;
-
+        
         mkr.ns=polytope_name;
         mkr.action=visualization_msgs::Marker::ADD;
         mkr.type=visualization_msgs::Marker::TRIANGLE_LIST;
@@ -204,9 +205,11 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ros::spinOnce();
         }
         mkr_pub.publish ( mkr );
-
-        cloud_hull->header.frame_id = frame;
-        cloud_pub.publish(cloud_hull);
+        
+        constrained_manipulability::PolytopeMarker poly_mkr;
+        poly_mkr.name = polytope_name;
+        poly_mkr.marker = mkr;
+        poly_mkr_pub.publish( poly_mkr );
     } else {
         ROS_WARN ( "plotPolytope: Hull empty" );
         return false;
