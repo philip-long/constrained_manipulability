@@ -148,7 +148,8 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
 
         // Plotting
         visualization_msgs::Marker mkr;
-        
+        constrained_manipulability::PolytopeMarker poly_mkr;
+        poly_mkr.name = polytope_name;
         mkr.ns=polytope_name;
         mkr.action=visualization_msgs::Marker::ADD;
         mkr.type=visualization_msgs::Marker::TRIANGLE_LIST;
@@ -185,7 +186,8 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ros::spinOnce();
         }
         mkr_pub.publish ( mkr );
-
+        poly_mkr.marker = mkr;
+        poly_mkr_pub.publish( poly_mkr );
 
         mkr.type=visualization_msgs::Marker::SPHERE_LIST;
         mkr.header.frame_id=frame;
@@ -205,9 +207,6 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ros::spinOnce();
         }
         mkr_pub.publish ( mkr );
-        
-        constrained_manipulability::PolytopeMarker poly_mkr;
-        poly_mkr.name = polytope_name;
         poly_mkr.marker = mkr;
         poly_mkr_pub.publish( poly_mkr );
     } else {
