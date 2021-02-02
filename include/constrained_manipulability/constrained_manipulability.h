@@ -41,7 +41,7 @@
 
 #include <robot_collision_checking/fcl_interface.h>
 #include "constrained_manipulability/utility_funcs.h"
-#include "constrained_manipulability/PolytopeMarker.h"
+#include "constrained_manipulability/PolytopeMesh.h"
 #include "constrained_manipulability/PolytopeVolume.h"
 #include <pcl/surface/concave_hull.h>
 #ifndef ROBOT_POLYTOPE_HPP
@@ -71,7 +71,7 @@ private:
     ros::NodeHandle nh_;
     /// RVIZ DISPLAY
     ros::Publisher mkr_pub;
-    ros::Publisher poly_mkr_pub;
+    ros::Publisher poly_mesh_pub;
 
    
     /** Plot a Polytope defined a a set of vertices

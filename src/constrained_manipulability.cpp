@@ -15,8 +15,8 @@ nh_ ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dange
     wait_for_rviz=true;
     mkr_pub=nh_.advertise<visualization_msgs::Marker>
             ( "/visualization_marker",1 );
-    poly_mkr_pub=nh_.advertise<constrained_manipulability::PolytopeMarker>
-                    ( "constrained_manipulability/polytope_marker",1 );
+    poly_mesh_pub=nh_.advertise<constrained_manipulability::PolytopeMesh>
+                    ( "constrained_manipulability/polytope_mesh",1 );
 
     std::string robot_desc_string;
     nh_.param ( robot_description, robot_desc_string, std::string() );
@@ -146,10 +146,13 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         points.clear();
         //points.resize(cloud_hull->points.size());
 
+        constrained_manipulability::PolytopeMesh poly_mesh;
+        poly_mesh.name = polytope_name;
+        poly_mesh.mesh.triangles.resize(polygons.size());
+                
         // Plotting
         visualization_msgs::Marker mkr;
-        constrained_manipulability::PolytopeMarker poly_mkr;
-        poly_mkr.name = polytope_name;
+        
         mkr.ns=polytope_name;
         mkr.action=visualization_msgs::Marker::ADD;
         mkr.type=visualization_msgs::Marker::TRIANGLE_LIST;
@@ -162,12 +165,16 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         // this is then put in a
         for ( int tri = 0; tri<polygons.size(); ++tri ) {
             pcl::Vertices triangle=polygons[tri];
+
             for ( int var = 0; var<3; ++var ) {
                 geometry_msgs::Point pp;
                 pp.x=cloud_hull->points[triangle.vertices[var]].x;
                 pp.y=cloud_hull->points[triangle.vertices[var]].y;
                 pp.z=cloud_hull->points[triangle.vertices[var]].z;
                 points.push_back ( pp );
+                
+                poly_mesh.mesh.triangles[tri].vertex_indices[var] = triangle.vertices[var];
+                poly_mesh.mesh.vertices.push_back(pp);
             }
         }
 
@@ -177,6 +184,7 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         mkr.color.g=color_line[1];
         mkr.color.b=color_line[2];
         mkr.color.a=color_line[3];//fmax(auto_alpha,0.1);
+        poly_mesh.color = mkr.color;
         mkr.scale.x=1.0;
         mkr.scale.y=1.0;
         mkr.scale.z=1.0;
@@ -186,8 +194,7 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ros::spinOnce();
         }
         mkr_pub.publish ( mkr );
-        poly_mkr.marker = mkr;
-        poly_mkr_pub.publish( poly_mkr );
+        poly_mesh_pub.publish ( poly_mesh );
 
         mkr.type=visualization_msgs::Marker::SPHERE_LIST;
         mkr.header.frame_id=frame;
@@ -207,8 +214,6 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ros::spinOnce();
         }
         mkr_pub.publish ( mkr );
-        poly_mkr.marker = mkr;
-        poly_mkr_pub.publish( poly_mkr );
     } else {
         ROS_WARN ( "plotPolytope: Hull empty" );
         return false;

@@ -28,7 +28,7 @@ find_library(EIGEN_CDDLIB_LIB eigen-cddlib)
 ## Generate messages in the 'msg' folder
  add_message_files(
    FILES
-   PolytopeMarker.msg
+   PolytopeMesh.msg
    PolytopeVolume.msg
 )
 
@@ -36,7 +36,7 @@ find_library(EIGEN_CDDLIB_LIB eigen-cddlib)
 generate_messages(
   DEPENDENCIES
   std_msgs
-  visualization_msgs
+  shape_msgs
 )
 
 
