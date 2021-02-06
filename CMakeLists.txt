@@ -25,6 +25,12 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_library(EIGEN_CDDLIB_LIB eigen-cddlib)
 
+
+
+set(SNOPT_LIB /home/philip/snopt-interface/lib/libsnopt7_cpp.so) # SNOPT INCLUDE
+
+
+
 ## Generate messages in the 'msg' folder
  add_message_files(
    FILES
@@ -64,6 +70,7 @@ endif()
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  /home/philip/snopt-interface/include # SNOPT INCLUDE
 )
 
 add_library(constrained_manipulability
@@ -73,3 +80,7 @@ target_link_libraries(constrained_manipulability ${catkin_LIBRARIES} ${EIGEN_CDD
 
 add_executable(abstract_robot_test test/abstract_robot_test_node.cpp)
 target_link_libraries(abstract_robot_test ${catkin_LIBRARIES} constrained_manipulability)
+
+add_executable(ik_example test/ik_example.cpp)
+target_link_libraries(ik_example ${SNOPT_LIB} ${catkin_LIBRARIES} constrained_manipulability)
+
