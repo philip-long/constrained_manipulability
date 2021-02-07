@@ -136,6 +136,7 @@ private:
         Eigen::Affine3d & T,
         Eigen::Matrix<double,6,Eigen::Dynamic> & Jac,int segment=-1);
     
+    
 protected:
 
 
@@ -520,7 +521,11 @@ public:
 
 
 
-
+    /// Function to return Jaocbian matrix to external users of library based on a joint state
+    void getJacobian(const sensor_msgs::JointState & joint_states,Eigen::Matrix<double,6,Eigen::Dynamic> & Jac);
+    
+    /// Function to return transform matrix to external users of library based on a joint state
+    void getTransform(const sensor_msgs::JointState & joint_states,Eigen::Affine3d & T);
 };
 
 #endif
