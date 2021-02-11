@@ -153,6 +153,13 @@ By evaluating the volume of the CMP at points in the workspace, a reachability m
             4. $ `./sntoya`
 
 
+## Launching Teleoperation 
+```
+ roslaunch constrained_manipulability ik_example.launch 
+ rosrun teleop_twist_keyboard teleop_twist_keyboard.py _speed:=0.03 _turn:=0.014
+```
+
+
 ## Citing
 If you use this package, please cite either :
 ```
