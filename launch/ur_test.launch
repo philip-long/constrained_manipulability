@@ -2,6 +2,7 @@
 <launch>
 
  <include file="$(find ur_description)/launch/view_ur5.launch"/>
+ 
  <include file="$(find constrained_manipulability)/launch/abstract_robot.launch">
     <arg name="root_link" value="base_link" />
     <arg name="tip_link" value="ee_link" />

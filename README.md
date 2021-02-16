@@ -123,6 +123,43 @@ By evaluating the volume of the CMP at points in the workspace, a reachability m
 ![Planar 2DOF workspace analysis](doc/wksp2.png) ![Humanoid workspace analysis](doc/wrkspval.png)
 
 
+#### 4. Optimization using SNOPT
+ 1. Request to download SNOPT [here](http://ccom.ucsd.edu/~optimizers/downloads/).
+ 2. Download SNOPT7 by Linux option (not static library) under the Fortran (only) Libraries.
+ 3. Clone the `snopt-interface` package to HOME directory:
+             $ `git clone https://github.com/snopt/snopt-interface.git`
+ 4. $ `cd snopt-interface`
+ 5. $ `mkdir lib`
+ 6. Put SNOPT Fortran source `libsnopt7.so` in lib folder.
+ 7. Make sure that gfortran-7 is installed, otherwise install it by:
+  $ `sudo add-apt-repository ppa:ubuntu-toolchain-r/test`
+  $ `sudo apt update`
+  $ `sudo apt install gfortran-7`
+ 8. $ `./autogen.sh` (If `autoreconf: not found` error is displayed, install dependencies by: $ `sudo apt install autoconf`)
+ 9. $ `./configure` 
+ 10. $ `make`
+ 11. $ `make install`
+ 12. Put license file (attached to the mail that include SNOPT download access link) into `licenses` folder in HOME directory.
+ 13. Put SNOPT environment variables to the .bashrc:
+     ```
+     export SNOPT_LICENSE=$HOME/licenses/snopt7.lic
+     export SNOPT_DIR=$HOME/snopt-interface
+     export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${SNOPT_DIR}/lib"
+            ```
+ 14. Check if SNOPT is installed correctly:
+            1. $ `cd ~/snopt-interface`
+            2. $ `make examples`
+            3. $ `cd cppexamples`
+            4. $ `./sntoya`
+
+
+## Launching Teleoperation 
+```
+ roslaunch constrained_manipulability ik_example.launch 
+ rosrun teleop_twist_keyboard teleop_twist_keyboard.py _speed:=0.03 _turn:=0.014
+```
+
+
 ## Citing
 If you use this package, please cite either :
 ```

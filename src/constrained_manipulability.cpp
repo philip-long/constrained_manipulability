@@ -250,28 +250,29 @@ bool ConstrainedManipulability::displayMarker ( visualization_msgs::Marker mkr,
     mkr.pose.orientation.z=q.z();
     mkr_pub.publish ( mkr );
     ros::spinOnce();
+    return true;
 }
 
 
 bool ConstrainedManipulability::addCollisionObject ( const shape_msgs::SolidPrimitive & s1,
         const  Eigen::Affine3d  & wT1,unsigned int object_id ) {
-    fclInterface.addCollisionObject ( s1,wT1,object_id );
+    return fclInterface.addCollisionObject ( s1,wT1,object_id );
 }
 
 bool ConstrainedManipulability::addCollisionObject ( const shape_msgs::Mesh & s1,
         const  Eigen::Affine3d  & wT1,unsigned int object_id ) {
-    fclInterface.addCollisionObject ( s1,wT1,object_id );
+    return fclInterface.addCollisionObject ( s1,wT1,object_id );
 }
 
 bool ConstrainedManipulability::removeCollisionObject (unsigned int object_id ) {
-    fclInterface.removeCollisionObject (object_id );
+    return fclInterface.removeCollisionObject (object_id );
 }
 bool ConstrainedManipulability::addCollisionObject ( FCLObjectSet objects ) {
-    fclInterface.addCollisionObject ( objects );    
+    return fclInterface.addCollisionObject ( objects );    
 }
 
 bool ConstrainedManipulability::displayObjects() {
-    fclInterface.displayObjects ( base_link_ );
+    return fclInterface.displayObjects ( base_link_ );
 }
 
 
@@ -295,6 +296,8 @@ void   ConstrainedManipulability::getKDLKinematicInformation ( const KDL::JntArr
 
     Jac=base_J_link_origin.data;
 }
+
+
 
 
 bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState & joint_states ) {
@@ -390,6 +393,23 @@ double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::Joint
                                      bhrep,
                                      color_pts,color_line );
     return vol;
+}
+
+
+void ConstrainedManipulability::getTransform(const sensor_msgs::JointState & joint_states,Eigen::Affine3d & T)
+{
+    KDL::JntArray kdl_joint_positions ( ndof_ );
+    Eigen::Matrix<double,6,Eigen::Dynamic> Jac;
+    jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
+    getKDLKinematicInformation ( kdl_joint_positions,T,Jac );
+}
+
+void ConstrainedManipulability::getJacobian(const sensor_msgs::JointState & joint_states,Eigen::Matrix<double,6,Eigen::Dynamic> & Jac)
+{
+    KDL::JntArray kdl_joint_positions ( ndof_ );
+    Eigen::Affine3d base_T_ee;    
+    jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
+    getKDLKinematicInformation ( kdl_joint_positions,base_T_ee,Jac );
 }
 
 
@@ -895,6 +915,7 @@ bool ConstrainedManipulability::projectTranslationalJacobian ( Eigen::Vector3d n
     ROS_ASSERT ( J0N_in.rows() >3 );
     J0N_out.setZero();
     J0N_out=nT.transpose() *J0N_in.topLeftCorner ( 3,n );
+    return true;
 }
 
 

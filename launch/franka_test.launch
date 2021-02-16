@@ -5,9 +5,9 @@
 
  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find franka_description)/robots/panda_arm_hand.urdf.xacro'" if="$(arg load_gripper)" />
 
- <node pkg="joint_state_publisher" type="joint_state_publisher"
+ <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui"
 
- name="test_joint_state_publisher" output="screen" args="_use_gui:=true">
+ name="joint_state_publisher_gui" output="screen">
   <rosparam param="source_list">["alternative_input/joint_states"]</rosparam>
  </node>
 
