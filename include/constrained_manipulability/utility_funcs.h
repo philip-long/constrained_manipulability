@@ -181,14 +181,14 @@ void getCollisionShapes ( const std::vector<int> & object_primitive,
                           std::vector<shape_msgs::SolidPrimitive> & shapes,
                           TransformVector & shape_poses )
 {
-    ROS_ASSERT ( obj_dimensions.size() ==object_primitive.size() );
-    ROS_ASSERT ( obj_poses.size() ==object_primitive.size() );
+    ROS_ASSERT ( obj_dimensions.size() == object_primitive.size() );
+    ROS_ASSERT ( obj_poses.size() == object_primitive.size() );
     shapes.resize ( object_primitive.size() );
     shape_poses.resize ( object_primitive.size() );
 
     for ( int i = 0; i < object_primitive.size(); ++i ) {
         shapes[i].type=object_primitive[i];
-        shapes[i].dimensions.resize ( 3 );
+        shapes[i].dimensions.resize ( obj_dimensions[i].size() );
         for ( int j = 0; j < obj_dimensions[i].size(); ++j ) {
             shapes[i].dimensions[j]=obj_dimensions[i][j];
         }
