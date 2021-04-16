@@ -68,7 +68,6 @@ void sampleJointStates(sensor_msgs::JointState current_state,
 }
 
 
-
 int main ( int argc, char **argv ) {
     ros::init ( argc, argv, "ik_example" );
     std::srand(std::time(nullptr));
@@ -133,7 +132,7 @@ int main ( int argc, char **argv ) {
 
 
     polytope_volumes.names.resize ( 4 );
-    polytope_volumes.names[0]= "AllowableMotion";
+    polytope_volumes.names[0]="AllowableMotion";
     polytope_volumes.names[1]="ConstrainedAllowableMotion";
     polytope_volumes.names[2]="VelocityPolytope";
     polytope_volumes.names[3]="ConstrainedVelocityPolytope";
@@ -155,12 +154,12 @@ int main ( int argc, char **argv ) {
         ros::spinOnce();
     }
 
+
     twist_received=false;
     double objective_function=250.0;
     while ( ros::ok() ) {
-
-
         joint_state=pub_joint_state;
+
         // This function simply finds random joint configurations in the neighborhood
         sampleJointStates(joint_state,vec_sampled_joint_states);
 
@@ -173,7 +172,7 @@ int main ( int argc, char **argv ) {
             // SNOPT stuff
             
             objective_function=100.0;
-            for ( auto& sample_joint_state:vec_sampled_joint_states)
+            for (auto& sample_joint_state:vec_sampled_joint_states)
             {
                 sample_number++;
                 color_a+=0.2;
@@ -193,8 +192,8 @@ int main ( int argc, char **argv ) {
 
                 robot_polytope.getJacobian(sample_joint_state,Jacobian);
 
-                std::cout<<"allowable_vol"<<allowable_vol_constrained<<std::endl;
-                std::cout<<"allowable_vol_constrained"<<allowable_vol_constrained<<std::endl;
+                std::cout<<"allowable_vol "<<allowable_vol_constrained<<std::endl;
+                std::cout<<"allowable_vol_constrained "<<allowable_vol_constrained<<std::endl;
 
 
 
@@ -278,25 +277,20 @@ int main ( int argc, char **argv ) {
                     Eigen::VectorXd dq_sol=utility_functions::vectorToEigen(joint_deviation);
                  
                     
-                    
-                    
-                    
                     if(*F<objective_function)
                     {
                         objective_function=*F;
                         std::cout<<"Updating value based on "<<sample_number<<std::endl;
-                        Eigen::VectorXd twist_shifted_output=Jacobian_g*(dq_sol +shift_to_sampled_joint_state);
+                        Eigen::VectorXd twist_shifted_output = Jacobian_g * (dq_sol + shift_to_sampled_joint_state);
                         std::cout<<"twist_shifted_output  "<<twist_shifted_output<<std::endl;
                         std::cout<<"desired_twist_g value "<<desired_twist_g<<std::endl;
-                        Eigen::VectorXd vel_err= ( twist_shifted_output- desired_twist_g);
-                        double sum_squared_error=vel_err.dot ( vel_err );
+                        Eigen::VectorXd vel_err = (twist_shifted_output - desired_twist_g);
+                        double sum_squared_error = vel_err.dot (vel_err);
                         std::cout<<"sum_squared_error "<<sum_squared_error <<std::endl;
-                         for ( int j = 0; j < Jacobian_g.cols() ; ++j ) {
-                         pub_joint_state.position[j]=dq_sol( j )  + sample_joint_state.position[j];
+                        for ( int j = 0; j < Jacobian_g.cols() ; ++j ) {
+                            pub_joint_state.position[j] = dq_sol(j) + sample_joint_state.position[j];
+                        }  
                     }
-                       
-                    }
-                    
                 }
                 else
                 {
