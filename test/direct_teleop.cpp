@@ -11,7 +11,6 @@ class DirectTeleop
 {
     public:
         DirectTeleop(const std::string& name);
-        ~DirectTeleop();
         void twistCallback(const geometry_msgs::Twist::ConstPtr& twist);
 
     private:
@@ -41,7 +40,7 @@ DirectTeleop::DirectTeleop(const std::string& name) : node_name_(name)
     controller_manager_msgs::SwitchController switch_srv;
     switch_srv.request.start_controllers.push_back("joint_group_position_controller");
     switch_srv.request.stop_controllers.push_back("arm_controller");
-    switch_srv.request.strictness = switch_srv.request.STRICT;
+    switch_srv.request.strictness = switch_srv.request.BEST_EFFORT;
     if (switch_client_.call(switch_srv))
     {
         ROS_INFO("Successfully switched controllers!");
@@ -49,23 +48,6 @@ DirectTeleop::DirectTeleop(const std::string& name) : node_name_(name)
     else
     {
         ROS_ERROR("Failed to call service switch_controller");
-    }
-}
-
-DirectTeleop::~DirectTeleop()
-{
-    // Switch back on destruction
-    controller_manager_msgs::SwitchController switch_srv;
-    switch_srv.request.start_controllers.push_back("arm_controller");
-    switch_srv.request.stop_controllers.push_back("joint_group_position_controller");
-    switch_srv.request.strictness = switch_srv.request.STRICT;
-    if (switch_client_.call(switch_srv))
-    {
-        ROS_INFO("Successfully switched back!");
-    }
-    else
-    {
-        ROS_ERROR("Failed to revert service switch_controller");
     }
 }
 
