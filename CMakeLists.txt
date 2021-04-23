@@ -78,6 +78,9 @@ add_library(constrained_manipulability
             include/${PROJECT_NAME}/constrained_manipulability.h)
 target_link_libraries(constrained_manipulability ${catkin_LIBRARIES} ${EIGEN_CDDLIB_LIB} ${fcl_interface_LIBRARIES})
 
+## Add cmake target dependencies of the library for message generation code necessary before library compilation
+add_dependencies(constrained_manipulability ${constrained_manipulability_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 add_executable(abstract_robot_test test/abstract_robot_test_node.cpp)
 target_link_libraries(abstract_robot_test ${catkin_LIBRARIES} constrained_manipulability)
 
