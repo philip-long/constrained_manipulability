@@ -46,7 +46,7 @@ int main ( int argc, char **argv ) {
 
 
 
-    ConstrainedManipulability robot_polytope ( nh,root,tip );
+    ConstrainedManipulability robot_polytope ( nh,root,tip);
 
 
 

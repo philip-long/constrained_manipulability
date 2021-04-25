@@ -7,6 +7,8 @@ sensor_msgs::JointState joint_state;
 geometry_msgs::Twist teleop_twist;
 bool joint_state_received ( false );
 bool twist_received ( false );
+bool ignore_constraints(false);
+
 
 std::vector<double> q_reference_g; // reference joint position
 Eigen::MatrixXd AHrep_g; // Hyperplane constraints
@@ -95,8 +97,10 @@ int main ( int argc, char **argv ) {
     std::vector<shape_msgs::SolidPrimitive> shapes_in;
     TransformVector shapes_pose;
     FCLObjectSet objects;
-    bool show_mp,show_cmp;
+    bool show_mp,show_cmp,op_constraints,debug_statements;
 
+    utility_functions::getParameter ( "~/ignore_constraints",op_constraints);
+    utility_functions::getParameter ( "~/debug_statements",debug_statements );
     utility_functions::getParameter ( "~/root",root );
     utility_functions::getParameter ( "~/tip",tip );
     utility_functions::getParameter ( "~/show_mp",show_mp );
@@ -110,7 +114,9 @@ int main ( int argc, char **argv ) {
                                             shapes_in,
                                             shapes_pose );
 
-
+    ignore_constraints=op_constraints;
+    ROS_WARN_COND(ignore_constraints,"Ignoring Constraints");
+    
     sensor_msgs::JointState pub_joint_state;
 
     pub_joint_state.name= {"shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"};
@@ -192,16 +198,16 @@ int main ( int argc, char **argv ) {
 
                 robot_polytope.getJacobian(sample_joint_state,Jacobian);
 
-                std::cout<<"allowable_vol "<<allowable_vol_constrained<<std::endl;
-                std::cout<<"allowable_vol_constrained "<<allowable_vol_constrained<<std::endl;
-
+                ROS_INFO_COND(debug_statements,"allowable_vol %f",allowable_vol);
+                ROS_INFO_COND(debug_statements,"allowable_vol_constrained %f",allowable_vol_constrained);
 
 
                 if(!robot_polytope.checkCollision(sample_joint_state))
                 {
-                    std::cout<<"\n =================================== \n"<<std::endl;
-                    std::cout<<"\n ===Starting SNOPT OPTIMZATION "<<sample_number<<"===== \n"<<std::endl;
-                    std::cout<<"\n =================================== \n"<<std::endl;
+                    
+                    ROS_INFO_COND(debug_statements,"\n ===Starting SNOPT OPTIMZATION for %d ==== \n",sample_number);
+                    
+                    
                     Eigen::VectorXd dq ( Jacobian_g.cols() );
                     dq.setZero();
                     Eigen::VectorXd poly_constraints;
@@ -221,7 +227,7 @@ int main ( int argc, char **argv ) {
 
 
                     snoptProblemA onlineOptimization;
-                    onlineOptimization.initialize ( "",0 ); // no print file; summary on
+                    onlineOptimization.initialize ( "", (int) debug_statements); // no print file; summary on
                     onlineOptimization.setProbName ( "Online" );
                     onlineOptimization.setIntParameter ( "Derivative option", 0 ); // snopta will compute the Jacobian by finite-differences
                     onlineOptimization.setIntParameter ( "Verify level ", 0 );
@@ -272,7 +278,7 @@ int main ( int argc, char **argv ) {
                                                nS, nInf, sInf );
 
                     joint_deviation.assign ( x,x+n );
-                    utility_functions::printVector(joint_deviation,"resulting joint deviation");
+                    if(debug_statements) utility_functions::printVector(joint_deviation,"resulting joint deviation");
 
                     Eigen::VectorXd dq_sol=utility_functions::vectorToEigen(joint_deviation);
                  
@@ -280,21 +286,24 @@ int main ( int argc, char **argv ) {
                     if(*F<objective_function)
                     {
                         objective_function=*F;
-                        std::cout<<"Updating value based on "<<sample_number<<std::endl;
-                        Eigen::VectorXd twist_shifted_output = Jacobian_g * (dq_sol + shift_to_sampled_joint_state);
-                        std::cout<<"twist_shifted_output  "<<twist_shifted_output<<std::endl;
-                        std::cout<<"desired_twist_g value "<<desired_twist_g<<std::endl;
-                        Eigen::VectorXd vel_err = (twist_shifted_output - desired_twist_g);
-                        double sum_squared_error = vel_err.dot (vel_err);
-                        std::cout<<"sum_squared_error "<<sum_squared_error <<std::endl;
+
+                        ROS_INFO_COND(debug_statements,"Updating value based on %d",sample_number);
+                        
+                        Eigen::VectorXd twist_shifted_output=Jacobian_g*(dq_sol +shift_to_sampled_joint_state);
+                        if(debug_statements) std::cout<<"twist_shifted_output  "<<twist_shifted_output<<std::endl;
+                        if(debug_statements) std::cout<<"desired_twist_g value "<<desired_twist_g<<std::endl;
+                        
+                        Eigen::VectorXd vel_err= ( twist_shifted_output- desired_twist_g);
+                        double sum_squared_error=vel_err.dot ( vel_err );
+                        ROS_INFO_COND(debug_statements,"sum_squared_error %f",sum_squared_error);
                         for ( int j = 0; j < Jacobian_g.cols() ; ++j ) {
-                            pub_joint_state.position[j] = dq_sol(j) + sample_joint_state.position[j];
-                        }  
+                            pub_joint_state.position[j]=dq_sol( j )  + sample_joint_state.position[j];
+                        }
                     }
                 }
                 else
                 {
-                    std::cout<<"in collision optimzation will fail"<<std::endl;
+                    ROS_WARN_COND(debug_statements,"in collision optimzation will fail");
                 }
             }
             
@@ -362,11 +371,19 @@ void calculateDeviationAbs ( int    *Status, int *n,    double x[],
     Eigen::VectorXd vel_err= ( v- desired_twist_g);
     double sum_squared_error=100000*(vel_err.dot ( vel_err ));
 
-    poly_constraints = ( AHrep_g*dq); // tolerance
-
-    for ( int i = 0; i < AHrep_g.rows(); ++i ) {
-        poly_constraints ( i );
-        F[i + 1] = poly_constraints ( i );
+    if(ignore_constraints)
+    {
+        for ( int i = 0; i < AHrep_g.rows(); ++i ) {
+            F[i + 1] = 0.0;
+        }
+    }
+    else
+    {
+        poly_constraints = ( AHrep_g*dq); // tolerance
+        for ( int i = 0; i < AHrep_g.rows(); ++i ) {
+            poly_constraints ( i );
+            F[i + 1] = poly_constraints ( i );
+        }
     }
     F[0] = sum_squared_error;
 }
