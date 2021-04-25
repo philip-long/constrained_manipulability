@@ -154,23 +154,12 @@ By evaluating the volume of the CMP at points in the workspace, a reachability m
 
 
 ## Launching Teleoperation 
+Run the following commands for guarded teleoperation with the UR3:
 ```
- roslaunch constrained_manipulability ik_example.launch 
- rosrun teleop_twist_keyboard teleop_twist_keyboard.py _speed:=0.03 _turn:=0.014
+ roslaunch constrained_manipulability ik_example_ur3.launch 
+ rosrun teleop_twist_keyboard teleop_twist_keyboard.py _speed:=0.01 _turn:=0.005
 ```
-
-### Direct Teleop UR3
-First install the `moveit_servo` package and then run the following launch files to directly teleoperate the UR3 using Gazebo:
-```
-roslaunch ur_gazebo ur3.launch
-roslaunch ur3_moveit_config ur3_moveit_planning_execution.launch sim:=true
-roslaunch ur3_moveit_config moveit_rviz.launch config:=true
-roslaunch constrained_manipulability direct_teleop.launch
-```
-If working with the real robot, then launch from `ur_bringup` instead of `ur_gazebo`.
-
-Command velocities need to be published from a controller to the "/cmd_vel" topic, e.g. using `teleop_twist_keyboard` or any other means.
-**Note:** The `ur_simulated_config.yaml` file may need adjusting depending on the setup. Also refer to this [servo tutorial](https://ros-planning.github.io/moveit_tutorials/doc/realtime_servo/realtime_servo_tutorial.html) on how to configure different control devices.
+If running direct teleoperation without assistance, then set the `constraints_disabled` parameter for the `ik_example_ur3.launch` to "true".
 
 ## Citing
 If you use this package, please cite either :

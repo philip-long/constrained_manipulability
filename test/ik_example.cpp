@@ -87,7 +87,7 @@ int main ( int argc, char **argv ) {
                            ( "constrained_manipulability/polytope_volumes",1 );
 
     ros::Publisher joint_pub=nh.advertise<sensor_msgs::JointState>
-                             ( "joint_states",1 );
+                             ( "joint_states",1,true ); // latched publisher
 
 
     std::string root,tip;
@@ -153,12 +153,12 @@ int main ( int argc, char **argv ) {
     std::vector<double> joint_deviation ( 7 ); // Resulting change in joint position
 
     pub_joint_state.header.seq=0;
-    while(pub_joint_state.header.seq<10) {
-        pub_joint_state.header.seq++;
-        pub_joint_state.header.stamp=ros::Time::now();
-        joint_pub.publish(pub_joint_state);
-        ros::spinOnce();
-    }
+    //while(pub_joint_state.header.seq<10) {
+    pub_joint_state.header.seq++;
+    pub_joint_state.header.stamp=ros::Time::now();
+    joint_pub.publish(pub_joint_state);
+    ros::spinOnce();
+    //}
 
 
     twist_received=false;
@@ -308,15 +308,15 @@ int main ( int argc, char **argv ) {
             }
             
             // Moving
-             for ( int j = 0; j < 3 ; ++j ) {
-                pub_joint_state.header.seq++;
-                pub_joint_state.header.stamp=ros::Time::now();
-                joint_pub.publish(pub_joint_state);
-                ros::spinOnce();
-            }
-
-
+            //for ( int j = 0; j < 3 ; ++j ) {
+            pub_joint_state.header.seq++;
+            pub_joint_state.header.stamp=ros::Time::now();
+            joint_pub.publish(pub_joint_state);
             ros::spinOnce();
+            //}
+
+
+            //ros::spinOnce();
         }
 
 
