@@ -302,14 +302,16 @@ int main ( int argc, char **argv ) {
                     ROS_WARN_COND(debug_statements,"in collision optimzation will fail");
                 }
             }
+
+            // Publish computed volumes
+            vol_pub.publish ( polytope_volumes );
+
+            // Moving
+            pub_joint_state.header.seq++;
+            pub_joint_state.header.stamp=ros::Time::now();
+            joint_pub.publish(pub_joint_state);
         }
 
-        vol_pub.publish ( polytope_volumes );
-
-        // Always publish joint state, even if not moving
-        pub_joint_state.header.seq++;
-        pub_joint_state.header.stamp=ros::Time::now();
-        joint_pub.publish(pub_joint_state);
         ros::spinOnce();
         ros::Duration ( 0.001 ).sleep();
     }
