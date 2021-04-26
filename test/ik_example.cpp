@@ -137,13 +137,10 @@ int main ( int argc, char **argv ) {
 
 
 
-    polytope_volumes.names.resize ( 4 );
+    polytope_volumes.names.resize ( 2 );
     polytope_volumes.names[0]="AllowableMotion";
     polytope_volumes.names[1]="ConstrainedAllowableMotion";
-    polytope_volumes.names[2]="VelocityPolytope";
-    polytope_volumes.names[3]="ConstrainedVelocityPolytope";
-
-    polytope_volumes.volumes.resize ( 4 );
+    polytope_volumes.volumes.resize ( 2 );
 
     std::vector<sensor_msgs::JointState> vec_sampled_joint_states(3);
 
@@ -153,12 +150,10 @@ int main ( int argc, char **argv ) {
     std::vector<double> joint_deviation ( 7 ); // Resulting change in joint position
 
     pub_joint_state.header.seq=0;
-    //while(pub_joint_state.header.seq<10) {
     pub_joint_state.header.seq++;
     pub_joint_state.header.stamp=ros::Time::now();
     joint_pub.publish(pub_joint_state);
     ros::spinOnce();
-    //}
 
 
     twist_received=false;
@@ -183,24 +178,25 @@ int main ( int argc, char **argv ) {
                 sample_number++;
                 color_a+=0.2;
                 // unconstrained polytope
-                double allowable_vol=robot_polytope.getAllowableMotionPolytope( sample_joint_state,
-                                     show_mp,
-                {0.0,0.0,0.5,0.0},
-                {0.0,0.0,color_a,0.4} );
+                double allowable_vol = robot_polytope.getAllowableMotionPolytope( sample_joint_state,
+                                       show_mp,
+                                       {0.0,0.0,0.5,0.0},
+                                       {0.0,0.0,color_a,0.4} );
 
                 // constrained polytope
-                double allowable_vol_constrained=robot_polytope.getConstrainedAllowableMotionPolytope( sample_joint_state,
-                                                 AHrep,
-                                                 bhrep,
-                                                 show_cmp,
-                {0.0,0.0,0.5,0.0},
-                {color_a,0.0,0.0,0.4} );
+                double allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope( sample_joint_state,
+                                                   AHrep,
+                                                   bhrep,
+                                                   show_cmp,
+                                                   {0.0,0.0,0.5,0.0},
+                                                   {color_a,0.0,0.0,0.4} );
 
                 robot_polytope.getJacobian(sample_joint_state,Jacobian);
 
                 ROS_INFO_COND(debug_statements,"allowable_vol %f",allowable_vol);
                 ROS_INFO_COND(debug_statements,"allowable_vol_constrained %f",allowable_vol_constrained);
-
+                polytope_volumes.volumes[0] = allowable_vol;
+                polytope_volumes.volumes[1] = allowable_vol_constrained;
 
                 if(!robot_polytope.checkCollision(sample_joint_state))
                 {
@@ -289,15 +285,15 @@ int main ( int argc, char **argv ) {
 
                         ROS_INFO_COND(debug_statements,"Updating value based on %d",sample_number);
                         
-                        Eigen::VectorXd twist_shifted_output=Jacobian_g*(dq_sol +shift_to_sampled_joint_state);
+                        Eigen::VectorXd twist_shifted_output = Jacobian_g * (dq_sol + shift_to_sampled_joint_state);
                         if(debug_statements) std::cout<<"twist_shifted_output  "<<twist_shifted_output<<std::endl;
                         if(debug_statements) std::cout<<"desired_twist_g value "<<desired_twist_g<<std::endl;
                         
-                        Eigen::VectorXd vel_err= ( twist_shifted_output- desired_twist_g);
+                        Eigen::VectorXd vel_err= ( twist_shifted_output - desired_twist_g );
                         double sum_squared_error=vel_err.dot ( vel_err );
                         ROS_INFO_COND(debug_statements,"sum_squared_error %f",sum_squared_error);
                         for ( int j = 0; j < Jacobian_g.cols() ; ++j ) {
-                            pub_joint_state.position[j]=dq_sol( j )  + sample_joint_state.position[j];
+                            pub_joint_state.position[j] = dq_sol( j ) + sample_joint_state.position[j];
                         }
                     }
                 }
@@ -306,23 +302,14 @@ int main ( int argc, char **argv ) {
                     ROS_WARN_COND(debug_statements,"in collision optimzation will fail");
                 }
             }
-            
-            // Moving
-            //for ( int j = 0; j < 3 ; ++j ) {
-            pub_joint_state.header.seq++;
-            pub_joint_state.header.stamp=ros::Time::now();
-            joint_pub.publish(pub_joint_state);
-            ros::spinOnce();
-            //}
-
-
-            //ros::spinOnce();
         }
 
+        vol_pub.publish ( polytope_volumes );
 
-
-        //vol_pub.publish ( polytope_volumes );
-
+        // Always publish joint state, even if not moving
+        pub_joint_state.header.seq++;
+        pub_joint_state.header.stamp=ros::Time::now();
+        joint_pub.publish(pub_joint_state);
         ros::spinOnce();
         ros::Duration ( 0.001 ).sleep();
     }
