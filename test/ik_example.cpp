@@ -1,6 +1,7 @@
 #include <constrained_manipulability/constrained_manipulability.h>
 #include <random>
 #include <geometry_msgs/Twist.h>
+#include <trajectory_msgs/JointTrajectory.h>
 #include "snoptProblem.hpp"
 
 sensor_msgs::JointState joint_state;
@@ -46,6 +47,32 @@ Eigen::VectorXd  convertGeometryTwistEigenVector(const geometry_msgs::Twist geo_
     return desired_twist_;
 }
 
+trajectory_msgs::JointTrajectory jointStateToTraj(const sensor_msgs::JointState& joint) {
+    if (joint.name.empty() || joint.position.empty()) {
+        ROS_ERROR("No joint names or positions specified");
+    }
+
+    trajectory_msgs::JointTrajectory traj;
+    traj.header = joint.header;
+
+    // Fill in joint names to trajectory
+    for (std::vector<std::string>::const_iterator it = joint.name.begin(); it != joint.name.end(); ++it) {
+        traj.joint_names.push_back(*it);
+    }
+
+    // Add a single point to the trajectory, expected arrival after 0.2s
+    trajectory_msgs::JointTrajectoryPoint traj_point;
+    for (std::vector<double>::const_iterator it = joint.position.begin(); it != joint.position.end(); ++it) {
+        traj_point.positions.push_back(*it);
+        traj_point.velocities.push_back(0);
+        traj_point.accelerations.push_back(0);
+    }
+    traj_point.time_from_start = ros::Duration(1);
+    traj.points.push_back(traj_point);
+
+    return traj;
+}
+
 void sampleJointStates(sensor_msgs::JointState current_state,
                        std::vector<sensor_msgs::JointState>& sampled_state
                       )
@@ -54,7 +81,7 @@ void sampleJointStates(sensor_msgs::JointState current_state,
     double max_deviation=0.05;
     bool initial(true);
 
-    for ( auto& one_sample_state:sampled_state) {
+    for (auto& one_sample_state:sampled_state) {
         one_sample_state=current_state;
         if(initial)
         {
@@ -78,17 +105,13 @@ int main ( int argc, char **argv ) {
     constrained_manipulability::PolytopeVolume polytope_volumes;
 
 
-    ros::Subscriber  joint_sub= nh.subscribe ( "/joint_states",
-                                1, &jointSensorCallback );
-    ros::Subscriber  vel_sub= nh.subscribe ( "/cmd_vel",
-                              1, &twistCallback );
+    ros::Subscriber joint_sub=nh.subscribe("/joint_states", 1, &jointSensorCallback);
+    ros::Subscriber vel_sub=nh.subscribe ("/cmd_vel", 1, &twistCallback);
 
-    ros::Publisher vol_pub=nh.advertise<constrained_manipulability::PolytopeVolume>
-                           ( "constrained_manipulability/polytope_volumes",1 );
+    ros::Publisher vol_pub=nh.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volumes", 1);
 
-    ros::Publisher joint_pub=nh.advertise<sensor_msgs::JointState>
-                             ( "joint_states",1,true ); // latched publisher
-
+    ros::Publisher joint_pub=nh.advertise<sensor_msgs::JointState>("joint_states", 1, true); // latched publishers
+    ros::Publisher joint_traj_pub=nh.advertise<trajectory_msgs::JointTrajectory>("joint_traj", 1, true);
 
     std::string root,tip;
     std::vector<int> object_primitive;
@@ -97,9 +120,10 @@ int main ( int argc, char **argv ) {
     std::vector<shape_msgs::SolidPrimitive> shapes_in;
     TransformVector shapes_pose;
     FCLObjectSet objects;
-    bool show_mp,show_cmp,op_constraints,debug_statements;
+    bool show_mp,show_cmp,op_constraints,debug_statements,in_simulation;
 
-    utility_functions::getParameter ( "~/ignore_constraints",op_constraints);
+    utility_functions::getParameter ( "~/in_simulation",in_simulation );
+    utility_functions::getParameter ( "~/ignore_constraints",op_constraints );
     utility_functions::getParameter ( "~/debug_statements",debug_statements );
     utility_functions::getParameter ( "~/root",root );
     utility_functions::getParameter ( "~/tip",tip );
@@ -117,11 +141,12 @@ int main ( int argc, char **argv ) {
     ignore_constraints=op_constraints;
     ROS_WARN_COND(ignore_constraints,"Ignoring Constraints");
     
-    sensor_msgs::JointState pub_joint_state;
+    if (in_simulation) {
+        joint_state.name = {"shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"};
+        joint_state.position = {-3.0724776152108175, -2.131256456195315, -1.0379822127460678, -1.079451235773453, 1.5783361491635128, 0.0};
+    }
 
-    pub_joint_state.name= {"shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"};
-    pub_joint_state.position= {-3.0724776152108175, -2.131256456195315, -1.0379822127460678, -1.079451235773453, 1.5783361491635128, 0.0};
-
+    trajectory_msgs::JointTrajectory traj_state;
 
     ConstrainedManipulability robot_polytope ( nh,root,tip );
 
@@ -133,9 +158,6 @@ int main ( int argc, char **argv ) {
     }
     ros::Duration ( 2.0 ).sleep();
     robot_polytope.displayObjects();
-
-
-
 
     polytope_volumes.names.resize ( 2 );
     polytope_volumes.names[0]="AllowableMotion";
@@ -149,18 +171,20 @@ int main ( int argc, char **argv ) {
     Eigen::Matrix<double,6,Eigen::Dynamic> Jacobian;
     std::vector<double> joint_deviation ( 7 ); // Resulting change in joint position
 
-    pub_joint_state.header.seq=0;
-    pub_joint_state.header.seq++;
-    pub_joint_state.header.stamp=ros::Time::now();
-    joint_pub.publish(pub_joint_state);
+    joint_state.header.seq=0;
+    joint_state.header.seq++;
+    joint_state.header.stamp=ros::Time::now();
+    joint_pub.publish(joint_state);
+
+    // Convert joint state message to a trajectory for command control
+    traj_state = jointStateToTraj(joint_state);
+    joint_traj_pub.publish(traj_state);
     ros::spinOnce();
 
 
     twist_received=false;
     double objective_function=250.0;
     while ( ros::ok() ) {
-        joint_state=pub_joint_state;
-
         // This function simply finds random joint configurations in the neighborhood
         sampleJointStates(joint_state,vec_sampled_joint_states);
 
@@ -293,7 +317,7 @@ int main ( int argc, char **argv ) {
                         double sum_squared_error=vel_err.dot ( vel_err );
                         ROS_INFO_COND(debug_statements,"sum_squared_error %f",sum_squared_error);
                         for ( int j = 0; j < Jacobian_g.cols() ; ++j ) {
-                            pub_joint_state.position[j] = dq_sol( j ) + sample_joint_state.position[j];
+                            joint_state.position[j] = dq_sol( j ) + sample_joint_state.position[j];
                         }
                     }
                 }
@@ -304,12 +328,15 @@ int main ( int argc, char **argv ) {
             }
 
             // Publish computed volumes
-            vol_pub.publish ( polytope_volumes );
+            vol_pub.publish(polytope_volumes);
 
             // Moving
-            pub_joint_state.header.seq++;
-            pub_joint_state.header.stamp=ros::Time::now();
-            joint_pub.publish(pub_joint_state);
+            joint_state.header.seq++;
+            joint_state.header.stamp=ros::Time::now();
+            joint_pub.publish(joint_state);
+
+            traj_state = jointStateToTraj(joint_state);
+            joint_traj_pub.publish(traj_state);
         }
 
         ros::spinOnce();
