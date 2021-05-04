@@ -1,8 +1,11 @@
 #include <constrained_manipulability/constrained_manipulability.h>
 #include <random>
+
 #include <geometry_msgs/Twist.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <trajectory_msgs/JointTrajectory.h>
+#include <controller_manager_msgs/SwitchController.h>
+
 #include "snoptProblem.hpp"
 
 sensor_msgs::JointState joint_state;
@@ -48,7 +51,7 @@ Eigen::VectorXd  convertGeometryTwistEigenVector(const geometry_msgs::Twist geo_
     return desired_twist_;
 }
 
-trajectory_msgs::JointTrajectory jointStateToTraj(const sensor_msgs::JointState& joint, int time_from_start) {
+trajectory_msgs::JointTrajectory jointStateToTraj(const sensor_msgs::JointState& joint, double time_from_start) {
     if (joint.name.empty() || joint.position.empty()) {
         ROS_ERROR("No joint names or positions specified");
     }
@@ -72,28 +75,6 @@ trajectory_msgs::JointTrajectory jointStateToTraj(const sensor_msgs::JointState&
     traj.points.push_back(traj_point);
 
     return traj;
-}
-
-std_msgs::Float64MultiArray jointStateToCmd(const sensor_msgs::JointState& joint) {
-    if (joint.position.empty()) {
-        ROS_ERROR("No joint positions specified");
-    }
-
-    std_msgs::Float64MultiArray arr;
-    /*arr.layout.dim = (std_msgs::MultiArrayDimension *);
-    malloc(sizeof(std_msgs::MultiArrayDimension)*2);
-    arr.layout.dim[0].label = "height";
-    arr.layout.dim[0].size = 1;
-    arr.layout.dim[0].stride = 1;
-    arr.layout.data_offset = 0;
-    arr.data = (double*)malloc(sizeof(joint.points.size())*double);
-    arr.data_length = joint.points.size();*/
-
-    for (std::vector<double>::const_iterator it = joint.position.begin(); it != joint.position.end(); ++it) {
-        arr.data.push_back(*it);
-    }
-
-    return arr;
 }
 
 void sampleJointStates(sensor_msgs::JointState current_state,
@@ -123,21 +104,25 @@ void sampleJointStates(sensor_msgs::JointState current_state,
 int main ( int argc, char **argv ) {
     ros::init ( argc, argv, "ik_example" );
     std::srand(std::time(nullptr));
-    ROS_INFO ( "FCL SAWYER" );
+
+    ROS_INFO ( "UR3-e" );
     ros::NodeHandle nh; // Create a node handle and start the node
+
     constrained_manipulability::PolytopeVolume polytope_volumes;
 
-
-    ros::Subscriber joint_sub=nh.subscribe("/joint_states", 1, &jointSensorCallback);
-    ros::Subscriber vel_sub=nh.subscribe ("/cmd_vel", 1, &twistCallback);
+    ros::Subscriber joint_sub = nh.subscribe("/joint_states", 1, &jointSensorCallback);
+    ros::Subscriber vel_sub = nh.subscribe ("/cmd_vel", 1, &twistCallback);
 
     ros::Publisher vol_pub=nh.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volumes", 1);
 
-    ros::Publisher joint_pub=nh.advertise<sensor_msgs::JointState>("joint_states", 1, true); // latched publishers
-    ros::Publisher joint_traj_pub=nh.advertise<trajectory_msgs::JointTrajectory>("joint_traj", 1, true);
-    ros::Publisher joint_cmd_pub=nh.advertise<std_msgs::Float64MultiArray>("joint_command", 1, true);
+    ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1, true); // latched publishers
+    ros::Publisher joint_traj_pub = nh.advertise<trajectory_msgs::JointTrajectory>("joint_traj", 1, true);
+    ros::Publisher joint_cmd_pub = nh.advertise<std_msgs::Float64MultiArray>("joint_command", 1, true);
 
-    std::string root,tip;
+    ros::ServiceClient switch_client = nh.serviceClient<controller_manager_msgs::SwitchController>("/controller_manager/switch_controller");
+    controller_manager_msgs::SwitchController switch_srv;
+
+    std::string root,tip,pos_control,vel_control;
     std::vector<int> object_primitive;
     std::vector<std::vector<double>> obj_dimensions;
     std::vector<std::vector<double>> obj_poses;
@@ -150,6 +135,8 @@ int main ( int argc, char **argv ) {
     utility_functions::getParameter ( "~/debug_statements",debug_statements );
     utility_functions::getParameter ( "~/root",root );
     utility_functions::getParameter ( "~/tip",tip );
+    utility_functions::getParameter ( "~/pos_controller",pos_control );
+    utility_functions::getParameter ( "~/vel_controller",vel_control );
     utility_functions::getParameter ( "~/show_mp",show_mp );
     utility_functions::getParameter ( "~/show_cmp",show_cmp );
     utility_functions::getVectorParam ( "~/object_primitive",object_primitive );
@@ -171,6 +158,7 @@ int main ( int argc, char **argv ) {
 
     trajectory_msgs::JointTrajectory traj_state;
     std_msgs::Float64MultiArray joint_cmd;
+    joint_cmd.data.resize(6);
 
     ConstrainedManipulability robot_polytope ( nh,root,tip );
 
@@ -193,7 +181,7 @@ int main ( int argc, char **argv ) {
     Eigen::MatrixXd AHrep;
     Eigen::VectorXd bhrep;
     Eigen::Matrix<double,6,Eigen::Dynamic> Jacobian;
-    std::vector<double> joint_deviation ( 7 ); // Resulting change in joint position
+    std::vector<double> joint_deviation ( 6 ); // Resulting change in joint position
 
     pub_joint_state.header.seq=0;
     pub_joint_state.header.seq++;
@@ -201,13 +189,23 @@ int main ( int argc, char **argv ) {
     joint_pub.publish(pub_joint_state);
 
     // Convert joint state message to a trajectory for command control
-    traj_state = jointStateToTraj(pub_joint_state, 5);
+    traj_state = jointStateToTraj(pub_joint_state, 3);
     joint_traj_pub.publish(traj_state);
 
-    joint_cmd = jointStateToCmd(pub_joint_state);
-    joint_cmd_pub.publish(joint_cmd);  
-
     ros::spinOnce();
+    ros::Duration ( 3.0 ).sleep();
+
+    switch_srv.request.start_controllers.push_back(vel_control);
+    switch_srv.request.stop_controllers.push_back(pos_control);
+    switch_srv.request.strictness = switch_srv.request.BEST_EFFORT;
+    if (switch_client.call(switch_srv))
+    {
+        ROS_INFO("Successfully switched controllers!");
+    }
+    else
+    {
+        ROS_ERROR("Failed to call service switch_controller");
+    }
 
 
     twist_received=false;
@@ -327,11 +325,11 @@ int main ( int argc, char **argv ) {
                                                x, xstate, xmul, F, Fstate, Fmul,
                                                nS, nInf, sInf );
 
-                    joint_deviation.assign ( x,x+n );
+                    joint_deviation.assign ( x, x+n ); // pointer magic
                     if(debug_statements) utility_functions::printVector(joint_deviation,"resulting joint deviation");
 
                     Eigen::VectorXd dq_sol=utility_functions::vectorToEigen(joint_deviation);
-                 
+
                     
                     if(*F<objective_function)
                     {
@@ -348,6 +346,9 @@ int main ( int argc, char **argv ) {
                         ROS_INFO_COND(debug_statements,"sum_squared_error %f",sum_squared_error);
                         for ( int j = 0; j < Jacobian_g.cols() ; ++j ) {
                             pub_joint_state.position[j] = dq_sol( j ) + sample_joint_state.position[j];
+                            // Equivalent to dq_star ( j )
+                            // Creating a velocity command out of the shifted IK solution
+                            joint_cmd.data[j] = dq_sol( j ) + shift_to_sampled_joint_state ( j );
                         }
                     }
                 }
@@ -360,23 +361,25 @@ int main ( int argc, char **argv ) {
             // Publish computed volumes
             vol_pub.publish(polytope_volumes);
 
-            // Moving
+            // Position control
             pub_joint_state.header.seq++;
             pub_joint_state.header.stamp=ros::Time::now();
             joint_pub.publish(pub_joint_state);
 
-            traj_state = jointStateToTraj(pub_joint_state, 1);
-            joint_traj_pub.publish(traj_state);
-
-            joint_cmd = jointStateToCmd(pub_joint_state);
-            joint_cmd_pub.publish(joint_cmd);   
+            //traj_state = jointStateToTraj(pub_joint_state, 0.5);
+            //joint_traj_pub.publish(traj_state);
         }
+
+        // Velocity control
+        joint_cmd_pub.publish(joint_cmd);
+        // Reset to 0 after publishing velocity command
+        std::fill(joint_cmd.data.begin(), joint_cmd.data.end(), 0.0);
 
         ros::spinOnce();
         ros::Duration ( 0.001 ).sleep();
     }
-    return 0;
 
+    return 0;
 }
 
 
@@ -389,7 +392,7 @@ void calculateDeviationAbs ( int    *Status, int *n,    double x[],
                              int    iu[],    int *leniu,
                              double ru[],    int *lenru ) {
     Eigen::VectorXd dq ( Jacobian_g.cols() );
-    Eigen::VectorXd dq_star ( Jacobian_g.cols()  );
+    Eigen::VectorXd dq_star ( Jacobian_g.cols() );
 
 
     Eigen::VectorXd poly_constraints;
@@ -409,7 +412,7 @@ void calculateDeviationAbs ( int    *Status, int *n,    double x[],
 
     for ( int i = 0; i < Jacobian_g.cols(); ++i ) {
         dq ( i ) = x[i];
-        dq_star ( i ) =dq ( i ) + shift_to_sampled_joint_state ( i );
+        dq_star ( i ) = dq ( i ) + shift_to_sampled_joint_state ( i );
     }
 
 

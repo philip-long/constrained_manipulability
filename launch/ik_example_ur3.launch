@@ -20,10 +20,12 @@
         <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load"/>
 
         <remap from="/joint_traj" to="/scaled_pos_traj_controller/command"/>
-        <!--remap from="/joint_command" to="/joint_group_velocity_controller/command"/-->
+        <remap from="/joint_command" to="/joint_group_vel_controller/command"/>
 
         <param name="root" type="string" value="$(arg root_link)"/>
         <param name="tip" type="string" value="$(arg tip_link)"/>
+        <param name="pos_controller" type="string" value="scaled_pos_traj_controller"/>
+        <param name="vel_controller" type="string" value="joint_group_vel_controller"/>
         <param name="show_cmp" type="bool" value="$(arg cmp_display)"/>
         <param name="show_mp" type="bool" value="$(arg mp_display)"/>
         <param name="ignore_constraints" type="bool" value="$(arg constraints_disabled)"/>
