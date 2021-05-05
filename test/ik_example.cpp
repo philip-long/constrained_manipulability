@@ -78,11 +78,16 @@ trajectory_msgs::JointTrajectory jointStateToTraj(const sensor_msgs::JointState&
 }
 
 void sampleJointStates(sensor_msgs::JointState current_state,
-                       std::vector<sensor_msgs::JointState>& sampled_state
+                       std::vector<sensor_msgs::JointState>& sampled_state,
+                       double deviation
                       )
 {
-    double min_deviation=-0.05;
-    double max_deviation=0.05;
+    if (deviation == 0.0) {
+        ROS_ERROR("No deviation value provided");
+    }
+
+    double min_deviation=-deviation;
+    double max_deviation=deviation;
     bool initial(true);
 
     for (auto& one_sample_state:sampled_state) {
@@ -94,7 +99,7 @@ void sampleJointStates(sensor_msgs::JointState current_state,
         else
         {
             for ( auto& one_joint_position:one_sample_state.position) {
-                one_joint_position+= (min_deviation + (double)(rand()) / ((double)(RAND_MAX/(max_deviation - min_deviation))) );
+                one_joint_position += (min_deviation + (double)(rand()) / ((double)(RAND_MAX/(max_deviation - min_deviation))) );
             }
         }
     }
@@ -110,14 +115,14 @@ int main ( int argc, char **argv ) {
 
     constrained_manipulability::PolytopeVolume polytope_volumes;
 
-    ros::Subscriber joint_sub = nh.subscribe("/joint_states", 1, &jointSensorCallback);
-    ros::Subscriber vel_sub = nh.subscribe ("/cmd_vel", 1, &twistCallback);
+    ros::Subscriber joint_sub = nh.subscribe("/joint_states", 10, &jointSensorCallback);
+    ros::Subscriber vel_sub = nh.subscribe ("/cmd_vel", 10, &twistCallback);
 
     ros::Publisher vol_pub=nh.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volumes", 1);
 
     ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1, true); // latched publishers
-    ros::Publisher joint_traj_pub = nh.advertise<trajectory_msgs::JointTrajectory>("joint_traj", 1, true);
-    ros::Publisher joint_cmd_pub = nh.advertise<std_msgs::Float64MultiArray>("joint_command", 1, true);
+    ros::Publisher joint_traj_pub = nh.advertise<trajectory_msgs::JointTrajectory>("joint_traj", 10);
+    ros::Publisher joint_cmd_pub = nh.advertise<std_msgs::Float64MultiArray>("joint_command", 10);
 
     ros::ServiceClient switch_client = nh.serviceClient<controller_manager_msgs::SwitchController>("/controller_manager/switch_controller");
     controller_manager_msgs::SwitchController switch_srv;
@@ -130,6 +135,8 @@ int main ( int argc, char **argv ) {
     TransformVector shapes_pose;
     FCLObjectSet objects;
     bool show_mp,show_cmp,op_constraints,debug_statements;
+    int samples;
+    double deviation;
 
     utility_functions::getParameter ( "~/ignore_constraints",op_constraints );
     utility_functions::getParameter ( "~/debug_statements",debug_statements );
@@ -139,6 +146,8 @@ int main ( int argc, char **argv ) {
     utility_functions::getParameter ( "~/vel_controller",vel_control );
     utility_functions::getParameter ( "~/show_mp",show_mp );
     utility_functions::getParameter ( "~/show_cmp",show_cmp );
+    utility_functions::getParameter ( "~/num_samples",samples );
+    utility_functions::getParameter ( "~/search_deviation",deviation );
     utility_functions::getVectorParam ( "~/object_primitive",object_primitive );
     utility_functions::getVectorVectorParam ( "~/object_dimensions",obj_dimensions );
     utility_functions::getVectorVectorParam ( "~/object_poses",obj_poses );
@@ -176,7 +185,7 @@ int main ( int argc, char **argv ) {
     polytope_volumes.names[1]="ConstrainedAllowableMotion";
     polytope_volumes.volumes.resize ( 2 );
 
-    std::vector<sensor_msgs::JointState> vec_sampled_joint_states(3);
+    std::vector<sensor_msgs::JointState> vec_sampled_joint_states(samples);
 
     Eigen::MatrixXd AHrep;
     Eigen::VectorXd bhrep;
@@ -207,14 +216,13 @@ int main ( int argc, char **argv ) {
         ROS_ERROR("Failed to call service switch_controller");
     }
 
+    joint_state=pub_joint_state;
 
     twist_received=false;
     double objective_function=250.0;
     while ( ros::ok() ) {
-        joint_state=pub_joint_state;
-
         // This function simply finds random joint configurations in the neighborhood
-        sampleJointStates(joint_state,vec_sampled_joint_states);
+        sampleJointStates(joint_state, vec_sampled_joint_states, deviation);
 
         if(twist_received)
         {

@@ -5,9 +5,11 @@
     <arg name="tip_link" default="ee_link"/>
     <arg name="mp_display" default="true"/>
     <arg name="cmp_display" default="true"/>
-    <arg name="show_debug_statements" default="true"/>
+    <arg name="show_debug_statements" default="false"/>
     <arg name="constraints_disabled" default="false"/>
     <arg name="sim" default="true"/>
+    <arg name="samples" default="10"/>
+    <arg name="deviation" default="0.05"/>
 
     <!-- Launch just UR3 URDF model if in simulation -->
     <include file="$(find ur_description)/launch/ur3_upload.launch" if="$(arg sim)"/>
@@ -30,5 +32,8 @@
         <param name="show_mp" type="bool" value="$(arg mp_display)"/>
         <param name="ignore_constraints" type="bool" value="$(arg constraints_disabled)"/>
         <param name="debug_statements" type="bool" value="$(arg show_debug_statements)"/>
+
+        <param name="num_samples" type="int" value="$(arg samples)"/>
+        <param name="search_deviation" type="double" value="$(arg deviation)"/>
     </node>
 </launch>
