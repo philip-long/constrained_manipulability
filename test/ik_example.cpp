@@ -2,6 +2,7 @@
 #include <random>
 
 #include <geometry_msgs/Twist.h>
+#include <std_msgs/Bool.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <controller_manager_msgs/SwitchController.h>
@@ -10,9 +11,10 @@
 
 sensor_msgs::JointState joint_state;
 geometry_msgs::Twist teleop_twist;
+bool screw_trigger ( false );
 bool joint_state_received ( false );
 bool twist_received ( false );
-bool ignore_constraints(false);
+bool ignore_constraints( false );
 
 
 std::vector<double> q_reference_g; // reference joint position
@@ -28,6 +30,9 @@ void calculateDeviationAbs ( int    *Status, int *n,    double x[],
                              int    iu[],    int *leniu,
                              double ru[],    int *lenru );
 
+void screwCallback ( const std_msgs::Bool::ConstPtr& msg ) {
+    screw_trigger=!screw_trigger;
+}
 
 void jointSensorCallback ( const sensor_msgs::JointState::ConstPtr& msg ) {
     joint_state=*msg;
@@ -115,8 +120,9 @@ int main ( int argc, char **argv ) {
 
     constrained_manipulability::PolytopeVolume polytope_volumes;
 
-    ros::Subscriber joint_sub = nh.subscribe("/joint_states", 10, &jointSensorCallback);
-    ros::Subscriber vel_sub = nh.subscribe ("/cmd_vel", 10, &twistCallback);
+    ros::Subscriber screw_sub = nh.subscribe ("/screw_trigger", 1, &screwCallback);
+    ros::Subscriber joint_sub = nh.subscribe("/joint_states", 1, &jointSensorCallback);
+    ros::Subscriber vel_sub = nh.subscribe ("/cmd_vel", 1, &twistCallback);
 
     ros::Publisher vol_pub=nh.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volumes", 1);
 
@@ -220,162 +226,171 @@ int main ( int argc, char **argv ) {
     twist_received=false;
     double objective_function=250.0;
     while ( ros::ok() ) {
-        // This function simply finds random joint configurations in the neighborhood
-        sampleJointStates(joint_state, vec_sampled_joint_states, deviation);
-
-        if(twist_received)
+        if(!screw_trigger) 
         {
-            twist_received=false;
-            double color_a=0.0;
-            int sample_number=0;
-            // Cycle through the sampled joints and display the polytope for each one
-            // SNOPT stuff
-            
-            objective_function=100.0;
-            for (auto& sample_joint_state:vec_sampled_joint_states)
+            // This function simply finds random joint configurations in the neighborhood
+            sampleJointStates(joint_state, vec_sampled_joint_states, deviation);
+
+            if(twist_received)
             {
-                sample_number++;
-                color_a+=0.2;
-                // unconstrained polytope
-                double allowable_vol = robot_polytope.getAllowableMotionPolytope( sample_joint_state,
-                                       show_mp,
-                                       {0.0,0.0,0.5,0.0},
-                                       {0.0,0.0,color_a,0.4} );
-
-                // constrained polytope
-                double allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope( sample_joint_state,
-                                                   AHrep,
-                                                   bhrep,
-                                                   show_cmp,
-                                                   {0.0,0.0,0.5,0.0},
-                                                   {color_a,0.0,0.0,0.4} );
-
-                robot_polytope.getJacobian(sample_joint_state,Jacobian);
-
-                ROS_INFO_COND(debug_statements,"allowable_vol %f",allowable_vol);
-                ROS_INFO_COND(debug_statements,"allowable_vol_constrained %f",allowable_vol_constrained);
-                polytope_volumes.volumes[0] = allowable_vol;
-                polytope_volumes.volumes[1] = allowable_vol_constrained;
-
-                if(!robot_polytope.checkCollision(sample_joint_state))
+                twist_received=false;
+                double color_a=0.0;
+                int sample_number=0;
+                // Cycle through the sampled joints and display the polytope for each one
+                // SNOPT stuff
+                
+                objective_function=100.0;
+                for (auto& sample_joint_state:vec_sampled_joint_states)
                 {
-                    
-                    ROS_INFO_COND(debug_statements,"\n ===Starting SNOPT OPTIMZATION for %d ==== \n",sample_number);
-                    
-                    
-                    Eigen::VectorXd dq ( Jacobian_g.cols() );
-                    dq.setZero();
-                    Eigen::VectorXd poly_constraints;
-                    Eigen::VectorXd v ( Jacobian_g.rows() );
+                    sample_number++;
+                    color_a+=0.2;
+                    // unconstrained polytope
+                    double allowable_vol = robot_polytope.getAllowableMotionPolytope( sample_joint_state,
+                                           show_mp,
+                                           {0.0,0.0,0.5,0.0},
+                                           {0.0,0.0,color_a,0.4} );
 
+                    // constrained polytope
+                    double allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope( sample_joint_state,
+                                                       AHrep,
+                                                       bhrep,
+                                                       show_cmp,
+                                                       {0.0,0.0,0.5,0.0},
+                                                       {color_a,0.0,0.0,0.4} );
 
-                    // Distance from where robot currently is to sampled state
-                    for ( int j = 0; j < Jacobian_g.cols() ; ++j ) {
-                        shift_to_sampled_joint_state ( j ) = sample_joint_state.position[j] - joint_state.position[j];
-                    }
+                    robot_polytope.getJacobian(sample_joint_state,Jacobian);
 
-                    // Assign Global Variables
-                    AHrep_g=AHrep;
-                    bHrep_g=bhrep;
-                    Jacobian_g=Jacobian;
-                    desired_twist_g=convertGeometryTwistEigenVector(teleop_twist);
+                    ROS_INFO_COND(debug_statements,"allowable_vol %f",allowable_vol);
+                    ROS_INFO_COND(debug_statements,"allowable_vol_constrained %f",allowable_vol_constrained);
+                    polytope_volumes.volumes[0] = allowable_vol;
+                    polytope_volumes.volumes[1] = allowable_vol_constrained;
 
-
-                    snoptProblemA onlineOptimization;
-                    onlineOptimization.initialize ( "", (int) debug_statements); // no print file; summary on
-                    onlineOptimization.setProbName ( "Online" );
-                    onlineOptimization.setIntParameter ( "Derivative option", 0 ); // snopta will compute the Jacobian by finite-differences
-                    onlineOptimization.setIntParameter ( "Verify level ", 0 );
-
-
-                    int n     =  Jacobian_g.cols(); // decis vars joint velocities
-                    int neF   =  1 + bHrep_g.rows(); // either cost + number of hyperplanes
-                    int nS = 0, nInf;
-                    double sInf;
-                    double *x      = new double[n]; // decision variables
-                    double *xlow   = new double[n]; // lb state, torque
-                    double *xupp   = new double[n]; // up
-                    double *xmul   = new double[n];
-                    int    *xstate = new    int[n];
-
-                    double *F      = new double[neF]; // contain cost and constraints
-                    double *Flow   = new double[neF]; // F lower bound, non linear constraints
-                    double *Fupp   = new double[neF];
-                    double *Fmul   = new double[neF];
-                    int    *Fstate = new int[neF];
-
-                    Flow[0] =  9e-06;
-                    Fupp[0] =  1e20;
-                    Fmul[0] =   0;
-                    int    ObjRow  = 0; // which elemnt in F is obj function
-                    double ObjAdd  = 0; // don't touch
-
-                    int Cold = 0, Basis = 1, Warm = 2; // cold start
-
-                    // Philip Filling out variables
-                    for ( int var = 0; var < n; ++var ) {
-                        x[var] = 0.0; // initialize at current torque values
-                        xlow[var] = -1e20;
-                        xupp[var] = 1e20;
-                        xstate[var] = 0;
-                    }
-
-                    double tolerance = 0.001;
-
-                    for ( int var = 1; var < neF; ++var ) {
-                        Flow[var] = -1e20;
-                        Fupp[var] = bhrep ( var - 1 ) - tolerance;
-                    }
-
-                    onlineOptimization.solve ( Cold, neF, n, ObjAdd, ObjRow, calculateDeviationAbs,
-                                               xlow, xupp, Flow, Fupp,
-                                               x, xstate, xmul, F, Fstate, Fmul,
-                                               nS, nInf, sInf );
-
-                    joint_deviation.assign ( x, x+n ); // pointer magic
-                    if(debug_statements) utility_functions::printVector(joint_deviation,"resulting joint deviation");
-
-                    Eigen::VectorXd dq_sol=utility_functions::vectorToEigen(joint_deviation);
-
-                    
-                    if(*F<objective_function)
+                    if(!robot_polytope.checkCollision(sample_joint_state))
                     {
-                        objective_function=*F;
+                        
+                        ROS_INFO_COND(debug_statements,"\n ===Starting SNOPT OPTIMZATION for %d ==== \n",sample_number);
+                        
+                        
+                        Eigen::VectorXd dq ( Jacobian_g.cols() );
+                        dq.setZero();
+                        Eigen::VectorXd poly_constraints;
+                        Eigen::VectorXd v ( Jacobian_g.rows() );
 
-                        ROS_INFO_COND(debug_statements,"Updating value based on %d",sample_number);
-                        
-                        Eigen::VectorXd twist_shifted_output = Jacobian_g * (dq_sol + shift_to_sampled_joint_state);
-                        if(debug_statements) std::cout<<"twist_shifted_output  "<<twist_shifted_output<<std::endl;
-                        if(debug_statements) std::cout<<"desired_twist_g value "<<desired_twist_g<<std::endl;
-                        
-                        Eigen::VectorXd vel_err= ( twist_shifted_output - desired_twist_g );
-                        double sum_squared_error=vel_err.dot ( vel_err );
-                        ROS_INFO_COND(debug_statements,"sum_squared_error %f",sum_squared_error);
+
+                        // Distance from where robot currently is to sampled state
                         for ( int j = 0; j < Jacobian_g.cols() ; ++j ) {
-                            pub_joint_state.position[j] = dq_sol( j ) + sample_joint_state.position[j];
-                            // Equivalent to dq_star ( j )
-                            // Creating a velocity command out of the shifted IK solution
-                            joint_cmd.data[j] = dq_sol( j ) + shift_to_sampled_joint_state ( j );
+                            shift_to_sampled_joint_state ( j ) = sample_joint_state.position[j] - joint_state.position[j];
+                        }
+
+                        // Assign Global Variables
+                        AHrep_g=AHrep;
+                        bHrep_g=bhrep;
+                        Jacobian_g=Jacobian;
+                        desired_twist_g=convertGeometryTwistEigenVector(teleop_twist);
+
+
+                        snoptProblemA onlineOptimization;
+                        onlineOptimization.initialize ( "", (int) debug_statements); // no print file; summary on
+                        onlineOptimization.setProbName ( "Online" );
+                        onlineOptimization.setIntParameter ( "Derivative option", 0 ); // snopta will compute the Jacobian by finite-differences
+                        onlineOptimization.setIntParameter ( "Verify level ", 0 );
+
+
+                        int n     =  Jacobian_g.cols(); // decis vars joint velocities
+                        int neF   =  1 + bHrep_g.rows(); // either cost + number of hyperplanes
+                        int nS = 0, nInf;
+                        double sInf;
+                        double *x      = new double[n]; // decision variables
+                        double *xlow   = new double[n]; // lb state, torque
+                        double *xupp   = new double[n]; // up
+                        double *xmul   = new double[n];
+                        int    *xstate = new    int[n];
+
+                        double *F      = new double[neF]; // contain cost and constraints
+                        double *Flow   = new double[neF]; // F lower bound, non linear constraints
+                        double *Fupp   = new double[neF];
+                        double *Fmul   = new double[neF];
+                        int    *Fstate = new int[neF];
+
+                        Flow[0] =  9e-06;
+                        Fupp[0] =  1e20;
+                        Fmul[0] =   0;
+                        int    ObjRow  = 0; // which elemnt in F is obj function
+                        double ObjAdd  = 0; // don't touch
+
+                        int Cold = 0, Basis = 1, Warm = 2; // cold start
+
+                        // Philip Filling out variables
+                        for ( int var = 0; var < n; ++var ) {
+                            x[var] = 0.0; // initialize at current torque values
+                            xlow[var] = -1e20;
+                            xupp[var] = 1e20;
+                            xstate[var] = 0;
+                        }
+
+                        double tolerance = 0.001;
+
+                        for ( int var = 1; var < neF; ++var ) {
+                            Flow[var] = -1e20;
+                            Fupp[var] = bhrep ( var - 1 ) - tolerance;
+                        }
+
+                        onlineOptimization.solve ( Cold, neF, n, ObjAdd, ObjRow, calculateDeviationAbs,
+                                                   xlow, xupp, Flow, Fupp,
+                                                   x, xstate, xmul, F, Fstate, Fmul,
+                                                   nS, nInf, sInf );
+
+                        joint_deviation.assign ( x, x+n ); // pointer magic
+                        if(debug_statements) utility_functions::printVector(joint_deviation,"resulting joint deviation");
+
+                        Eigen::VectorXd dq_sol=utility_functions::vectorToEigen(joint_deviation);
+
+                        
+                        if(*F<objective_function)
+                        {
+                            objective_function=*F;
+
+                            ROS_INFO_COND(debug_statements,"Updating value based on %d",sample_number);
+                            
+                            Eigen::VectorXd twist_shifted_output = Jacobian_g * (dq_sol + shift_to_sampled_joint_state);
+                            if(debug_statements) std::cout<<"twist_shifted_output  "<<twist_shifted_output<<std::endl;
+                            if(debug_statements) std::cout<<"desired_twist_g value "<<desired_twist_g<<std::endl;
+                            
+                            Eigen::VectorXd vel_err= ( twist_shifted_output - desired_twist_g );
+                            double sum_squared_error=vel_err.dot ( vel_err );
+                            ROS_INFO_COND(debug_statements,"sum_squared_error %f",sum_squared_error);
+                            for ( int j = 0; j < Jacobian_g.cols() ; ++j ) {
+                                pub_joint_state.position[j] = dq_sol( j ) + sample_joint_state.position[j];
+                                // Equivalent to dq_star ( j )
+                                // Creating a velocity command out of the shifted IK solution
+                                joint_cmd.data[j] = dq_sol( j ) + shift_to_sampled_joint_state ( j );
+                            }
                         }
                     }
+                    else
+                    {
+                        ROS_WARN_COND(debug_statements,"in collision optimzation will fail");
+                    }
                 }
-                else
-                {
-                    ROS_WARN_COND(debug_statements,"in collision optimzation will fail");
-                }
+
+                // Publish computed volumes
+                vol_pub.publish(polytope_volumes);
+
+                // Position trajectory control
+                //traj_state = jointStateToTraj(pub_joint_state, 0.5);
+                //joint_traj_pub.publish(traj_state);
             }
-
-            // Publish computed volumes
-            vol_pub.publish(polytope_volumes);
-
-            // Position control
-            pub_joint_state.header.seq++;
-            pub_joint_state.header.stamp=ros::Time::now();
-            joint_pub.publish(pub_joint_state);
-
-            //traj_state = jointStateToTraj(pub_joint_state, 0.5);
-            //joint_traj_pub.publish(traj_state);
         }
+        else
+        {
+            // Rotate the screw at 0.3 rad/s
+            joint_cmd.data[5] = 0.3;
+        }
+
+
+        pub_joint_state.header.seq++;
+        pub_joint_state.header.stamp=ros::Time::now();
+        joint_pub.publish(pub_joint_state);
 
         // Velocity control
         joint_cmd_pub.publish(joint_cmd);
