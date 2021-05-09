@@ -526,6 +526,16 @@ public:
     
     /// Function to return transform matrix to external users of library based on a joint state
     void getTransform(const sensor_msgs::JointState & joint_states,Eigen::Affine3d & T);
+
+
+    // Set a new limit for all joints
+    void setLinearizationLimit(double linearization_limit);
+    // Set a linearization limit for 1 joints
+    void setLinearizationLimit(double linearization_limit,unsigned int joint);
+    /// Function to return current linearization limit, this is the same for all joints
+    double getLinearizationLimit();
+    
+    
 };
 
 #endif

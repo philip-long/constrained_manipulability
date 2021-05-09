@@ -84,3 +84,6 @@ target_link_libraries(abstract_robot_test ${catkin_LIBRARIES} constrained_manipu
 add_executable(ik_example test/ik_example.cpp)
 target_link_libraries(ik_example ${SNOPT_LIB} ${catkin_LIBRARIES} constrained_manipulability)
 
+add_executable(shrinking_polytope test/shrinking_polytope.cpp)
+target_link_libraries(shrinking_polytope ${catkin_LIBRARIES} constrained_manipulability)
+

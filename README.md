@@ -159,6 +159,12 @@ By evaluating the volume of the CMP at points in the workspace, a reachability m
  rosrun teleop_twist_keyboard teleop_twist_keyboard.py _speed:=0.03 _turn:=0.014
 ```
 
+## Launching shrinking (not shrieking though I think that could be an interesting development) polytope tests 
+```
+ roslaunch constrained_manipulability shrinking_polytope_test.launch "show_debug_statements":="true" "mp_display":="false"
+ rosrun constrained_manipulability lin_limit_pub.py 
+```
+
 
 ## Citing
 If you use this package, please cite either :
