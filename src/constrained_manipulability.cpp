@@ -100,6 +100,26 @@ nh_ ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dange
   
 }
 
+void ConstrainedManipulability::setLinearizationLimit(double linearization_limit,unsigned int joint)
+{
+    max_lin_limit_[joint]=linearization_limit;
+    min_lin_limit_[joint]=linearization_limit;
+    
+}
+
+void ConstrainedManipulability::setLinearizationLimit(double linearization_limit)
+{
+    std::fill ( max_lin_limit_.begin(), max_lin_limit_.end(),linearization_limit );
+    std::fill ( min_lin_limit_.begin(), min_lin_limit_.end(),-linearization_limit );
+}
+
+double ConstrainedManipulability::getLinearizationLimit()
+{
+    return max_lin_limit_[0];
+}
+
+
+
 void ConstrainedManipulability::setRvizWait(bool flag)
 {
   wait_for_rviz=flag;

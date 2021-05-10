@@ -161,6 +161,12 @@ Run the following commands for guarded teleoperation with the UR3:
 ```
 If running direct teleoperation without assistance, then set the `constraints_disabled` parameter for the `ik_example_ur3.launch` to "true".
 
+## Launching shrinking (not shrieking though I think that could be an interesting development) polytope tests 
+```
+ roslaunch constrained_manipulability shrinking_polytope_test.launch "show_debug_statements":="true" "mp_display":="false"
+ rosrun constrained_manipulability lin_limit_pub.py 
+```
+
 ## Citing
 If you use this package, please cite either :
 ```
