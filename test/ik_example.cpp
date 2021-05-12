@@ -167,8 +167,9 @@ int main ( int argc, char **argv ) {
     ROS_WARN_COND(ignore_constraints,"Ignoring Constraints");
     
     sensor_msgs::JointState pub_joint_state;
-    pub_joint_state.name = {"elbow_joint","shoulder_lift_joint","shoulder_pan_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"};
-    pub_joint_state.position = {-1.3771085739135742, -1.8402792416014613, -1.131303612385885, -3.100368162194723, 0.5226364135742188, 1.325965404510498};
+    pub_joint_state.name = {"shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"};
+    //pub_joint_state.name = {"elbow_joint","shoulder_lift_joint","shoulder_pan_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"};
+    pub_joint_state.position = {-1.131303612385885, -1.8402792416014613, -1.3771085739135742, -3.100368162194723, 0.5226364135742188, 1.325965404510498};
 
     trajectory_msgs::JointTrajectory traj_state;
     std_msgs::Float64MultiArray joint_cmd;
@@ -228,6 +229,9 @@ int main ( int argc, char **argv ) {
     while ( ros::ok() ) {
         if(!screw_trigger) 
         {
+            // If in simulation, uncomment
+            //joint_state=pub_joint_state;
+
             // This function simply finds random joint configurations in the neighborhood
             sampleJointStates(joint_state, vec_sampled_joint_states, deviation);
 
