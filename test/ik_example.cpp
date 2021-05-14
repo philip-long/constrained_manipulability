@@ -1,5 +1,6 @@
 #include <constrained_manipulability/constrained_manipulability.h>
 #include <random>
+#include <math.h>
 
 #include <geometry_msgs/Twist.h>
 #include <std_msgs/Bool.h>
@@ -10,6 +11,7 @@
 #include "snoptProblem.hpp"
 
 sensor_msgs::JointState joint_state;
+sensor_msgs::JointState unlimited_state;
 geometry_msgs::Twist teleop_twist;
 bool screw_trigger ( false );
 bool joint_state_received ( false );
@@ -31,11 +33,14 @@ void calculateDeviationAbs ( int    *Status, int *n,    double x[],
                              double ru[],    int *lenru );
 
 void screwCallback ( const std_msgs::Bool::ConstPtr& msg ) {
-    screw_trigger=!screw_trigger;
+    screw_trigger=msg->data;
 }
 
 void jointSensorCallback ( const sensor_msgs::JointState::ConstPtr& msg ) {
     joint_state=*msg;
+    unlimited_state=*msg;
+    // Mod joint state wrist_3_joint to not exceed 2*PI
+    joint_state.position[5] = fmod(joint_state.position[5], (2*M_PI));
     joint_state_received=true;
 }
 
@@ -168,8 +173,7 @@ int main ( int argc, char **argv ) {
     
     sensor_msgs::JointState pub_joint_state;
     pub_joint_state.name = {"shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"};
-    //pub_joint_state.name = {"elbow_joint","shoulder_lift_joint","shoulder_pan_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"};
-    pub_joint_state.position = {-1.131303612385885, -1.8402792416014613, -1.3771085739135742, -3.100368162194723, 0.5226364135742188, 1.325965404510498};
+    pub_joint_state.position = {-0.080285145591739, -2.26159764473425, 2.32355683318005, -3.08731291385277, -1.65928451987101, 0.000698131700798};
 
     trajectory_msgs::JointTrajectory traj_state;
     std_msgs::Float64MultiArray joint_cmd;
@@ -205,6 +209,8 @@ int main ( int argc, char **argv ) {
 
     // Convert joint state message to a trajectory for command control
     traj_state = jointStateToTraj(pub_joint_state, 3);
+    // Hack to preserve the unlimited state of the screw joint (wrist_3)
+    traj_state.points[0].positions[5] = unlimited_state.position[5];
     joint_traj_pub.publish(traj_state);
 
     ros::spinOnce();
@@ -222,6 +228,7 @@ int main ( int argc, char **argv ) {
         ROS_ERROR("Failed to call service switch_controller");
     }
 
+
     joint_state=pub_joint_state;
 
     twist_received=false;
@@ -229,7 +236,7 @@ int main ( int argc, char **argv ) {
     while ( ros::ok() ) {
         if(!screw_trigger) 
         {
-            // If in simulation, uncomment
+            // UNCOMMENT if in simulation
             //joint_state=pub_joint_state;
 
             // This function simply finds random joint configurations in the neighborhood
@@ -392,9 +399,10 @@ int main ( int argc, char **argv ) {
         }
 
 
-        pub_joint_state.header.seq++;
-        pub_joint_state.header.stamp=ros::Time::now();
-        joint_pub.publish(pub_joint_state);
+        // UNCOMMENT if in simulation
+        //pub_joint_state.header.seq++;
+        //pub_joint_state.header.stamp=ros::Time::now();
+        //joint_pub.publish(pub_joint_state);
 
         // Velocity control
         joint_cmd_pub.publish(joint_cmd);
