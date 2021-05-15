@@ -10,16 +10,18 @@ ConstrainedManipulability::ConstrainedManipulability ( ros::NodeHandle nh,
         double linearization_limit,
         double dangerfield
                                                      ) :
-nh_ ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dangerfield_ ( dangerfield ) {
+    nh_ ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dangerfield_ ( dangerfield ) {
 
     wait_for_rviz=true;
     mkr_pub=nh_.advertise<visualization_msgs::Marker>
             ( "/visualization_marker",1 );
-	    
+    poly_mesh_pub=nh_.advertise<constrained_manipulability::PolytopeMesh>
+                  ( "constrained_manipulability/polytope_mesh",1 );
+
     std::string robot_desc_string;
     nh_.param ( robot_description, robot_desc_string, std::string() );
     model_.initParamWithNodeHandle ( robot_description,nh );
-        
+
 
     if ( !kdl_parser::treeFromString ( robot_desc_string, my_tree_ ) ) {
         ROS_ERROR ( "Failed to construct kdl tree" );
@@ -95,14 +97,14 @@ nh_ ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dange
     std::fill ( min_lin_limit_.begin(), min_lin_limit_.end(),-linearization_limit );
 
     ROS_INFO ( "Initialized" );
-  
+
 }
 
 void ConstrainedManipulability::setLinearizationLimit(double linearization_limit,unsigned int joint)
 {
     max_lin_limit_[joint]=linearization_limit;
     min_lin_limit_[joint]=linearization_limit;
-    
+
 }
 
 void ConstrainedManipulability::setLinearizationLimit(double linearization_limit)
@@ -120,30 +122,29 @@ double ConstrainedManipulability::getLinearizationLimit()
 
 void ConstrainedManipulability::setRvizWait(bool flag)
 {
-  wait_for_rviz=flag;
+    wait_for_rviz=flag;
 }
 bool const ConstrainedManipulability::getRvizWait(bool flag)
 {
-  return wait_for_rviz;
+    return wait_for_rviz;
 }
 
 bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
-                                 Eigen::MatrixXd  vertices,
-                                 std::string frame,
-                                 Eigen::Vector3d position,
-                                 std::vector<double>  color_pts,
-                                 std::vector<double>  color_line ) {
+        Eigen::MatrixXd  vertices,
+        std::string frame,
+        Eigen::Vector3d position,
+        std::vector<double>  color_pts,
+        std::vector<double>  color_line ) {
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull ( new pcl::PointCloud<pcl::PointXYZ> );
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected ( new pcl::PointCloud<pcl::PointXYZ> );
     double vol ( 0.0 );
-    // std::cout<<"Plotted Polytope Points "<<std::endl;
+
     for ( int var = 0; var < vertices.rows(); ++var ) {
         pcl::PointXYZ p ( vertices ( var,0 ) +position ( 0 ),
                           vertices ( var,1 ) +position ( 1 ),
                           vertices ( var,2 ) +position ( 2 ) );
         cloud_projected->points.push_back ( p );
-        // std::cout<<p<<std::endl;
     }
 
 
@@ -153,7 +154,7 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         chull.setInputCloud ( cloud_projected );
         chull.reconstruct ( *cloud_hull,polygons );
     } catch ( ... ) {
-        ROS_ERROR ( "qhull error" );
+        ROS_ERROR ( "ROS- plotPolytope: qhull error" );
         return false;
     }
 
@@ -163,6 +164,9 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         points.clear();
         //points.resize(cloud_hull->points.size());
 
+        constrained_manipulability::PolytopeMesh poly_mesh;
+        poly_mesh.name = polytope_name;
+        poly_mesh.mesh.triangles.resize(polygons.size());
         // Plottling
         visualization_msgs::Marker mkr;
 
@@ -184,15 +188,19 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
                 pp.y=cloud_hull->points[triangle.vertices[var]].y;
                 pp.z=cloud_hull->points[triangle.vertices[var]].z;
                 points.push_back ( pp );
+
+                poly_mesh.mesh.triangles[tri].vertex_indices[var] = triangle.vertices[var];
+                poly_mesh.mesh.vertices.push_back(pp);
             }
         }
 
-           mkr.id=2;
+        mkr.id=2;
         mkr.lifetime=ros::Duration ( 0.0 );
         mkr.color.r=color_line[0];
         mkr.color.g=color_line[1];
         mkr.color.b=color_line[2];
         mkr.color.a=color_line[3];//fmax(auto_alpha,0.1);
+        poly_mesh.color= mkr.color;
         mkr.scale.x=1.0;
         mkr.scale.y=1.0;
         mkr.scale.z=1.0;
@@ -202,6 +210,7 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ros::spinOnce();
         }
         mkr_pub.publish ( mkr );
+        poly_mesh_pub.publish( poly_mesh );
 
 
         mkr.type=visualization_msgs::Marker::SPHERE_LIST;
@@ -230,10 +239,10 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
 }
 
 bool ConstrainedManipulability::displayMarker ( visualization_msgs::Marker mkr,
-                                  const Eigen::Affine3d & T,
-                                  std::string frame,
-                                  unsigned int obj_id,
-                                  const Eigen::Vector4d & color ) {
+        const Eigen::Affine3d & T,
+        std::string frame,
+        unsigned int obj_id,
+        const Eigen::Vector4d & color ) {
     while ( mkr_pub.getNumSubscribers() <1 && wait_for_rviz) {
         ROS_INFO_ONCE ( "Waiting until marker is displayed in RVIZ" );
         ros::spinOnce();
@@ -276,7 +285,7 @@ bool ConstrainedManipulability::removeCollisionObject (unsigned int object_id ) 
     return fclInterface.removeCollisionObject (object_id );
 }
 bool ConstrainedManipulability::addCollisionObject ( FCLObjectSet objects ) {
-    return fclInterface.addCollisionObject ( objects );    
+    return fclInterface.addCollisionObject ( objects );
 }
 
 bool ConstrainedManipulability::displayObjects() {
@@ -352,7 +361,7 @@ double ConstrainedManipulability::getPolytopeVolume ( Eigen::MatrixXd  vertices 
     // We are using PCL for the convex hull interface to qhull
     for ( int var = 0; var < vertices.rows(); ++var ) {
         pcl::PointXYZ p ( vertices ( var,0 ),
-                          vertices ( var,1 ) ,
+                          vertices ( var,1 ),
                           vertices ( var,2 ) );
         cloud_projected->points.push_back ( p );
 
@@ -378,14 +387,99 @@ double ConstrainedManipulability::getAllowableMotionPolytope ( const sensor_msgs
         bool show_polytope,
         std::vector<double>  color_pts,
         std::vector<double>  color_line ) {
+    
     Eigen::MatrixXd AHrep;
     Eigen::VectorXd bhrep;
-
+    Eigen::MatrixXd Vset;
+    Eigen::Vector3d offset_position;
+    
     double vol=getAllowableMotionPolytope ( joint_states,
                                             AHrep,
                                             bhrep,
-                                            show_polytope, color_pts,color_line );
+                                            Vset,
+                                            offset_position,
+                                            show_polytope, 
+                                            color_pts,
+                                            color_line );
     return vol;
+}
+
+double ConstrainedManipulability::getAllowableMotionPolytope ( const sensor_msgs::JointState & joint_states,
+        Eigen::MatrixXd & AHrep,
+        Eigen::VectorXd & bhrep,
+        bool show_polytope,
+        std::vector<double>  color_pts,
+        std::vector<double>  color_line ) {
+    
+    Eigen::MatrixXd Vset;
+    Eigen::Vector3d offset_position;
+    
+    double vol=getAllowableMotionPolytope ( joint_states,
+                                            AHrep,
+                                            bhrep,
+                                            Vset,
+                                            offset_position,
+                                            show_polytope, 
+                                            color_pts,
+                                            color_line );
+    return vol;
+}
+
+
+double ConstrainedManipulability::getAllowableMotionPolytope ( const sensor_msgs::JointState & joint_states,
+        Eigen::MatrixXd & AHrep,
+        Eigen::VectorXd & bhrep,
+        Eigen::MatrixXd & Vset,
+        Eigen::Vector3d & offset_position,
+        bool show_polytope,
+        std::vector<double>  color_pts,
+        std::vector<double>  color_line ) {
+
+    double vol_initial ( -1 );
+    Eigen::Affine3d base_T_ee;
+    Eigen::Matrix<double,6,Eigen::Dynamic> base_J_ee;
+    Eigen::MatrixXd Qset;
+    KDL::JntArray kdl_joint_positions ( ndof_ );
+    jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
+    getKDLKinematicInformation ( kdl_joint_positions,base_T_ee,base_J_ee );
+
+
+
+    // Define Hyperplanes
+    AHrep.resize ( 2*ndof_,ndof_ );
+    AHrep.topRows ( ndof_ ) =ndof_identity_matrix_;  // ndof_*ndof block at row  0 colum 0;ndof_
+    AHrep.block ( ndof_,0,ndof_,ndof_ ) =-ndof_identity_matrix_; // ndof_*ndof block at row  ndof_ colum 0;ndof_
+
+    // Define shifted distance from origin
+    bhrep.resize ( 2*ndof_,1 );
+    for ( int i = 0; i < ndof_; ++i ) {
+        bhrep ( i ) =max_lin_limit_[i];
+        bhrep ( i+ndof_ ) =-min_lin_limit_[i];
+    }
+
+
+    getVrepPolytope ( AHrep,
+                      bhrep,
+                      Qset );
+
+    getCartesianPolytope ( Qset,
+                           base_J_ee.topRows ( 3 ),
+                           base_T_ee.translation(),
+                           Vset );
+
+    vol_initial=getPolytopeVolume ( Vset );
+
+    if ( show_polytope ) {
+        plotPolytope ( "allowable_motion_polytope",
+                       Vset,
+                       base_link_,
+                       base_T_ee.translation(),
+                       color_pts,
+                       color_line );
+    }
+    offset_position=base_T_ee.translation();
+    return vol_initial;
+
 }
 
 double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::JointState & joint_states,
@@ -415,7 +509,7 @@ void ConstrainedManipulability::getTransform(const sensor_msgs::JointState & joi
 void ConstrainedManipulability::getJacobian(const sensor_msgs::JointState & joint_states,Eigen::Matrix<double,6,Eigen::Dynamic> & Jac)
 {
     KDL::JntArray kdl_joint_positions ( ndof_ );
-    Eigen::Affine3d base_T_ee;    
+    Eigen::Affine3d base_T_ee;
     jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
     getKDLKinematicInformation ( kdl_joint_positions,base_T_ee,Jac );
 }
@@ -466,11 +560,11 @@ double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::Joint
     // Display if desired
     if ( show_polytope ) {
         plotPolytope ( "velocity_polytope",
-                                   Vset,
-                                   base_link_,
-                                   base_T_ee.translation(),
-                                   color_pts,
-                                   color_line );
+                       Vset,
+                       base_link_,
+                       base_T_ee.translation(),
+                       color_pts,
+                       color_line );
     }
     return vol_initial;
 
@@ -478,62 +572,128 @@ double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::Joint
 
 
 
-double ConstrainedManipulability::getAllowableMotionPolytope ( const sensor_msgs::JointState & joint_states,
-        Eigen::MatrixXd & AHrep,
-        Eigen::VectorXd & bhrep,
-        bool show_polytope,
+
+
+
+bool ConstrainedManipulability::slicePolytope(const Eigen::MatrixXd &  Vset,
+        Eigen::Vector3d offset_position,
         std::vector<double>  color_pts,
-        std::vector<double>  color_line ) {
+        std::vector<double>  color_line,
+        std::string polytope_name,
+        ConstrainedManipulability::SLICING_PLANE index,
+        double plane_width)
+{
 
-    double vol_initial ( -1 );
-    Eigen::Affine3d base_T_ee;
-    Eigen::Matrix<double,6,Eigen::Dynamic> base_J_ee;
-    Eigen::MatrixXd Qset,Vset;
-    KDL::JntArray kdl_joint_positions ( ndof_ );
-    jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
-    getKDLKinematicInformation ( kdl_joint_positions,base_T_ee,base_J_ee );
+    Eigen::IOFormat PythonFormat(4, 0, ", ", ",\n", "[", "]", "([", "])");
+    Eigen::MatrixXd AHrep1,Vslice;
+    Eigen::VectorXd  bhrep1;
 
-
-
-    // Define Hyperplanes
-    AHrep.resize ( 2*ndof_,ndof_ );
-    AHrep.topRows ( ndof_ ) =ndof_identity_matrix_;  // ndof_*ndof block at row  0 colum 0;ndof_
-    AHrep.block ( ndof_,0,ndof_,ndof_ ) =-ndof_identity_matrix_; // ndof_*ndof block at row  ndof_ colum 0;ndof_
-
-    // Define shifted distance from origin
-    bhrep.resize ( 2*ndof_,1 );
-    for ( int i = 0; i < ndof_; ++i ) {
-        bhrep ( i ) =max_lin_limit_[i];
-        bhrep ( i+ndof_ ) =-min_lin_limit_[i];
+    // Get the H representation of the Cartesian polytope
+    bool check_poly=getHrepPolytope (Vset,
+                                     AHrep1,
+                                     bhrep1 );
+    if ( !check_poly ) {
+        return 0.0;
     }
 
-
-    getVrepPolytope ( AHrep,
-                      bhrep,
-                      Qset );
-
-    getCartesianPolytope ( Qset,
-                           base_J_ee.topRows ( 3 ),
-                           base_T_ee.translation(),
-                           Vset );
-
-    vol_initial=getPolytopeVolume ( Vset );
-
-    if ( show_polytope ) {
-        plotPolytope ( "allowable_motion_polytope",
-                                   Vset,
-                                   base_link_,
-                                   base_T_ee.translation(),
-                                   color_pts,
-                                   color_line );
+    // Create the linear inequality constraints representing a plane with some width to avoid
+    // dropping down in dimensions
+    Eigen::MatrixXd  AHrep2(6,AHrep1.cols()); // 6 is translational velocities
+    Eigen::VectorXd  bhrep2(6);bhrep2.setOnes();
+    
+    // this magic number is the other plane dimensions, we should be able to go as large as we want but it seems
+    // to cause numerical issues meaning the display is an issue?
+    // Anyway upper limit is display reasons
+    // lower limit it must be bigger than polytope, so if you increase lin limit you need to increase this!!!
+    bhrep2=bhrep2*plane_width*100; 
+    AHrep2.setZero();
+    
+    for ( int i = 0; i<AHrep2.rows(); i++ ) {
+        for ( int j = 0; j<AHrep2.cols(); j++ ) {
+            if ( i==j) {
+                if(i<3)
+                {
+                    AHrep2 ( i,j ) =1.0;
+                    AHrep2 ( i+3,j ) =-1.0;
+                }
+            }
+        }
     }
-    return vol_initial;
+        
+    // Set dimension orgonal to plane to a small number 
+    bhrep2[(int) index]=plane_width;
+    bhrep2[((int) index)+3]=plane_width;
+    
+    // Concacentate the polytope constraints to get the intersection
+    bool valid_poly=getPolytopeIntersection(AHrep1,
+                                            bhrep1,
+                                            AHrep2,
+                                            bhrep2,
+                                            Vslice);
+    
+
+    if ( !valid_poly ) {
+        return 0.0;
+    }
+       
+    plotPolytope ( polytope_name,
+                   Vslice,
+                   base_link_,
+                   offset_position,
+                   color_pts,
+                   color_line );
+    
+
+
+    return valid_poly;
 
 }
 
 
+bool ConstrainedManipulability::getPolytopeIntersection(const Eigen::MatrixXd & AHrep1,
+        const Eigen::VectorXd & bhrep1,
+        const Eigen::MatrixXd & AHrep2,
+        const Eigen::VectorXd & bhrep2,
+        Eigen::MatrixXd & Vset)
+{
+    Eigen::MatrixXd  AHrep3;
+    Eigen::VectorXd  bhrep3;
+
+    // 
+    bool valid_poly=getPolytopeIntersection(AHrep1,
+                                            bhrep1,
+                                            AHrep2,
+                                            bhrep2,
+                                            AHrep3,
+                                            bhrep3,
+                                            Vset);
+    return valid_poly;
+
+}
 
 
+bool ConstrainedManipulability::getPolytopeIntersection(const Eigen::MatrixXd & AHrep1,
+        const Eigen::VectorXd & bhrep1,
+        const Eigen::MatrixXd & AHrep2,
+        const Eigen::VectorXd & bhrep2,
+        Eigen::MatrixXd & AHrep3,
+        Eigen::VectorXd & bhrep3,
+        Eigen::MatrixXd & Vset)
+{
+
+    // To get intersection we simply stack the polytopes
+    AHrep3.resize(AHrep1.rows()+AHrep2.rows(),AHrep1.cols());
+    bhrep3.resize(bhrep1.rows()+bhrep2.rows());
+    AHrep3.topRows(AHrep1.rows())=AHrep1;
+    AHrep3.bottomRows(AHrep2.rows())=AHrep2;
+    bhrep3.head(bhrep1.rows())=bhrep1;
+    bhrep3.tail(bhrep2.rows())=bhrep2;
+    // Convert to  v representation for plotting
+    bool valid_poly=getVrepPolytope ( AHrep3,bhrep3,Vset );
+    
+    return valid_poly;
+
+}
 
 
 
@@ -544,17 +704,20 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const 
 
     Eigen::MatrixXd AHrep;
     Eigen::VectorXd bhrep;
-    double vol_initial ( -1 );
+    Eigen::MatrixXd Vset;
+    Eigen::Vector3d offset_position;
+    
     double vol=getConstrainedAllowableMotionPolytope ( joint_states,
                AHrep,
                bhrep,
+               Vset,
+               offset_position,
                show_polytope,
                color_pts,
                color_line ) ;
 
     return vol;
 }
-
 
 
 
@@ -565,10 +728,35 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const 
         std::vector<double>  color_pts,
         std::vector<double>  color_line ) {
 
+    Eigen::MatrixXd Vset;
+    Eigen::Vector3d offset_position;
+    
+    double vol=getConstrainedAllowableMotionPolytope ( joint_states,
+               AHrep,
+               bhrep,
+               Vset,
+               offset_position,
+               show_polytope,
+               color_pts,
+               color_line ) ;
+    return vol;
+}
 
 
 
-    Eigen::MatrixXd Qset,Vset;
+double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const sensor_msgs::JointState & joint_states,
+        Eigen::MatrixXd & AHrep,
+        Eigen::VectorXd & bhrep,
+        Eigen::MatrixXd & Vset,
+        Eigen::Vector3d & offset_position,
+        bool show_polytope,
+        std::vector<double>  color_pts,
+        std::vector<double>  color_line ) {
+
+
+
+
+    Eigen::MatrixXd Qset;
     GeometryInformation geometry_information;
     double vol_reduced ( 0.0 );
     KDL::JntArray 	kdl_joint_positions ( ndof_ );
@@ -596,18 +784,17 @@ double ConstrainedManipulability::getConstrainedAllowableMotionPolytope ( const 
                            Vset );
     if ( show_polytope ) {
         plotPolytope ( "constrained_allowable_motion_polytope",
-                                   Vset,
-                                   base_link_,
-                                   geometry_information.geometry_transforms.back().translation(),
-                                   color_pts,
-                                   color_line );
+                       Vset,
+                       base_link_,
+                       geometry_information.geometry_transforms.back().translation(),
+                       color_pts,
+                       color_line );
     }
 
+    offset_position=geometry_information.geometry_transforms.back().translation();
     vol_reduced=getPolytopeVolume ( Vset );
     return vol_reduced;
 }
-
-
 
 double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_msgs::JointState & joint_states,
         bool show_polytope,
@@ -665,11 +852,11 @@ double ConstrainedManipulability::getConstrainedVelocityPolytope ( const sensor_
                            Vset );
     if ( show_polytope ) {
         plotPolytope ( "constrained_velocity_polytope",
-                                   Vset,
-                                   base_link_,
-                                   geometry_information.geometry_transforms.back().translation(),
-                                   color_pts,
-                                   color_line );
+                       Vset,
+                       base_link_,
+                       geometry_information.geometry_transforms.back().translation(),
+                       color_pts,
+                       color_line );
     }
 
     vol_reduced=getPolytopeVolume ( Vset );
@@ -1572,5 +1759,6 @@ double ConstrainedManipulability::getVelocityPolytope ( KDL::Chain &  chain,
     double vol_initial=getPolytopeVolume ( Vset_undeformed );
     return vol_initial;
 }
+
 
 

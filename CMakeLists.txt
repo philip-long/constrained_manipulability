@@ -35,12 +35,14 @@ set(SNOPT_LIB /home/philip/snopt-interface/lib/libsnopt7_cpp.so) # SNOPT INCLUDE
  add_message_files(
    FILES
    PolytopeVolume.msg
+   PolytopeMesh.msg
 )
 
 
 generate_messages(
   DEPENDENCIES
   std_msgs
+  shape_msgs
 )
 
 
@@ -86,4 +88,7 @@ target_link_libraries(ik_example ${SNOPT_LIB} ${catkin_LIBRARIES} constrained_ma
 
 add_executable(shrinking_polytope test/shrinking_polytope.cpp)
 target_link_libraries(shrinking_polytope ${catkin_LIBRARIES} constrained_manipulability)
+
+add_executable(slicing_polytope test/slicing_polytope.cpp)
+target_link_libraries(slicing_polytope ${catkin_LIBRARIES} constrained_manipulability)
 
