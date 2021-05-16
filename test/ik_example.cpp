@@ -3,15 +3,17 @@
 #include <math.h>
 
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float64MultiArray.h>
+
+// Initialisation of joint state relies on these
 #include <trajectory_msgs/JointTrajectory.h>
 #include <controller_manager_msgs/SwitchController.h>
 
 #include "snoptProblem.hpp"
 
 sensor_msgs::JointState joint_state;
-sensor_msgs::JointState unlimited_state;
 geometry_msgs::Twist teleop_twist;
 bool screw_trigger ( false );
 bool joint_state_received ( false );
@@ -38,7 +40,6 @@ void screwCallback ( const std_msgs::Bool::ConstPtr& msg ) {
 
 void jointSensorCallback ( const sensor_msgs::JointState::ConstPtr& msg ) {
     joint_state=*msg;
-    unlimited_state=*msg;
     // Mod joint state wrist_3_joint to not exceed 2*PI
     joint_state.position[5] = fmod(joint_state.position[5], (2*M_PI));
     joint_state_received=true;
@@ -134,10 +135,11 @@ int main ( int argc, char **argv ) {
     ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1, true); // latched publishers
     ros::Publisher joint_traj_pub = nh.advertise<trajectory_msgs::JointTrajectory>("joint_traj", 10);
     ros::Publisher joint_cmd_pub = nh.advertise<std_msgs::Float64MultiArray>("joint_command", 10);
+    ros::Publisher end_effector_pub = nh.advertise<geometry_msgs::PoseStamped>("end_effector_pose", 10);
 
     ros::ServiceClient switch_client = nh.serviceClient<controller_manager_msgs::SwitchController>("/controller_manager/switch_controller");
     controller_manager_msgs::SwitchController switch_srv;
-
+    
     std::string root,tip,pos_control,vel_control;
     std::vector<int> object_primitive;
     std::vector<std::vector<double>> obj_dimensions;
@@ -208,13 +210,11 @@ int main ( int argc, char **argv ) {
     joint_pub.publish(pub_joint_state);
 
     // Convert joint state message to a trajectory for command control
-    traj_state = jointStateToTraj(pub_joint_state, 3);
-    // Hack to preserve the unlimited state of the screw joint (wrist_3)
-    traj_state.points[0].positions[5] = unlimited_state.position[5];
+    traj_state = jointStateToTraj(pub_joint_state, 5);
     joint_traj_pub.publish(traj_state);
 
     ros::spinOnce();
-    ros::Duration ( 3.0 ).sleep();
+    ros::Duration ( 5.0 ).sleep();
 
     switch_srv.request.start_controllers.push_back(vel_control);
     switch_srv.request.stop_controllers.push_back(pos_control);
@@ -228,12 +228,16 @@ int main ( int argc, char **argv ) {
         ROS_ERROR("Failed to call service switch_controller");
     }
 
-
     joint_state=pub_joint_state;
 
     twist_received=false;
     double objective_function=250.0;
     while ( ros::ok() ) {
+        geometry_msgs::PoseStamped current;
+        robot_polytope.getCartPos(joint_state, current.pose);
+        current.header = joint_state.header;
+        end_effector_pub.publish(current);
+
         if(!screw_trigger) 
         {
             // UNCOMMENT if in simulation
@@ -380,7 +384,7 @@ int main ( int argc, char **argv ) {
                     }
                     else
                     {
-                        ROS_WARN_COND(debug_statements,"in collision optimzation will fail");
+                        ROS_WARN_COND(debug_statements,"in collision optimization will fail");
                     }
                 }
 

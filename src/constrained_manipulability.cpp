@@ -297,6 +297,19 @@ bool ConstrainedManipulability::displayObjects() {
 
 
 
+void  ConstrainedManipulability::getCartPos(const sensor_msgs::JointState & joint_states,
+        geometry_msgs::Pose& geo_pose) {
+
+    KDL::JntArray   kdl_joint_positions ( ndof_ );
+    jointStatetoKDLJointArray ( joint_states,kdl_joint_positions );
+
+    KDL::Frame cartpos;
+    kdl_fk_solver_->JntToCart ( kdl_joint_positions,cartpos );
+    Eigen::Affine3d T;
+    tf::transformKDLToEigen (cartpos, T);
+    tf::poseEigenToMsg (T, geo_pose );
+}
+
 
 void   ConstrainedManipulability::getKDLKinematicInformation ( const KDL::JntArray & kdl_joint_positions,
         Eigen::Affine3d & T,

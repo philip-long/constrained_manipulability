@@ -20,10 +20,12 @@
 
 #include <Eigen/Eigen>
 #include <eigen_conversions/eigen_kdl.h>
+#include <eigen_conversions/eigen_msg.h>
 #include <eigen-cddlib/Polyhedron.h>
 
 #include "sensor_msgs/JointState.h"
 #include "geometry_msgs/TransformStamped.h"
+#include <geometry_msgs/Pose.h>
 
 #include <geometric_shapes/shapes.h>
 #include <geometric_shapes/shape_operations.h>
@@ -132,7 +134,8 @@ private:
     * https://github.com/tu-darmstadt-ros-pkg/robot_self_filter/blob/master/src/self_mask.cpp#L76
     **/
     static std::unique_ptr<shapes::Shape> constructShape ( const urdf::Geometry *geom );
-    
+
+
     /// Convenience function to convert kdl to eigen stuff, segment=-1 returns terminal point information
     void   getKDLKinematicInformation ( const KDL::JntArray & kdl_joint_positions,
         Eigen::Affine3d & T,
@@ -208,6 +211,10 @@ public:
     void setRvizWait(bool flag);
     bool const getRvizWait(bool flag);
 
+    /// Convenience function to get end-effector pose as a geometry_msgs::Pose
+    void  getCartPos(const sensor_msgs::JointState & joint_states,
+        geometry_msgs::Pose& geo_pose);
+    
     /** getConstrainedAllowableMotionPolytope returns the polytope
     *   approximating the constrained allowable end effector motion, considering
     *  joint limits and objstacles & linearization
