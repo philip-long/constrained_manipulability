@@ -21,7 +21,7 @@
 <node name="slicing_polytope"
     pkg="constrained_manipulability"
     type="slicing_polytope"
-    respawn="false" output="screen"  clear_params="true" launch-prefix="">
+    respawn="false" output="screen"  clear_params="true" launch-prefix="gdb -ex run --args">
   <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load"/>
     	<param name="root" type="string" value="$(arg root_link)" />
     	<param name="tip" type="string" value="$(arg tip_link)" />
