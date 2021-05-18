@@ -6,6 +6,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float64MultiArray.h>
+#include <intended_joint_estimation/IntendedJointState.h>
 
 // Initialisation of joint state relies on these
 #include <trajectory_msgs/JointTrajectory.h>
@@ -15,9 +16,11 @@
 
 sensor_msgs::JointState joint_state;
 geometry_msgs::Twist teleop_twist;
+intended_joint_estimation::IntendedJointState intended_joint;
 bool screw_trigger ( false );
 bool joint_state_received ( false );
 bool twist_received ( false );
+bool intent_received ( false );
 bool ignore_constraints( false );
 
 
@@ -48,6 +51,11 @@ void jointSensorCallback ( const sensor_msgs::JointState::ConstPtr& msg ) {
 void twistCallback ( const geometry_msgs::Twist::ConstPtr& msg ) {
     teleop_twist=*msg;
     twist_received=true;
+}
+
+void intentionCallback ( const intended_joint_estimation::IntendedJointState::ConstPtr& msg ) {
+    intended_joint=*msg;
+    intent_received=true;
 }
 
 Eigen::VectorXd  convertGeometryTwistEigenVector(const geometry_msgs::Twist geo_twist_)
@@ -129,6 +137,7 @@ int main ( int argc, char **argv ) {
     ros::Subscriber screw_sub = nh.subscribe ("/screw_trigger", 1, &screwCallback);
     ros::Subscriber joint_sub = nh.subscribe("/joint_states", 1, &jointSensorCallback);
     ros::Subscriber vel_sub = nh.subscribe ("/cmd_vel", 1, &twistCallback);
+    ros::Subscriber intention_sub = nh.subscribe ("/intended_joint_state", 1, &intentionCallback);
 
     ros::Publisher vol_pub=nh.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volumes", 1);
 
@@ -182,6 +191,7 @@ int main ( int argc, char **argv ) {
     joint_cmd.data.resize(6);
 
     ConstrainedManipulability robot_polytope ( nh,root,tip );
+    //ConstrainedManipulability shrinking_polytope ( nh,root,tip );
 
     objects.resize ( shapes_in.size() );
     for ( int i = 0; i < shapes_in.size(); ++i ) {
@@ -255,6 +265,44 @@ int main ( int argc, char **argv ) {
                 // Cycle through the sampled joints and display the polytope for each one
                 // SNOPT stuff
                 
+                // Compute shrinking poltyopes for the intended joint state
+                /*if(intent_received)
+                {
+
+                    shrinking_polytope.setLinearizationLimit(intended_joint.goal_distance);
+                    double shrinking_vol = shrinking_polytope.getConstrainedAllowableMotionPolytope(intended_joint.state,
+                                            AHrep,
+                                            bhrep,
+                                            Vset,
+                                            offset_position,
+                                            true,
+                                            {0.0,0.0,0.5,0.0},
+                                            {0.0,0.0,1.0,0.4});
+
+                    double plane_width=0.004; // it seems in rviz anyway if you go lower than this there are display issues
+                    // If this fdoesn't happen in unity you can reduce this 0.001 -> 1mm
+                    shrinking_polytope.slicePolytope(Vset, offset_position,
+                                {0.0,0.0,0.5,0.0},
+                                {0.0,0.0,0.8,1.0},
+                                "xy_slice",
+                                ConstrainedManipulability::SLICING_PLANE::XY_PLANE,plane_width);
+                             ros::spinOnce();
+                               
+                    shrinking_polytope.slicePolytope(Vset, offset_position,
+                                {0.0,0.0,0.5,0.0},
+                                {0.0,0.8,0.0,1.0},
+                                "xz_slice",
+                                ConstrainedManipulability::SLICING_PLANE::XZ_PLANE,plane_width);
+                            ros::spinOnce();
+
+                    shrinking_polytope.slicePolytope(Vset, offset_position,
+                                {0.0,0.0,0.5,0.0},
+                                {0.8,0.0,0.0,1.0},
+                                "yz_slice",
+                                ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);
+                            ros::spinOnce();
+                }*/
+
                 objective_function=100.0;
                 for (auto& sample_joint_state:vec_sampled_joint_states)
                 {
@@ -262,46 +310,18 @@ int main ( int argc, char **argv ) {
                     color_a+=0.2;
                     // unconstrained polytope
                     double allowable_vol = robot_polytope.getAllowableMotionPolytope( sample_joint_state,
-                                            AHrep,
-                                            bhrep,
-                                            Vset,
-                                            offset_position,
-                                            show_mp,
-                                            {0.0,0.0,0.5,0.0},
-                                            {0.0,0.0,1.0,0.4});
+                                           show_mp,
+                                           {0.0,0.0,0.5,0.0},
+                                           {0.0,0.0,color_a,0.4} );
 
                     // constrained polytope
                     double allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope( sample_joint_state,
-                                            AHrep,
-                                            bhrep,
-                                            Vset,
-                                            offset_position,
-                                            show_cmp,
-                                            {0.0,0.0,0.5,0.0},
-                                            {1.0,0.0,0.0,0.4} );
+                                                       AHrep,
+                                                       bhrep,
+                                                       show_cmp,
+                                                       {0.0,0.0,0.5,0.0},
+                                                       {color_a,0.0,0.0,0.4} );
 
-                    double plane_width=0.004; // it seems in rviz anyway if you go lower than this there are display issues
-                    // If this fdoesn't happen in unity you can reduce this 0.001 -> 1mm
-                    robot_polytope.slicePolytope(Vset, offset_position,
-                                {0.0,0.0,0.5,0.0},
-                                {0.0,0.0,0.8,1.0},
-                                "xy_slice",
-                                ConstrainedManipulability::SLICING_PLANE::XY_PLANE,plane_width);
-                             ros::spinOnce();
-                               
-                    robot_polytope.slicePolytope(Vset, offset_position,
-                                {0.0,0.0,0.5,0.0},
-                                {0.0,0.8,0.0,1.0},
-                                "xz_slice",
-                                ConstrainedManipulability::SLICING_PLANE::XZ_PLANE,plane_width);
-                            ros::spinOnce();
-
-                    robot_polytope.slicePolytope(Vset, offset_position,
-                                {0.0,0.0,0.5,0.0},
-                                {0.8,0.0,0.0,1.0},
-                                "yz_slice",
-                                ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);
-                            ros::spinOnce();
 
                     robot_polytope.getJacobian(sample_joint_state,Jacobian);
 
