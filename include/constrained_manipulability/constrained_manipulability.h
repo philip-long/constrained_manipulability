@@ -65,6 +65,8 @@ struct GeometryInformation {
 
 };
 
+
+
 class ConstrainedManipulability
 {
 private:
@@ -74,7 +76,6 @@ private:
     /// RVIZ DISPLAY
     ros::Publisher mkr_pub;
     ros::Publisher poly_mesh_pub;
-
    
     /** Plot a Polytope defined a a set of vertices
     *   The vertices are shifted to the offset position (offset_position), for instance the robot end effector
@@ -174,6 +175,11 @@ protected:
 
 
 public:
+    enum SLICING_PLANE{
+        YZ_PLANE=0,
+        XZ_PLANE=1,
+        XY_PLANE=2,
+    };
 
     ConstrainedManipulability ( ros::NodeHandle nh,
                                 std::string root,
@@ -214,6 +220,17 @@ public:
     /// Convenience function to get end-effector pose as a geometry_msgs::Pose
     void  getCartPos(const sensor_msgs::JointState & joint_states,
         geometry_msgs::Pose& geo_pose);
+
+    // yz plane = 0 
+    // xz plane = 1 
+    // xy plane = 2
+    bool slicePolytope(const Eigen::MatrixXd &
+        Vset, Eigen::Vector3d offset_position,
+        std::vector<double>  color_pts,
+        std::vector<double>  color_line,
+        std::string polytope_name="sliced_polytope",
+        ConstrainedManipulability::SLICING_PLANE index=ConstrainedManipulability::SLICING_PLANE::XY_PLANE,
+        double plane_width=0.002 );
     
     /** getConstrainedAllowableMotionPolytope returns the polytope
     *   approximating the constrained allowable end effector motion, considering
@@ -248,6 +265,30 @@ public:
             bool show_polytope,
             std::vector<double>  color_pts= {0.0,0.0,0.5,1.0},
             std::vector<double>  color_line= {0.0,0.0,1.0,0.8} );
+
+    /** getConstrainedAllowableMotionPolytope returns the polytope
+    *   approximating the constrained allowable end effector motion, considering
+    *  joint limits and objstacles & linearization
+    *
+    *  AHrep hyperplanes of the constrained allowable motion polytope
+    *  bHrep shifted distance
+    *  Vset the representation of Constrained motion Polytope in Cartesian space
+    *  offset_position the location in space of the Cartesian polytope
+    *  const sensor_msgs::JointState & joint_states, current joint states
+    *  show_polytope -> plots the polytope in rviz
+    *  color_pts -> polytope points color
+    *  color_line  -> polytope lines color
+    *  returns the volume of the constrained allowable motion polytope
+    */
+
+    double getConstrainedAllowableMotionPolytope ( const sensor_msgs::JointState & joint_states,
+            Eigen::MatrixXd & AHrep,
+            Eigen::VectorXd & bhrep,
+            Eigen::MatrixXd & Vset,
+            Eigen::Vector3d & offset_position,
+            bool show_polytope,
+            std::vector<double>  color_pts,
+            std::vector<double>  color_line ); 
 
 
     /** getConstrainedVelocityPolytope returns the polytope
@@ -318,7 +359,29 @@ public:
                                         bool show_polytope,
                                         std::vector<double>  color_pts= {0.0,0.0,0.5,1.0},
                                         std::vector<double>  color_line= {0.0,0.0,1.0,0.8} );
-
+    
+    /** getAllowableMotionPolytope returns the polytope
+    *   considering   linearization
+    *
+    *  AHrep hyperplanes of the constrained allowable motion polytope
+    *  bHrep shifted distance
+    *  Eigen::MatrixXd & Vset, the cartesian V representation of polytope
+    *  Eigen::Vector3d & offset_position the position we translate the polytopte to
+    *  const sensor_msgs::JointState & joint_states, current joint states
+    *  show_polytope -> plots the polytope in rviz
+    *  color_pts -> polytope points color
+    *  color_line  -> polytope lines color
+    *  returns the volume of the constrained allowable motion polytope
+    */
+    double getAllowableMotionPolytope ( const sensor_msgs::JointState & joint_states,
+        Eigen::MatrixXd & AHrep,
+        Eigen::VectorXd & bhrep,
+        Eigen::MatrixXd & Vset,
+        Eigen::Vector3d & offset_position,
+        bool show_polytope,
+        std::vector<double>  color_pts,
+        std::vector<double>  color_line );
+    
     /** getVelocityPolytope returns the manipulability polytope
     *   considering joint velocity limits
     *
@@ -398,6 +461,23 @@ public:
 
 
 
+   // Function to get the intersection of 2 polytopes
+   
+    bool getPolytopeIntersection(const Eigen::MatrixXd & AHrep1,
+        const Eigen::VectorXd & bhrep1,
+        const Eigen::MatrixXd & AHrep2,
+        const Eigen::VectorXd & bhrep2,
+        Eigen::MatrixXd & AHrep3,
+        Eigen::VectorXd & bhrep3,
+        Eigen::MatrixXd & Vset);
+    
+    
+    bool getPolytopeIntersection(const Eigen::MatrixXd & AHrep1,
+        const Eigen::VectorXd & bhrep1,
+        const Eigen::MatrixXd & AHrep2,
+        const Eigen::VectorXd & bhrep2,      
+        Eigen::MatrixXd & Vset);
+    
 
 
     // Static Versions, useful for optimization engines, e.g. snopt, nlopt.
@@ -450,6 +530,7 @@ public:
             double dangerfield=10,
             double distance_threshold=0.3 );
 
+    
 
     /** getPolytopeHyperPlanes returns hyperplanes for constrained joint polytope
     * For ith link (segment) in the kinematic serial chain

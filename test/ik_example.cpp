@@ -199,8 +199,9 @@ int main ( int argc, char **argv ) {
 
     std::vector<sensor_msgs::JointState> vec_sampled_joint_states(samples);
 
-    Eigen::MatrixXd AHrep;
+    Eigen::MatrixXd AHrep,Vset;
     Eigen::VectorXd bhrep;
+    Eigen::Vector3d offset_position;
     Eigen::Matrix<double,6,Eigen::Dynamic> Jacobian;
     std::vector<double> joint_deviation ( 6 ); // Resulting change in joint position
 
@@ -261,17 +262,46 @@ int main ( int argc, char **argv ) {
                     color_a+=0.2;
                     // unconstrained polytope
                     double allowable_vol = robot_polytope.getAllowableMotionPolytope( sample_joint_state,
-                                           show_mp,
-                                           {0.0,0.0,0.5,0.0},
-                                           {0.0,0.0,color_a,0.4} );
+                                            AHrep,
+                                            bhrep,
+                                            Vset,
+                                            offset_position,
+                                            show_mp,
+                                            {0.0,0.0,0.5,0.0},
+                                            {0.0,0.0,1.0,0.4});
 
                     // constrained polytope
                     double allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope( sample_joint_state,
-                                                       AHrep,
-                                                       bhrep,
-                                                       show_cmp,
-                                                       {0.0,0.0,0.5,0.0},
-                                                       {color_a,0.0,0.0,0.4} );
+                                            AHrep,
+                                            bhrep,
+                                            Vset,
+                                            offset_position,
+                                            show_cmp,
+                                            {0.0,0.0,0.5,0.0},
+                                            {1.0,0.0,0.0,0.4} );
+
+                    double plane_width=0.004; // it seems in rviz anyway if you go lower than this there are display issues
+                    // If this fdoesn't happen in unity you can reduce this 0.001 -> 1mm
+                    robot_polytope.slicePolytope(Vset, offset_position,
+                                {0.0,0.0,0.5,0.0},
+                                {0.0,0.0,0.8,1.0},
+                                "xy_slice",
+                                ConstrainedManipulability::SLICING_PLANE::XY_PLANE,plane_width);
+                             ros::spinOnce();
+                               
+                    robot_polytope.slicePolytope(Vset, offset_position,
+                                {0.0,0.0,0.5,0.0},
+                                {0.0,0.8,0.0,1.0},
+                                "xz_slice",
+                                ConstrainedManipulability::SLICING_PLANE::XZ_PLANE,plane_width);
+                            ros::spinOnce();
+
+                    robot_polytope.slicePolytope(Vset, offset_position,
+                                {0.0,0.0,0.5,0.0},
+                                {0.8,0.0,0.0,1.0},
+                                "yz_slice",
+                                ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);
+                            ros::spinOnce();
 
                     robot_polytope.getJacobian(sample_joint_state,Jacobian);
 
