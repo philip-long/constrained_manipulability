@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="https://ros.org/wiki/xacro">
+
+  <xacro:macro name="screwdriver_tool" params="prefix connected_to">
+
+    <joint name="${prefix}screwdriver_holder_joint" type="fixed">
+      <parent link="${connected_to}"/>
+      <child link="${prefix}screwdriver_holder"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+    <link name="${prefix}screwdriver_holder">
+      <visual>
+        <geometry>
+          <cylinder length="0.05" radius="0.02"/>
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0.0255"/>
+        <material name="black">
+          <color rgba="0 0 0 1"/>
+        </material>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.05" radius="0.02"/>
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0.0255"/>
+      </collision>
+    </link>
+
+    <joint name="${prefix}screwdriver_joint" type="fixed">
+      <parent link="${prefix}screwdriver_holder"/>
+      <child link="${prefix}screwdriver"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+    <link name="${prefix}screwdriver">
+      <visual>
+        <geometry>
+          <cylinder length="0.1" radius="0.01"/>
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0.0505"/>
+        <material name="wood">
+          <color rgba=".87 .72 .53 1"/>
+        </material>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.1" radius="0.01"/>
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0.0505"/>
+      </collision>
+    </link>
+
+  </xacro:macro>
+</robot>
