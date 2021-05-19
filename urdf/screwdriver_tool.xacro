@@ -11,41 +11,41 @@
     <link name="${prefix}screwdriver_holder">
       <visual>
         <geometry>
-          <cylinder length="0.05" radius="0.02"/>
+          <cylinder length="0.06" radius="0.02"/>
         </geometry>
-        <origin rpy="0 0 0" xyz="0 0 0.0255"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0305"/>
         <material name="black">
           <color rgba="0 0 0 1"/>
         </material>
       </visual>
       <collision>
         <geometry>
-          <cylinder length="0.05" radius="0.02"/>
+          <cylinder length="0.06" radius="0.02"/>
         </geometry>
-        <origin rpy="0 0 0" xyz="0 0 0.0255"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0305"/>
       </collision>
     </link>
 
     <joint name="${prefix}screwdriver_joint" type="fixed">
       <parent link="${prefix}screwdriver_holder"/>
       <child link="${prefix}screwdriver"/>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0.146"/>
     </joint>
     <link name="${prefix}screwdriver">
       <visual>
         <geometry>
-          <cylinder length="0.1" radius="0.01"/>
+          <cylinder length="0.126" radius="0.01"/>
         </geometry>
-        <origin rpy="0 0 0" xyz="0 0 0.0505"/>
+        <origin rpy="0 0 0" xyz="0 0 -0.0635"/>
         <material name="wood">
           <color rgba=".87 .72 .53 1"/>
         </material>
       </visual>
       <collision>
         <geometry>
-          <cylinder length="0.1" radius="0.01"/>
+          <cylinder length="0.126" radius="0.01"/>
         </geometry>
-        <origin rpy="0 0 0" xyz="0 0 0.0505"/>
+        <origin rpy="0 0 0" xyz="0 0 -0.0635"/>
       </collision>
     </link>
 

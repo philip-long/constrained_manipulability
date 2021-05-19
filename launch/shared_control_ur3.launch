@@ -4,14 +4,16 @@
     <arg name="root_link" default="base_link"/>
     <arg name="tip_link" default="ee_link"/>
     <arg name="mp_display" default="false"/>
-    <arg name="cmp_display" default="true"/>
+    <arg name="cmp_display" default="false"/>
     <arg name="show_debug_statements" default="false"/>
     <arg name="constraints_disabled" default="false"/>
-    <arg name="samples" default="10"/>
+    <arg name="samples" default="7"/>
     <arg name="deviation" default="0.05"/>
 
     <!-- Launch UR3 URDF model -->
-    <include file="$(find ur_description)/launch/ur3_upload.launch"/>
+    <!--include file="$(find ur_e_description)/launch/ur3e_upload.launch"/-->
+    <param name="robot_description" command="$(find xacro)/xacro 
+        '$(find constrained_manipulability)/urdf/ur3e_with_screwdriver_tool.xacro'"/>
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz" required="true"/>
