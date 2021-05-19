@@ -298,9 +298,9 @@ int main ( int argc, char **argv ) {
                     shrinking_polytope.slicePolytope(Vset, offset_position,
                                 {0.0,0.0,0.5,0.0},
                                 {0.8,0.0,0.0,1.0},
-                                "yz_slice",
+                                intended_joint.label,
                                 ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);
-                            ros::spinOnce();
+                    ros::spinOnce();
                 }
 
                 objective_function=100.0;
