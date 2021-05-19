@@ -191,7 +191,7 @@ int main ( int argc, char **argv ) {
     joint_cmd.data.resize(6);
 
     ConstrainedManipulability robot_polytope ( nh,root,tip );
-    //ConstrainedManipulability shrinking_polytope ( nh,root,tip );
+    ConstrainedManipulability shrinking_polytope ( nh,root,tip );
 
     objects.resize ( shapes_in.size() );
     for ( int i = 0; i < shapes_in.size(); ++i ) {
@@ -266,7 +266,7 @@ int main ( int argc, char **argv ) {
                 // SNOPT stuff
                 
                 // Compute shrinking poltyopes for the intended joint state
-                /*if(intent_received)
+                if(intent_received)
                 {
 
                     shrinking_polytope.setLinearizationLimit(intended_joint.goal_distance);
@@ -275,13 +275,13 @@ int main ( int argc, char **argv ) {
                                             bhrep,
                                             Vset,
                                             offset_position,
-                                            true,
+                                            false,
                                             {0.0,0.0,0.5,0.0},
                                             {0.0,0.0,1.0,0.4});
 
                     double plane_width=0.004; // it seems in rviz anyway if you go lower than this there are display issues
                     // If this fdoesn't happen in unity you can reduce this 0.001 -> 1mm
-                    shrinking_polytope.slicePolytope(Vset, offset_position,
+                    /*shrinking_polytope.slicePolytope(Vset, offset_position,
                                 {0.0,0.0,0.5,0.0},
                                 {0.0,0.0,0.8,1.0},
                                 "xy_slice",
@@ -293,7 +293,7 @@ int main ( int argc, char **argv ) {
                                 {0.0,0.8,0.0,1.0},
                                 "xz_slice",
                                 ConstrainedManipulability::SLICING_PLANE::XZ_PLANE,plane_width);
-                            ros::spinOnce();
+                            ros::spinOnce();*/
 
                     shrinking_polytope.slicePolytope(Vset, offset_position,
                                 {0.0,0.0,0.5,0.0},
@@ -301,7 +301,7 @@ int main ( int argc, char **argv ) {
                                 "yz_slice",
                                 ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);
                             ros::spinOnce();
-                }*/
+                }
 
                 objective_function=100.0;
                 for (auto& sample_joint_state:vec_sampled_joint_states)
