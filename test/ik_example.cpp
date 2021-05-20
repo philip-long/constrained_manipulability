@@ -7,6 +7,7 @@
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <intended_joint_estimation/IntendedJointState.h>
+#include <constrained_manipulability/SpaceIndicator.h>
 
 // Initialisation of joint state relies on these
 #include <trajectory_msgs/JointTrajectory.h>
@@ -133,6 +134,7 @@ int main ( int argc, char **argv ) {
     ros::NodeHandle nh; // Create a node handle and start the node
 
     constrained_manipulability::PolytopeVolume polytope_volumes;
+    constrained_manipulability::SpaceIndicator space_indicator;
 
     ros::Subscriber screw_sub = nh.subscribe ("/screw_trigger", 1, &screwCallback);
     ros::Subscriber joint_sub = nh.subscribe("/joint_states", 1, &jointSensorCallback);
@@ -140,6 +142,7 @@ int main ( int argc, char **argv ) {
     ros::Subscriber intention_sub = nh.subscribe ("/intended_joint_state", 1, &intentionCallback);
 
     ros::Publisher vol_pub=nh.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volumes", 1);
+    ros::Publisher space_pub=nh.advertise<constrained_manipulability::SpaceIndicator>("constrained_manipulability/space_indicator", 1);
 
     ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1, true); // latched publishers
     ros::Publisher joint_traj_pub = nh.advertise<trajectory_msgs::JointTrajectory>("joint_traj", 10);
@@ -202,10 +205,11 @@ int main ( int argc, char **argv ) {
     ros::Duration ( 2.0 ).sleep();
     robot_polytope.displayObjects();
 
-    polytope_volumes.names.resize ( 2 );
+    polytope_volumes.names.resize ( 3 );
     polytope_volumes.names[0]="AllowableMotion";
     polytope_volumes.names[1]="ConstrainedAllowableMotion";
-    polytope_volumes.volumes.resize ( 2 );
+    polytope_volumes.names[2]="IntendedMotion";
+    polytope_volumes.volumes.resize ( 3 );
 
     std::vector<sensor_msgs::JointState> vec_sampled_joint_states(samples);
 
@@ -265,7 +269,7 @@ int main ( int argc, char **argv ) {
                 // Cycle through the sampled joints and display the polytope for each one
                 // SNOPT stuff
                 
-                // Compute shrinking poltyopes for the intended joint state
+                // Compute shrinking polytopes for the intended joint state
                 if(intent_received)
                 {
 
@@ -300,7 +304,13 @@ int main ( int argc, char **argv ) {
                                 {0.8,0.0,0.0,1.0},
                                 intended_joint.label,
                                 ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);
-                    ros::spinOnce();
+
+                    polytope_volumes.volumes[2] = shrinking_vol;
+                    space_indicator.label = intended_joint.label;
+                    space_indicator.volume = shrinking_vol;
+                    space_indicator.direction = intended_joint.goal_angle;
+
+                    space_pub.publish(space_indicator);
                 }
 
                 objective_function=100.0;

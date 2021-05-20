@@ -35,6 +35,7 @@ set(SNOPT_LIB $ENV{SNOPT_DIR}/lib/libsnopt7_cpp.so) # SNOPT INCLUDE
    FILES
    PolytopeMesh.msg
    PolytopeVolume.msg
+   SpaceIndicator.msg
 )
 
 
