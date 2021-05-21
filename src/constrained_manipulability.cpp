@@ -168,7 +168,8 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         constrained_manipulability::PolytopeMesh poly_mesh;
         poly_mesh.name = polytope_name;
         poly_mesh.mesh.triangles.resize(polygons.size());
-                
+        poly_mesh.mesh.vertices.resize(polygons.size()*3);
+        
         // Plotting
         visualization_msgs::Marker mkr;
         
@@ -192,8 +193,8 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
                 pp.z=cloud_hull->points[triangle.vertices[var]].z;
                 points.push_back ( pp );
 
-                poly_mesh.mesh.triangles[tri].vertex_indices[var] = triangle.vertices[var];
-                poly_mesh.mesh.vertices.push_back(pp);
+                poly_mesh.mesh.triangles[tri].vertex_indices[var] = triangle.vertices[var];                
+                poly_mesh.mesh.vertices[triangle.vertices[var]]=pp;
             }
         }
 
