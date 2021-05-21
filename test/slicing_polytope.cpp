@@ -104,7 +104,7 @@ int main ( int argc, char **argv ) {
             if(!robot_polytope.checkCollision ( joint_state ))
             {
                 
-                
+             /*   
             polytope_volumes.volumes[0]=  robot_polytope.getAllowableMotionPolytope ( joint_state,
                                           AHrep,
                                           bhrep,
@@ -113,6 +113,7 @@ int main ( int argc, char **argv ) {
                                           show_mp,
             {0.0,0.0,0.5,0.0},
             {0.0,0.0,1.0,0.4});
+            */
             
             polytope_volumes.volumes[1]=  robot_polytope.getConstrainedAllowableMotionPolytope ( joint_state,   
                                                                                                  AHrep,
@@ -125,6 +126,7 @@ int main ( int argc, char **argv ) {
             
             double plane_width=0.004; // it seems in rviz anyway if you go lower than this there are display issues
             // If this fdoesn't happen in unity you can reduce this 0.001 -> 1mm
+               
             robot_polytope.slicePolytope(Vset, offset_position,
                         {0.0,0.0,0.5,0.0},
                         {0.0,0.0,0.8,1.0},
@@ -144,6 +146,7 @@ int main ( int argc, char **argv ) {
                         {0.8,0.0,0.0,1.0},
                         "yz_slice",
                         ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,0.004);
+                
                     ros::spinOnce();
 
  	    

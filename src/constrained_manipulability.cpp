@@ -167,8 +167,11 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         constrained_manipulability::PolytopeMesh poly_mesh;
         poly_mesh.name = polytope_name;
         poly_mesh.mesh.triangles.resize(polygons.size());
+        poly_mesh.mesh.vertices.resize(polygons.size()*3);
+        
+        
         // Plottling
-        visualization_msgs::Marker mkr;
+        visualization_msgs::Marker mkr,mkr2;
 
         mkr.ns=polytope_name;
         mkr.action=visualization_msgs::Marker::ADD;
@@ -180,19 +183,25 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         // Therefore for each triangle in the polgyon
         // we find its three vertices and extract their x y z coordinates
         // this is then put in a
+ 
         for ( int tri = 0; tri<polygons.size(); ++tri ) {
             pcl::Vertices triangle=polygons[tri];
-            for ( int var = 0; var<3; ++var ) {
+
+            
+            for ( int var = 0; var<3; ++var ) {                                
                 geometry_msgs::Point pp;
                 pp.x=cloud_hull->points[triangle.vertices[var]].x;
                 pp.y=cloud_hull->points[triangle.vertices[var]].y;
-                pp.z=cloud_hull->points[triangle.vertices[var]].z;
+                pp.z=cloud_hull->points[triangle.vertices[var]].z;                                                   
                 points.push_back ( pp );
-
-                poly_mesh.mesh.triangles[tri].vertex_indices[var] = triangle.vertices[var];
-                poly_mesh.mesh.vertices.push_back(pp);
+   
+                                                
+                poly_mesh.mesh.triangles[tri].vertex_indices[var] = triangle.vertices[var];                
+                poly_mesh.mesh.vertices[triangle.vertices[var]]=pp;
             }
+            
         }
+        
 
         mkr.id=2;
         mkr.lifetime=ros::Duration ( 0.0 );
@@ -209,10 +218,24 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ROS_INFO ( "Waiting for subs" );
             ros::spinOnce();
         }
+        
         mkr_pub.publish ( mkr );
         poly_mesh_pub.publish( poly_mesh );
 
-
+        geometric_shapes::constructMarkerFromShape(poly_mesh.mesh,mkr2);
+        mkr2.id=5;
+        mkr2.ns="polytope_name2"+polytope_name;
+        mkr2.header.frame_id=frame;
+        mkr2.lifetime=ros::Duration ( 0.0 );
+        mkr2.color.r=color_line[0];
+        mkr2.color.g=color_line[1];
+        mkr2.color.b=color_line[2];
+        mkr2.color.a=color_line[3];//fmax(auto_alpha,0.1);
+        mkr2.scale.x=1.0;
+        mkr2.scale.y=1.0;
+        mkr2.scale.z=1.0;
+        
+        
         mkr.type=visualization_msgs::Marker::SPHERE_LIST;
         mkr.header.frame_id=frame;
         mkr.id=1;
@@ -231,6 +254,7 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ros::spinOnce();
         }
         mkr_pub.publish ( mkr );
+        mkr_pub.publish ( mkr2 );
     } else {
         ROS_WARN ( "plotPolytope: Hull empty" );
         return false;
