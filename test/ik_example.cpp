@@ -4,7 +4,7 @@
 
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <std_msgs/Bool.h>
+#include <std_msgs/Int8.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <intended_joint_estimation/IntendedJointState.h>
 #include <constrained_manipulability/SpaceIndicator.h>
@@ -18,7 +18,7 @@
 sensor_msgs::JointState joint_state;
 geometry_msgs::Twist teleop_twist;
 intended_joint_estimation::IntendedJointState intended_joint;
-bool screw_trigger ( false );
+int screw_trigger ( 0 );
 bool joint_state_received ( false );
 bool twist_received ( false );
 bool intent_received ( false );
@@ -38,7 +38,7 @@ void calculateDeviationAbs ( int    *Status, int *n,    double x[],
                              int    iu[],    int *leniu,
                              double ru[],    int *lenru );
 
-void screwCallback ( const std_msgs::Bool::ConstPtr& msg ) {
+void screwCallback ( const std_msgs::Int8::ConstPtr& msg ) {
     screw_trigger=msg->data;
 }
 
@@ -250,10 +250,13 @@ int main ( int argc, char **argv ) {
     while ( ros::ok() ) {
         geometry_msgs::PoseStamped current;
         robot_polytope.getCartPos(joint_state, current.pose);
-        current.header = joint_state.header;
+        current.header.frame_id = tip;
+        current.header.stamp = joint_state.header.stamp;
         end_effector_pub.publish(current);
+        ros::spinOnce();
 
-        if(!screw_trigger) 
+        // Teleoperation mode, no screw button pressed
+        if(screw_trigger == 0) 
         {
             // UNCOMMENT if in simulation
             //joint_state=pub_joint_state;
@@ -283,9 +286,9 @@ int main ( int argc, char **argv ) {
                                             {0.0,0.0,0.5,0.0},
                                             {0.0,0.0,1.0,0.4});
 
-                    double plane_width=0.004; // it seems in rviz anyway if you go lower than this there are display issues
+                    /*double plane_width=0.004; // it seems in rviz anyway if you go lower than this there are display issues
                     // If this fdoesn't happen in unity you can reduce this 0.001 -> 1mm
-                    /*shrinking_polytope.slicePolytope(Vset, offset_position,
+                    shrinking_polytope.slicePolytope(Vset, offset_position,
                                 {0.0,0.0,0.5,0.0},
                                 {0.0,0.0,0.8,1.0},
                                 "xy_slice",
@@ -297,7 +300,7 @@ int main ( int argc, char **argv ) {
                                 {0.0,0.8,0.0,1.0},
                                 "xz_slice",
                                 ConstrainedManipulability::SLICING_PLANE::XZ_PLANE,plane_width);
-                            ros::spinOnce();*/
+                            ros::spinOnce();
 
                     shrinking_polytope.slicePolytope(Vset, offset_position,
                                 {0.0,0.0,0.5,0.0},
@@ -308,9 +311,10 @@ int main ( int argc, char **argv ) {
                     polytope_volumes.volumes[2] = shrinking_vol;
                     space_indicator.label = intended_joint.label;
                     space_indicator.volume = shrinking_vol;
-                    space_indicator.direction = intended_joint.goal_angle;
+                    space_indicator.direction = intended_joint.goal_direction;*/
 
                     space_pub.publish(space_indicator);
+                    ros::spinOnce();
                 }
 
                 objective_function=100.0;
@@ -458,8 +462,8 @@ int main ( int argc, char **argv ) {
         }
         else
         {
-            // Rotate the screw at 0.3 rad/s
-            joint_cmd.data[5] = 0.3;
+            // Rotate the screw at +/- 0.3 rad/s
+            joint_cmd.data[5] = screw_trigger*0.3;
         }
 
 

@@ -6,7 +6,7 @@
     <joint name="${prefix}screwdriver_holder_joint" type="fixed">
       <parent link="${connected_to}"/>
       <child link="${prefix}screwdriver_holder"/>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 ${-pi/2.0} ${-pi}" xyz="0 0 0"/>
     </joint>
     <link name="${prefix}screwdriver_holder">
       <visual>

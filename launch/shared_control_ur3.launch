@@ -2,9 +2,9 @@
 <launch>
     <arg name="config" default="example_scene_ur_intent"/>
     <arg name="root_link" default="base_link"/>
-    <arg name="tip_link" default="ee_link"/>
+    <arg name="tip_link" default="screwdriver"/>
     <arg name="mp_display" default="false"/>
-    <arg name="cmp_display" default="false"/>
+    <arg name="cmp_display" default="true"/>
     <arg name="show_debug_statements" default="false"/>
     <arg name="constraints_disabled" default="false"/>
     <arg name="samples" default="7"/>

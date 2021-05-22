@@ -15,7 +15,7 @@
     kinematics_file="${load_yaml('$(arg kinematics_config)')}"
   />
   <!-- end-effector -->
-  <xacro:screwdriver_tool prefix="" connected_to="tool0"/>
+  <xacro:screwdriver_tool prefix="" connected_to="ee_link"/>
 
   <link name="world" />
   <joint name="world_joint" type="fixed">
