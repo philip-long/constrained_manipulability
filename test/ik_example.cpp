@@ -344,7 +344,7 @@ int main ( int argc, char **argv ) {
                     polytope_volumes.volumes[0] = allowable_vol;
                     polytope_volumes.volumes[1] = allowable_vol_constrained;
 
-                    if(!robot_polytope.checkCollision(sample_joint_state))
+                    if(op_constraints || !robot_polytope.checkCollision(sample_joint_state))
                     {
                         
                         ROS_INFO_COND(debug_statements,"\n ===Starting SNOPT OPTIMZATION for %d ==== \n",sample_number);

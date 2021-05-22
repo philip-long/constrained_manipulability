@@ -7,7 +7,7 @@
     <arg name="cmp_display" default="true"/>
     <arg name="show_debug_statements" default="false"/>
     <arg name="constraints_disabled" default="false"/>
-    <arg name="samples" default="7"/>
+    <arg name="samples" default="3"/>
     <arg name="deviation" default="0.05"/>
 
     <!-- Launch UR3 URDF model -->

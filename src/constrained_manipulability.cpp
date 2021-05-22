@@ -938,7 +938,7 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
             w_J_out_p1.setZero();
 
             if ( obj_distances[j]<0.0 ) {
-                ROS_WARN ( " In collision" );
+                //ROS_WARN ( " In collision" );
                 return false;
             } else if ( obj_distances[j]<distance_threshold_ ) {
 
@@ -1484,8 +1484,7 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes ( KDL::Chain &  chain,
 
 
             if ( obj_distances[j]<0.0 ) {
-                // in collision
-                ROS_WARN ( " In collision" );
+                //ROS_WARN ( " In collision" );
                 return false;
             } else if ( obj_distances[j]<distance_threshold ) {
 
