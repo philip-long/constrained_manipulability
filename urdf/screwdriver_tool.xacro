@@ -29,23 +29,23 @@
     <joint name="${prefix}screwdriver_joint" type="fixed">
       <parent link="${prefix}screwdriver_holder"/>
       <child link="${prefix}screwdriver"/>
-      <origin rpy="0 0 0" xyz="0 0 0.146"/>
+      <origin rpy="0 0 0" xyz="0 0 0.123"/>
     </joint>
     <link name="${prefix}screwdriver">
       <visual>
         <geometry>
-          <cylinder length="0.126" radius="0.01"/>
+          <cylinder length="0.123" radius="0.01"/>
         </geometry>
-        <origin rpy="0 0 0" xyz="0 0 -0.0635"/>
+        <origin rpy="0 0 0" xyz="0 0 -0.0616"/>
         <material name="wood">
           <color rgba=".87 .72 .53 1"/>
         </material>
       </visual>
       <collision>
         <geometry>
-          <cylinder length="0.126" radius="0.01"/>
+          <cylinder length="0.123" radius="0.01"/>
         </geometry>
-        <origin rpy="0 0 0" xyz="0 0 -0.0635"/>
+        <origin rpy="0 0 0" xyz="0 0 -0.0616"/>
       </collision>
     </link>
 
