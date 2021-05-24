@@ -208,7 +208,7 @@ int main ( int argc, char **argv ) {
     polytope_volumes.names.resize ( 3 );
     polytope_volumes.names[0]="AllowableMotion";
     polytope_volumes.names[1]="ConstrainedAllowableMotion";
-    polytope_volumes.names[2]="IntendedMotion";
+    polytope_volumes.names[2]="Ratio";
     polytope_volumes.volumes.resize ( 3 );
 
     std::vector<sensor_msgs::JointState> vec_sampled_joint_states(samples);
@@ -282,7 +282,7 @@ int main ( int argc, char **argv ) {
                                             bhrep,
                                             Vset,
                                             offset_position,
-                                            false,
+                                            show_cmp,
                                             {0.0,0.0,0.5,0.0},
                                             {0.0,0.0,1.0,0.4});
 
@@ -306,12 +306,11 @@ int main ( int argc, char **argv ) {
                                 {0.0,0.0,0.5,0.0},
                                 {0.8,0.0,0.0,1.0},
                                 intended_joint.label,
-                                ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);
+                                ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);*/
 
-                    polytope_volumes.volumes[2] = shrinking_vol;
                     space_indicator.label = intended_joint.label;
-                    space_indicator.volume = shrinking_vol;
-                    space_indicator.direction = intended_joint.goal_direction;*/
+                    space_indicator.distance = intended_joint.goal_distance;
+                    space_indicator.direction = intended_joint.goal_direction;
 
                     space_pub.publish(space_indicator);
                     ros::spinOnce();
@@ -343,6 +342,7 @@ int main ( int argc, char **argv ) {
                     ROS_INFO_COND(debug_statements,"allowable_vol_constrained %f",allowable_vol_constrained);
                     polytope_volumes.volumes[0] = allowable_vol;
                     polytope_volumes.volumes[1] = allowable_vol_constrained;
+                    polytope_volumes.volumes[2] = allowable_vol_constrained/allowable_vol;
 
                     if(op_constraints || !robot_polytope.checkCollision(sample_joint_state))
                     {
@@ -454,6 +454,7 @@ int main ( int argc, char **argv ) {
 
                 // Publish computed volumes
                 vol_pub.publish(polytope_volumes);
+                ros::spinOnce();
 
                 // Position trajectory control
                 //traj_state = jointStateToTraj(pub_joint_state, 0.5);
