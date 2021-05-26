@@ -162,7 +162,6 @@ int main ( int argc, char **argv ) {
     bool show_mp,show_cmp,op_constraints,debug_statements;
     int samples;
     double deviation;
-    double ratio;
     double plane_width=0.004;
 
     utility_functions::getParameter ( "~/ignore_constraints",op_constraints );
@@ -260,9 +259,6 @@ int main ( int argc, char **argv ) {
         // Teleoperation mode, no screw button pressed
         if(screw_trigger == 0) 
         {
-            // UNCOMMENT if in simulation
-            //joint_state=pub_joint_state;
-
             // This function simply finds random joint configurations in the neighborhood
             sampleJointStates(joint_state, vec_sampled_joint_states, deviation);
 
@@ -270,13 +266,14 @@ int main ( int argc, char **argv ) {
             {
                 twist_received=false;
                 double color_a=0.0;
-                int sample_number=0;
+                int sample_number=-1;
+                int best_sample=-1;
                 double lin_limit=0.1;
 
-                // Compute shrinking polytopes for the intended joint state
+                // Define shrinking polytope limits for the intended joint state
                 if(intent_received)
                 {
-                    lin_limit = 2*intended_joint.goal_distance;
+                    lin_limit = 2.5*intended_joint.goal_distance;
 
                     if (lin_limit < 0.04) {
                         lin_limit = 0.04;
@@ -286,20 +283,7 @@ int main ( int argc, char **argv ) {
                     }    
 
                     robot_polytope.setLinearizationLimit(lin_limit);
-                    /*allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope(intended_joint.state,
-                                            AHrep,
-                                            bhrep,
-                                            Vset,
-                                            offset_position,
-                                            show_cmp,
-                                            {0.0,0.0,0.5,0.0},
-                                            {0.0,0.0,1.0,0.4});
-
-                    shrinking_polytope.slicePolytope(Vset, offset_position,
-                                {0.0,0.0,0.5,0.0},
-                                {0.8,0.0,0.0,1.0},
-                                "yz_slice",
-                                ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);*/
+                    intent_received = false;
 
                     space_indicator.label = intended_joint.label;
                     space_indicator.distance = intended_joint.goal_distance;
@@ -307,7 +291,6 @@ int main ( int argc, char **argv ) {
 
                     space_pub.publish(space_indicator);
                     ros::spinOnce();
-                    intent_received = false;
                 }
 
                 // Cycle through the sampled joints and display the polytope for each one
@@ -316,34 +299,21 @@ int main ( int argc, char **argv ) {
                 for (auto& sample_joint_state:vec_sampled_joint_states)
                 {
                     sample_number++;
-                    color_a+=0.2;
 
-                    // unconstrained polytope
-                    double allowable_vol = robot_polytope.getAllowableMotionPolytope( sample_joint_state,
-                                           show_mp,
-                                           {0.0,0.0,0.5,0.0},
-                                           {0.0,0.0,color_a,0.4} );
-
-                    // constrained polytope
+                    // Constrained polytope
                     double allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope( sample_joint_state,
                                                        AHrep,
                                                        bhrep,
-                                                       show_cmp,
+                                                       false,
                                                        {0.0,0.0,0.5,0.0},
-                                                       {color_a,0.0,0.0,0.4} );
+                                                       {1.0,0.0,0.0,0.4} 
+                                                    );
 
                     robot_polytope.getJacobian(sample_joint_state,Jacobian);
-
-                    ROS_INFO_COND(debug_statements,"allowable_vol %f",allowable_vol);
-                    ROS_INFO_COND(debug_statements,"allowable_vol_constrained %f",allowable_vol_constrained);
-
-                    polytope_volumes.volumes[0] = allowable_vol;
-                    polytope_volumes.volumes[1] = allowable_vol_constrained;
 
                     if(op_constraints || !robot_polytope.checkCollision(sample_joint_state))
                     {
                         ROS_INFO_COND(debug_statements,"\n ===Starting SNOPT OPTIMZATION for %d ==== \n",sample_number);
-                        
                         
                         Eigen::VectorXd dq ( Jacobian_g.cols() );
                         dq.setZero();
@@ -367,7 +337,7 @@ int main ( int argc, char **argv ) {
                         onlineOptimization.initialize ( "", (int) debug_statements); // no print file; summary on
                         onlineOptimization.setProbName ( "Online" );
                         onlineOptimization.setIntParameter ( "Derivative option", 0 ); // snopta will compute the Jacobian by finite-differences
-                        onlineOptimization.setIntParameter ( "Verify level ", 0 );
+                        onlineOptimization.setIntParameter ( "Verify level", 0 );
 
 
                         int n     =  Jacobian_g.cols(); // decis vars joint velocities
@@ -422,7 +392,8 @@ int main ( int argc, char **argv ) {
                         
                         if(*F<objective_function)
                         {
-                            objective_function=*F;
+                            objective_function = *F;
+                            best_sample = sample_number;
 
                             ROS_INFO_COND(debug_statements,"Updating value based on %d",sample_number);
                             
@@ -439,26 +410,6 @@ int main ( int argc, char **argv ) {
                                 // Creating a velocity command out of the shifted IK solution
                                 joint_cmd.data[j] = dq_sol( j ) + shift_to_sampled_joint_state ( j );
                             }
-
-                            if (allowable_vol_constrained > 2e-4)
-                            {
-                                ratio = allowable_vol_constrained/allowable_vol;
-                            }
-                            else
-                            {
-                                ratio = 0.5;
-                            }
-
-                            /*if(intent_received)
-                            {
-                                robot_polytope.slicePolytope(Vset, offset_position,
-                                            {0.0,0.0,0.5,0.0},
-                                            {color_a,0.0,0.0,0.4},
-                                            "yz_slice",
-                                            ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);
-                            }*/
-
-                            polytope_volumes.volumes[2] = ratio;
                         }
                     }
                     else
@@ -466,14 +417,33 @@ int main ( int argc, char **argv ) {
                         ROS_WARN_COND(debug_statements,"in collision optimization will fail");
                     }
                 }
+                
+                if (best_sample != -1)
+                {
+                    // Work only with the best sample
+                    double allowable_vol = robot_polytope.getAllowableMotionPolytope( vec_sampled_joint_states[best_sample],
+                                           show_mp,
+                                           {0.0,0.0,0.5,0.0},
+                                           {0.0,0.0,1.0,0.4} 
+                                        );
+                    // constrained polytope
+                    double allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope( vec_sampled_joint_states[best_sample],
+                                           show_cmp,
+                                           {0.0,0.0,0.5,0.0},
+                                           {1.0,0.0,0.0,1.0} 
+                                        );
 
-                // Publish computed volumes
-                vol_pub.publish(polytope_volumes);
-                ros::spinOnce();
+                    ROS_INFO_COND(debug_statements, "allowable_vol %f", allowable_vol);
+                    ROS_INFO_COND(debug_statements, "allowable_vol_constrained %f", allowable_vol_constrained);
 
-                // Position trajectory control
-                //traj_state = jointStateToTraj(pub_joint_state, 0.5);
-                //joint_traj_pub.publish(traj_state);
+                    polytope_volumes.volumes[0] = allowable_vol;
+                    polytope_volumes.volumes[1] = allowable_vol_constrained;
+                    polytope_volumes.volumes[2] = allowable_vol_constrained/allowable_vol;
+
+                    // Publish computed volumes
+                    vol_pub.publish(polytope_volumes);
+                    ros::spinOnce();
+                }
             }
         }
         else
@@ -481,12 +451,6 @@ int main ( int argc, char **argv ) {
             // Rotate the screw at +/- 0.3 rad/s
             joint_cmd.data[5] = screw_trigger*0.3;
         }
-
-
-        // UNCOMMENT if in simulation
-        //pub_joint_state.header.seq++;
-        //pub_joint_state.header.stamp=ros::Time::now();
-        //joint_pub.publish(pub_joint_state);
 
         // Velocity control
         joint_cmd_pub.publish(joint_cmd);
