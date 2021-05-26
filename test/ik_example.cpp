@@ -162,6 +162,8 @@ int main ( int argc, char **argv ) {
     bool show_mp,show_cmp,op_constraints,debug_statements;
     int samples;
     double deviation;
+    double ratio;
+    double plane_width=0.004;
 
     utility_functions::getParameter ( "~/ignore_constraints",op_constraints );
     utility_functions::getParameter ( "~/debug_statements",debug_statements );
@@ -269,15 +271,22 @@ int main ( int argc, char **argv ) {
                 twist_received=false;
                 double color_a=0.0;
                 int sample_number=0;
-                // Cycle through the sampled joints and display the polytope for each one
-                // SNOPT stuff
-                
+                double lin_limit=0.1;
+
                 // Compute shrinking polytopes for the intended joint state
                 if(intent_received)
                 {
+                    lin_limit = 2*intended_joint.goal_distance;
 
-                    shrinking_polytope.setLinearizationLimit(intended_joint.goal_distance);
-                    double shrinking_vol = shrinking_polytope.getConstrainedAllowableMotionPolytope(intended_joint.state,
+                    if (lin_limit < 0.04) {
+                        lin_limit = 0.04;
+                    }
+                    if (lin_limit > 0.2) {
+                        lin_limit = 0.2;
+                    }    
+
+                    robot_polytope.setLinearizationLimit(lin_limit);
+                    /*allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope(intended_joint.state,
                                             AHrep,
                                             bhrep,
                                             Vset,
@@ -286,26 +295,10 @@ int main ( int argc, char **argv ) {
                                             {0.0,0.0,0.5,0.0},
                                             {0.0,0.0,1.0,0.4});
 
-                    /*double plane_width=0.004; // it seems in rviz anyway if you go lower than this there are display issues
-                    // If this fdoesn't happen in unity you can reduce this 0.001 -> 1mm
-                    shrinking_polytope.slicePolytope(Vset, offset_position,
-                                {0.0,0.0,0.5,0.0},
-                                {0.0,0.0,0.8,1.0},
-                                "xy_slice",
-                                ConstrainedManipulability::SLICING_PLANE::XY_PLANE,plane_width);
-                             ros::spinOnce();
-                               
-                    shrinking_polytope.slicePolytope(Vset, offset_position,
-                                {0.0,0.0,0.5,0.0},
-                                {0.0,0.8,0.0,1.0},
-                                "xz_slice",
-                                ConstrainedManipulability::SLICING_PLANE::XZ_PLANE,plane_width);
-                            ros::spinOnce();
-
                     shrinking_polytope.slicePolytope(Vset, offset_position,
                                 {0.0,0.0,0.5,0.0},
                                 {0.8,0.0,0.0,1.0},
-                                intended_joint.label,
+                                "yz_slice",
                                 ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);*/
 
                     space_indicator.label = intended_joint.label;
@@ -314,13 +307,17 @@ int main ( int argc, char **argv ) {
 
                     space_pub.publish(space_indicator);
                     ros::spinOnce();
+                    intent_received = false;
                 }
 
+                // Cycle through the sampled joints and display the polytope for each one
+                // SNOPT stuff
                 objective_function=100.0;
                 for (auto& sample_joint_state:vec_sampled_joint_states)
                 {
                     sample_number++;
                     color_a+=0.2;
+
                     // unconstrained polytope
                     double allowable_vol = robot_polytope.getAllowableMotionPolytope( sample_joint_state,
                                            show_mp,
@@ -335,18 +332,16 @@ int main ( int argc, char **argv ) {
                                                        {0.0,0.0,0.5,0.0},
                                                        {color_a,0.0,0.0,0.4} );
 
-
                     robot_polytope.getJacobian(sample_joint_state,Jacobian);
 
                     ROS_INFO_COND(debug_statements,"allowable_vol %f",allowable_vol);
                     ROS_INFO_COND(debug_statements,"allowable_vol_constrained %f",allowable_vol_constrained);
+
                     polytope_volumes.volumes[0] = allowable_vol;
                     polytope_volumes.volumes[1] = allowable_vol_constrained;
-                    polytope_volumes.volumes[2] = allowable_vol_constrained/allowable_vol;
 
                     if(op_constraints || !robot_polytope.checkCollision(sample_joint_state))
                     {
-                        
                         ROS_INFO_COND(debug_statements,"\n ===Starting SNOPT OPTIMZATION for %d ==== \n",sample_number);
                         
                         
@@ -444,6 +439,26 @@ int main ( int argc, char **argv ) {
                                 // Creating a velocity command out of the shifted IK solution
                                 joint_cmd.data[j] = dq_sol( j ) + shift_to_sampled_joint_state ( j );
                             }
+
+                            if (allowable_vol_constrained > 2e-4)
+                            {
+                                ratio = allowable_vol_constrained/allowable_vol;
+                            }
+                            else
+                            {
+                                ratio = 0.5;
+                            }
+
+                            /*if(intent_received)
+                            {
+                                robot_polytope.slicePolytope(Vset, offset_position,
+                                            {0.0,0.0,0.5,0.0},
+                                            {color_a,0.0,0.0,0.4},
+                                            "yz_slice",
+                                            ConstrainedManipulability::SLICING_PLANE::YZ_PLANE,plane_width);
+                            }*/
+
+                            polytope_volumes.volumes[2] = ratio;
                         }
                     }
                     else
