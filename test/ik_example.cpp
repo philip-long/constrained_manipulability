@@ -205,6 +205,7 @@ int main ( int argc, char **argv ) {
     }
     ros::Duration ( 2.0 ).sleep();
     robot_polytope.displayObjects();
+    robot_polytope.setLinearizationLimit(0.2);
 
     polytope_volumes.names.resize ( 3 );
     polytope_volumes.names[0]="AllowableMotion";
@@ -440,8 +441,10 @@ int main ( int argc, char **argv ) {
                     polytope_volumes.volumes[1] = allowable_vol_constrained;
                     polytope_volumes.volumes[2] = allowable_vol_constrained/allowable_vol;
 
-                    // Publish computed volumes
-                    vol_pub.publish(polytope_volumes);
+                    // Publish computed volumes if sensible
+                    if (allowable_vol_constrained > 1e-4) {
+                        vol_pub.publish(polytope_volumes);
+                    }
                     ros::spinOnce();
                 }
             }
