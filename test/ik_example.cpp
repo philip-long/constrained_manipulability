@@ -312,7 +312,7 @@ int main ( int argc, char **argv ) {
 
                     robot_polytope.getJacobian(sample_joint_state,Jacobian);
 
-                    if(op_constraints || !robot_polytope.checkCollision(sample_joint_state))
+                    if(!robot_polytope.checkCollision(sample_joint_state))
                     {
                         ROS_INFO_COND(debug_statements,"\n ===Starting SNOPT OPTIMZATION for %d ==== \n",sample_number);
                         
