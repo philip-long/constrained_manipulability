@@ -188,7 +188,7 @@ int main ( int argc, char **argv ) {
     
     sensor_msgs::JointState pub_joint_state;
     pub_joint_state.name = {"shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"};
-    pub_joint_state.position = {-0.080285145591739, -2.26159764473425, 2.32355683318005, -3.08731291385277, -1.65928451987101, 0.000698131700798};
+    pub_joint_state.position = {0.23963403701782227, -1.789999624291891, 2.0054824987994593, -3.266478200952047, -2.01309043565859, -0.18095523515810186};
 
     trajectory_msgs::JointTrajectory traj_state;
     std_msgs::Float64MultiArray joint_cmd;
