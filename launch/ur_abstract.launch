@@ -3,7 +3,8 @@
 
   <arg name="load_gripper" default="true" />
 
- <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find franka_description)/robots/panda_arm_hand.urdf.xacro'" if="$(arg load_gripper)" />
+ <include file="$(find ur_description)/launch/view_ur5.launch"/>
+ <include file="$(find ur_description)/launch/ur5_upload.launch"/>
 
  <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui"
 
@@ -13,7 +14,7 @@
 
  <node name="test_robot_state_publisher" type="robot_state_publisher" pkg="robot_state_publisher" output="screen"/>
 
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/scene_config/franka.rviz" />
+
 
   <include file="$(find constrained_manipulability)/launch/abstract_robot.launch">
      <arg name="root_link" value="panda_link0" />

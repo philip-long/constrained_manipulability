@@ -73,3 +73,9 @@ target_link_libraries(constrained_manipulability ${catkin_LIBRARIES} ${EIGEN_CDD
 
 add_executable(abstract_robot_test test/abstract_robot_test_node.cpp)
 target_link_libraries(abstract_robot_test ${catkin_LIBRARIES} constrained_manipulability)
+
+add_executable(shrinking_polytope test/shrinking_polytope.cpp)
+target_link_libraries(shrinking_polytope ${catkin_LIBRARIES} constrained_manipulability)
+
+add_executable(slicing_polytope test/slicing_polytope.cpp)
+target_link_libraries(slicing_polytope ${catkin_LIBRARIES} constrained_manipulability)

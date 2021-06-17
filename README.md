@@ -44,6 +44,12 @@ There are several example scenes in scene_config folder. This has been tested wi
  roslaunch constrained_manipulability franka_test.launch
 ```
 
+## Launching shrinking, (changing the linearization limits) polytope tests 
+```
+ roslaunch constrained_manipulability shrinking_polytope_test.launch "show_debug_statements":="true" "mp_display":="false"
+ rosrun constrained_manipulability lin_limit_pub.py 
+```
+
 
 ## Usage:
 The main object is initialized as follows:
@@ -123,6 +129,7 @@ By evaluating the volume of the CMP at points in the workspace, a reachability m
 ![Planar 2DOF workspace analysis](doc/wksp2.png) ![Humanoid workspace analysis](doc/wrkspval.png)
 
 
+
 ## Citing
 If you use this package, please cite either :
 ```
@@ -152,7 +159,6 @@ month={Nov},}
 ```
 
 #### TODO: 
-- [ ] Add sample optimization
-- [ ] Add server to add and remove objects 
+- [ ] Get working with Octomap
 
 
