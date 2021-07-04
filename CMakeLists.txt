@@ -29,12 +29,14 @@ find_library(EIGEN_CDDLIB_LIB eigen-cddlib)
  add_message_files(
    FILES
    PolytopeVolume.msg
+   PolytopeMesh.msg
 )
 
 
 generate_messages(
   DEPENDENCIES
   std_msgs
+  shape_msgs
 )
 
 
@@ -68,6 +70,7 @@ include_directories(
 
 add_library(constrained_manipulability
             src/constrained_manipulability.cpp
+            src/static_constrained_manipulability.cpp
             include/${PROJECT_NAME}/constrained_manipulability.h)
 target_link_libraries(constrained_manipulability ${catkin_LIBRARIES} ${EIGEN_CDDLIB_LIB} ${fcl_interface_LIBRARIES})
 

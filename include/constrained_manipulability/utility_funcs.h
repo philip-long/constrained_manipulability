@@ -171,7 +171,7 @@ void getVectorVectorParam ( std::string parameter,
     }
 }
 
-void getCollisionShapes ( const std::vector<int> & object_primitive,
+static void getCollisionShapes ( const std::vector<int> & object_primitive,
                           const std::vector<std::vector<double>> & obj_dimensions,
                           const std::vector<std::vector<double>> & obj_poses,
                           std::vector<shape_msgs::SolidPrimitive> & shapes,
@@ -197,7 +197,7 @@ void getCollisionShapes ( const std::vector<int> & object_primitive,
 }
 
 
-std::vector<double> eigenAffineToVectorPosAngleAxis ( const Eigen::Affine3d& T )
+static std::vector<double> eigenAffineToVectorPosAngleAxis ( const Eigen::Affine3d& T )
 {
     Eigen::VectorXd pos=T.translation();
     Eigen::AngleAxisd angles_axis(T.linear());
@@ -208,7 +208,7 @@ std::vector<double> eigenAffineToVectorPosAngleAxis ( const Eigen::Affine3d& T )
     return p;
 }
 
-std::vector<double> eigenAffineToVectorPosQuatwxyz ( const Eigen::Affine3d& T )
+static std::vector<double> eigenAffineToVectorPosQuatwxyz ( const Eigen::Affine3d& T )
 {
     Eigen::VectorXd pos=T .translation();
     Eigen::Quaterniond quat(T .linear());
@@ -216,22 +216,22 @@ std::vector<double> eigenAffineToVectorPosQuatwxyz ( const Eigen::Affine3d& T )
     return p;
 }
 
-std::vector<double> eigenToVector ( const Eigen::VectorXd& x )
+static std::vector<double> eigenToVector ( const Eigen::VectorXd& x )
 {
     return std::vector<double> ( x.data(), x.data() +x.size() );
 }
 
-Eigen::VectorXd vectorToEigen ( const std::vector<double>& x )
+static Eigen::VectorXd vectorToEigen ( const std::vector<double>& x )
 {
     return Eigen::Map<const Eigen::VectorXd> ( x.data(), x.size() );
 }
 
-Eigen::MatrixXd vectorToEigenMatrix ( const std::vector<double>& x, const int& n )
+static Eigen::MatrixXd vectorToEigenMatrix ( const std::vector<double>& x, const int& n )
 {
     return Eigen::Map<const Eigen::MatrixXd> ( x.data(), x.size(), x.size() /n );
 }
 
-Eigen::MatrixXd vectorToEigenMatrix ( const Eigen::VectorXd& x, const int& n )
+static Eigen::MatrixXd vectorToEigenMatrix ( const Eigen::VectorXd& x, const int& n )
 {
 
     return Eigen::Map<const Eigen::MatrixXd> ( x.data(), n, x.size() /n );
