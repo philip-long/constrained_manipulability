@@ -48,7 +48,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES constrained_manipulability
+ LIBRARIES constrained_manipulability
  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy intended_joint_estimation
 #  DEPENDS system_lib
 )
