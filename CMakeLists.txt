@@ -20,7 +20,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   message_generation
-  intended_joint_estimation
 )
 
 
@@ -35,7 +34,6 @@ set(SNOPT_LIB $ENV{SNOPT_DIR}/lib/libsnopt7_cpp.so) # SNOPT INCLUDE
    FILES
    PolytopeMesh.msg
    PolytopeVolume.msg
-   SpaceIndicator.msg
 )
 
 
@@ -49,7 +47,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
  LIBRARIES constrained_manipulability
- CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy intended_joint_estimation
+ CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy
 #  DEPENDS system_lib
 )
 

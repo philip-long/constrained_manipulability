@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <launch>
-    <arg name="config" default="example_scene_ur_intent" />
+    <arg name="config" default="example_scene_ur" />
     <arg name="root_link" default="base_link" />
     <arg name="tip_link" default="ee_link" />
     <arg name="mp_display" default="false"/>

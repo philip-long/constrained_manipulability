@@ -25,7 +25,6 @@
   <build_depend>robot_collision_checking</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
-  <build_depend>intended_joint_estimation</build_depend>
 
   <build_export_depend>eigen_conversions</build_export_depend>
   <build_export_depend>geometric_shapes</build_export_depend>
@@ -34,7 +33,6 @@
   <build_export_depend>robot_collision_checking</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
-  <build_export_depend>intended_joint_estimation</build_export_depend>
 
   <exec_depend>eigen_conversions</exec_depend>
   <exec_depend>geometric_shapes</exec_depend>
@@ -44,7 +42,6 @@
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>rviz_display</exec_depend>
-  <exec_depend>intended_joint_estimation</exec_depend>
 
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
