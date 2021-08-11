@@ -32,6 +32,7 @@ set(SNOPT_LIB $ENV{SNOPT_DIR}/lib/libsnopt7_cpp.so) # SNOPT INCLUDE
 ## Generate messages in the 'msg' folder
  add_message_files(
    FILES
+   ObjectDistances.msg
    PolytopeMesh.msg
    PolytopeVolume.msg
 )

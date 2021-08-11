@@ -23,8 +23,8 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <eigen-cddlib/Polyhedron.h>
 
-#include "sensor_msgs/JointState.h"
-#include "geometry_msgs/TransformStamped.h"
+#include <sensor_msgs/JointState.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/Pose.h>
 
 #include <geometric_shapes/shapes.h>
@@ -43,6 +43,7 @@
 
 #include <robot_collision_checking/fcl_interface.h>
 #include "constrained_manipulability/utility_funcs.h"
+#include "constrained_manipulability/ObjectDistances.h"
 #include "constrained_manipulability/PolytopeMesh.h"
 #include "constrained_manipulability/PolytopeVolume.h"
 #include <pcl/surface/concave_hull.h>
@@ -76,7 +77,8 @@ private:
     /// RVIZ DISPLAY
     ros::Publisher mkr_pub;
     ros::Publisher poly_mesh_pub;
-   
+    ros::Publisher obj_dist_pub;
+
     /** Plot a Polytope defined a a set of vertices
     *   The vertices are shifted to the offset position (offset_position), for instance the robot end effector
     *   std::string frame, to define the frame of reference.
