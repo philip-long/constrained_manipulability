@@ -11,13 +11,21 @@ ConstrainedManipulability::ConstrainedManipulability ( ros::NodeHandle nh,
         double dangerfield
                                                      ) :
     nh_ ( nh ), fclInterface ( nh ),distance_threshold_ ( distance_threshold ),dangerfield_ ( dangerfield ) {
-
+    
+    octomap_subscriber= nh_.subscribe ("constrained_manipulability/octomap_full",
+                               1, &ConstrainedManipulability::octomapCallback,
+                               this);
+    octomap_received_=false;    
+    octomap_id_=99;
+    octomap_pose_wrt_world_.setIdentity();
+    
     wait_for_rviz=true;
     mkr_pub=nh_.advertise<visualization_msgs::Marker>
             ( "/visualization_marker",1 );
     poly_mesh_pub=nh_.advertise<constrained_manipulability::PolytopeMesh>
                   ( "constrained_manipulability/polytope_mesh",1 );
 
+    
     std::string robot_desc_string;
     nh_.param ( robot_description, robot_desc_string, std::string() );
     model_.initParamWithNodeHandle ( robot_description,nh );
@@ -98,6 +106,23 @@ ConstrainedManipulability::ConstrainedManipulability ( ros::NodeHandle nh,
 
     ROS_INFO ( "Initialized" );
 
+}
+ void ConstrainedManipulability::setOctomapPose( const  Eigen::Affine3d  & wT1)
+ {
+     octomap_pose_wrt_world_=wT1;
+ }
+
+
+void ConstrainedManipulability::octomapCallback ( const octomap_msgs::Octomap::ConstPtr& msg ) {   
+    octomap_=*msg;
+    octomap_received_=true;   
+    // remove the old octomap from the world
+    {
+        //boost::mutex::scoped_lock lock ( collision_world_mutex_ );
+        fclInterface.removeCollisionObject(octomap_id_);
+        // update octomap from the world
+        fclInterface.addCollisionObject(octomap_,octomap_pose_wrt_world_,octomap_id_);
+    }    
 }
 
 void ConstrainedManipulability::setLinearizationLimit(double linearization_limit,unsigned int joint)
@@ -220,21 +245,7 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         }
         
         mkr_pub.publish ( mkr );
-        poly_mesh_pub.publish( poly_mesh );
-
-        geometric_shapes::constructMarkerFromShape(poly_mesh.mesh,mkr2);
-        mkr2.id=5;
-        mkr2.ns="polytope_name2"+polytope_name;
-        mkr2.header.frame_id=frame;
-        mkr2.lifetime=ros::Duration ( 0.0 );
-        mkr2.color.r=color_line[0];
-        mkr2.color.g=color_line[1];
-        mkr2.color.b=color_line[2];
-        mkr2.color.a=color_line[3];//fmax(auto_alpha,0.1);
-        mkr2.scale.x=1.0;
-        mkr2.scale.y=1.0;
-        mkr2.scale.z=1.0;
-        
+        poly_mesh_pub.publish( poly_mesh );      
         
         mkr.type=visualization_msgs::Marker::SPHERE_LIST;
         mkr.header.frame_id=frame;
@@ -254,7 +265,7 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
             ros::spinOnce();
         }
         mkr_pub.publish ( mkr );
-        mkr_pub.publish ( mkr2 );
+        
     } else {
         ROS_WARN ( "plotPolytope: Hull empty" );
         return false;
@@ -297,22 +308,27 @@ bool ConstrainedManipulability::displayMarker ( visualization_msgs::Marker mkr,
 
 bool ConstrainedManipulability::addCollisionObject ( const shape_msgs::SolidPrimitive & s1,
         const  Eigen::Affine3d  & wT1,unsigned int object_id ) {
+   // boost::mutex::scoped_lock lock ( collision_world_mutex_ );
     return fclInterface.addCollisionObject ( s1,wT1,object_id );
 }
 
 bool ConstrainedManipulability::addCollisionObject ( const shape_msgs::Mesh & s1,
         const  Eigen::Affine3d  & wT1,unsigned int object_id ) {
+   //  boost::mutex::scoped_lock lock ( collision_world_mutex_ );
     return fclInterface.addCollisionObject ( s1,wT1,object_id );
 }
 
 bool ConstrainedManipulability::removeCollisionObject (unsigned int object_id ) {
+    // boost::mutex::scoped_lock lock ( collision_world_mutex_ );
     return fclInterface.removeCollisionObject (object_id );
 }
 bool ConstrainedManipulability::addCollisionObject ( FCLObjectSet objects ) {
+  //   boost::mutex::scoped_lock lock ( collision_world_mutex_ );
     return fclInterface.addCollisionObject ( objects );
 }
 
 bool ConstrainedManipulability::displayObjects() {
+    boost::mutex::scoped_lock lock ( collision_world_mutex_ );
     return fclInterface.displayObjects ( base_link_ );
 }
 
@@ -351,6 +367,7 @@ bool ConstrainedManipulability::checkCollision ( const sensor_msgs::JointState &
 
 
     for ( int i = 0; i<geometry_information.geometry_transforms.size(); i++ ) {
+        boost::mutex::scoped_lock lock ( collision_world_mutex_ );
         shapes::ShapeMsg current_shape;
         shapes::constructMsgFromShape ( geometry_information.shapes[i].get(),current_shape );
 
@@ -911,7 +928,7 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
     J_constraints.clear();
     // For all robot links
     for ( int i = 0; i<geometry_information.shapes.size(); i++ ) {
-
+        boost::mutex::scoped_lock lock ( collision_world_mutex_ );
         shapes::ShapeMsg current_shape;
         shapes::constructMsgFromShape ( geometry_information.shapes[i].get(),current_shape );
 
@@ -946,8 +963,11 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes (
                 ROS_WARN ( " In collision" );
                 return false;
             } else if ( obj_distances[j]<distance_threshold_ ) {
-
                 Eigen::Vector3d rdiff=p2w[j] - p1w[j];
+                if(obj_ids[j]==octomap_id_)
+                {                 
+                    rdiff=p1w[j]-p2w[j]; // I really don't know why the octomap vector is backwards
+                }                                
                 nt=rdiff; // direction of obstacle
                 nt.normalize();
 

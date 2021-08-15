@@ -74,6 +74,7 @@ private:
     /// RVIZ DISPLAY
     ros::Publisher mkr_pub;
     ros::Publisher poly_mesh_pub;
+  
    
     /** Plot a Polytope defined a a set of vertices
     *   The vertices are shifted to the offset position (offset_position), for instance the robot end effector
@@ -139,6 +140,18 @@ private:
         Eigen::Affine3d & T,
         Eigen::Matrix<double,6,Eigen::Dynamic> & Jac,int segment=-1);
     
+    // octomap_interface - I'm not sure if it's a good idea to put it in this class.
+    ros::Subscriber  octomap_subscriber;
+    bool octomap_received_;
+    // octomap
+    octomap_msgs::Octomap octomap_;
+    /// Octomap callback
+    void octomapCallback ( const octomap_msgs::Octomap::ConstPtr& msg );
+    Eigen::Affine3d octomap_pose_wrt_world_; // octomap pose
+    /// mutex as we're now multi-threading
+    boost::mutex collision_world_mutex_;
+    int octomap_id_;
+    
     
 protected:
 
@@ -189,7 +202,9 @@ public:
     // Calls fcl destructor which should destroy all objects in world
     ~ConstrainedManipulability();
 
-
+    /// Sets octomap pose if it's different to base_link
+    void setOctomapPose( const  Eigen::Affine3d  & wT1);
+    
     /// Add a solid primitive object to FCLInterface collision world transform w.r.t base_link of chain
     bool addCollisionObject ( const shape_msgs::SolidPrimitive & s1,
                               const  Eigen::Affine3d  & wT1,unsigned int object_id );
