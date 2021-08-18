@@ -41,7 +41,6 @@
   <exec_depend>robot_collision_checking</exec_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rospy</exec_depend>
-  <exec_depend>rviz_display</exec_depend>
 
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
