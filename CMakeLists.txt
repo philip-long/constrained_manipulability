@@ -36,6 +36,7 @@ add_service_files(
    FILES
    PolytopeVolume.msg
    PolytopeMesh.msg
+   PolytopeHyperplanes.msg
 )
 
 
