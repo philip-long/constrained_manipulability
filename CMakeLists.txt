@@ -25,6 +25,12 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_library(EIGEN_CDDLIB_LIB eigen-cddlib)
 
+
+add_service_files(
+  FILES
+  GetPolytopeConstraints.srv
+)
+
 ## Generate messages in the 'msg' folder
  add_message_files(
    FILES
@@ -37,6 +43,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   shape_msgs
+  sensor_msgs
 )
 
 
@@ -44,6 +51,7 @@ catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES constrained_manipulability
 #  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy
+   CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
 

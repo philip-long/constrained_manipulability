@@ -1,0 +1,5 @@
+sensor_msgs/JointState[] sampled_joint_states # Configuration at which to calculate constraints at 
+---
+string name
+float64[] b			# A dq < b
+std_msgs/Float64MultiArray A	# A dq < b

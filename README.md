@@ -50,6 +50,11 @@ There are several example scenes in scene_config folder. This has been tested wi
  rosrun constrained_manipulability lin_limit_pub.py 
 ```
 
+## Launching a test using a sample octomap 
+```
+roslaunch constrained_manipulability cm_octomap_test.launch
+```
+
 
 ## Usage:
 The main object is initialized as follows:
