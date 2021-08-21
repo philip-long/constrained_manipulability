@@ -118,7 +118,7 @@ void ConstrainedManipulability::octomapCallback ( const octomap_msgs::Octomap::C
     octomap_received_=true;   
     // remove the old octomap from the world
     {
-        //boost::mutex::scoped_lock lock ( collision_world_mutex_ );
+        boost::mutex::scoped_lock lock ( collision_world_mutex_ );
         fclInterface.removeCollisionObject(octomap_id_);
         // update octomap from the world
         fclInterface.addCollisionObject(octomap_,octomap_pose_wrt_world_,octomap_id_);
@@ -241,7 +241,7 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
         mkr.points=points;
         while ( mkr_pub.getNumSubscribers() <1 && wait_for_rviz) {
             ROS_INFO ( "Waiting for subs" );
-            ros::spinOnce();
+            ros::Duration(0.1).sleep();
         }
         
         mkr_pub.publish ( mkr );
@@ -262,7 +262,7 @@ bool ConstrainedManipulability::plotPolytope  ( std::string polytope_name,
 
         while ( mkr_pub.getNumSubscribers() <1 && wait_for_rviz) {
             ROS_INFO ( "Waiting for subs" );
-            ros::spinOnce();
+            ros::Duration(0.1).sleep();            
         }
         mkr_pub.publish ( mkr );
         
@@ -280,7 +280,6 @@ bool ConstrainedManipulability::displayMarker ( visualization_msgs::Marker mkr,
         const Eigen::Vector4d & color ) {
     while ( mkr_pub.getNumSubscribers() <1 && wait_for_rviz) {
         ROS_INFO_ONCE ( "Waiting until marker is displayed in RVIZ" );
-        ros::spinOnce();
         ros::Duration ( 0.05 ).sleep();
     }
     mkr.action=visualization_msgs::Marker::ADD;
@@ -301,29 +300,28 @@ bool ConstrainedManipulability::displayMarker ( visualization_msgs::Marker mkr,
     mkr.pose.orientation.y=q.y();
     mkr.pose.orientation.z=q.z();
     mkr_pub.publish ( mkr );
-    ros::spinOnce();
     return true;
 }
 
 
 bool ConstrainedManipulability::addCollisionObject ( const shape_msgs::SolidPrimitive & s1,
         const  Eigen::Affine3d  & wT1,unsigned int object_id ) {
-   // boost::mutex::scoped_lock lock ( collision_world_mutex_ );
+    boost::mutex::scoped_lock lock ( collision_world_mutex_ );
     return fclInterface.addCollisionObject ( s1,wT1,object_id );
 }
 
 bool ConstrainedManipulability::addCollisionObject ( const shape_msgs::Mesh & s1,
         const  Eigen::Affine3d  & wT1,unsigned int object_id ) {
-   //  boost::mutex::scoped_lock lock ( collision_world_mutex_ );
+    boost::mutex::scoped_lock lock ( collision_world_mutex_ );
     return fclInterface.addCollisionObject ( s1,wT1,object_id );
 }
 
 bool ConstrainedManipulability::removeCollisionObject (unsigned int object_id ) {
-    // boost::mutex::scoped_lock lock ( collision_world_mutex_ );
+    boost::mutex::scoped_lock lock ( collision_world_mutex_ );
     return fclInterface.removeCollisionObject (object_id );
 }
 bool ConstrainedManipulability::addCollisionObject ( FCLObjectSet objects ) {
-  //   boost::mutex::scoped_lock lock ( collision_world_mutex_ );
+    boost::mutex::scoped_lock lock ( collision_world_mutex_ );
     return fclInterface.addCollisionObject ( objects );
 }
 
