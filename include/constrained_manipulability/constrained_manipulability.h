@@ -43,6 +43,8 @@
 #include "constrained_manipulability/utility_funcs.h"
 #include "constrained_manipulability/PolytopeMesh.h"
 #include "constrained_manipulability/PolytopeVolume.h"
+#include "constrained_manipulability/GetPolytopeConstraints.h"
+
 #include <pcl/surface/concave_hull.h>
 #ifndef ROBOT_POLYTOPE_HPP
 #define ROBOT_POLYTOPE_HPP
@@ -152,6 +154,11 @@ private:
     boost::mutex collision_world_mutex_;
     int octomap_id_;
     
+
+    // ros server fcl_interface
+    ros::ServiceServer polytope_server;
+   // bool getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request &req,
+     //                                   constrained_manipulability::GetPolytopeConstraints::Response &res);
     
 protected:
 

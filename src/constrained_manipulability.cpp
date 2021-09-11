@@ -19,6 +19,11 @@ ConstrainedManipulability::ConstrainedManipulability ( ros::NodeHandle nh,
     octomap_id_=99;
     octomap_pose_wrt_world_.setIdentity();
     
+    /*
+    polytope_server=nh_.advertiseService("get_polytope_constraints", &ConstrainedManipulability::getPolytopeConstraintsCallback,
+                               this);
+    */
+    
     wait_for_rviz=true;
     mkr_pub=nh_.advertise<visualization_msgs::Marker>
             ( "/visualization_marker",1 );
@@ -125,6 +130,13 @@ void ConstrainedManipulability::octomapCallback ( const octomap_msgs::Octomap::C
     }    
 }
 
+/*
+bool getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request &req,
+                                    constrained_manipulability::GetPolytopeConstraints::Response &res)
+{
+    return true;
+}
+*/
 void ConstrainedManipulability::setLinearizationLimit(double linearization_limit,unsigned int joint)
 {
     max_lin_limit_[joint]=linearization_limit;
