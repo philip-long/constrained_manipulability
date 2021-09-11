@@ -19,10 +19,11 @@ ConstrainedManipulability::ConstrainedManipulability ( ros::NodeHandle nh,
     octomap_id_=99;
     octomap_pose_wrt_world_.setIdentity();
     
-    /*
-    polytope_server=nh_.advertiseService("get_polytope_constraints", &ConstrainedManipulability::getPolytopeConstraintsCallback,
-                               this);
-    */
+    
+    polytope_server_=nh_.advertiseService("get_polytope_constraints",
+                                         &ConstrainedManipulability::getPolytopeConstraintsCallback,
+                                        this);
+    
     
     wait_for_rviz=true;
     mkr_pub=nh_.advertise<visualization_msgs::Marker>
@@ -130,13 +131,24 @@ void ConstrainedManipulability::octomapCallback ( const octomap_msgs::Octomap::C
     }    
 }
 
-/*
-bool getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request &req,
-                                    constrained_manipulability::GetPolytopeConstraints::Response &res)
+
+bool ConstrainedManipulability::getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request& req,
+                                    constrained_manipulability::GetPolytopeConstraints::Response& res)
 {
+    res.polytope_hyperplanes.resize(req.sampled_joint_states.size());
+    
+    for(const sensor_msgs::JointState& i :req.sampled_joint_states)
+    {
+        Eigen::MatrixXd  AHrep;
+        Eigen::VectorXd  bhrep;         
+        if(req.polytope_type==req.ALLOWABLE_MOTION_POLYTOPE)
+            getAllowableMotionPolytope (i,AHrep,bhrep,false);
+            res.polytope_hyperplanes            
+    }
     return true;
 }
-*/
+
+
 void ConstrainedManipulability::setLinearizationLimit(double linearization_limit,unsigned int joint)
 {
     max_lin_limit_[joint]=linearization_limit;

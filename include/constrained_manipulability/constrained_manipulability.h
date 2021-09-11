@@ -24,6 +24,7 @@
 
 #include "sensor_msgs/JointState.h"
 #include "geometry_msgs/TransformStamped.h"
+#include "std_msgs/Float64MultiArray.h"
 
 #include <geometric_shapes/shapes.h>
 #include <geometric_shapes/shape_operations.h>
@@ -156,9 +157,10 @@ private:
     
 
     // ros server fcl_interface
-    ros::ServiceServer polytope_server;
-   // bool getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request &req,
-     //                                   constrained_manipulability::GetPolytopeConstraints::Response &res);
+    ros::ServiceServer polytope_server_;
+    bool getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request& req,
+                                    constrained_manipulability::GetPolytopeConstraints::Response& res);
+    
     
 protected:
 
@@ -495,11 +497,14 @@ public:
         Eigen::MatrixXd & Vset);
     
 
-
+    // ===================================================================
+    // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
     // Static Versions, useful for optimization engines, e.g. snopt, nlopt.
-
-
-
+    // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
+    // ===================================================================
+    
     /** getConstrainedAllowableMotionPolytope returns the polytope
     *   approximating the constrained allowable end effector motion, considering
     *  joint limits and objstacles & linearization
