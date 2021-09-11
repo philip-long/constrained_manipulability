@@ -56,31 +56,7 @@ roslaunch constrained_manipulability cm_octomap_test.launch
 ```
 
 
-## Usage:
-The main object is initialized as follows:
-```
-    ConstrainedManipulability ( ros::NodeHandle nh,
-                                std::string root,
-                                std::string tip,
-				std::string robot_description="robot_description",
-                                double distance_threshold=0.3,
-                                double linearization_limit=0.1,
-                                double dangerfield=10
-                              );
-```
-
-It reads a kinematic chain from the parameter server starting a the root and running until the tip. The joint position and velocity limits are also read and are used to define the different polytopes. The collision model of the report is also pared. A collision world is maintained, objects can be added using ros_shape_msgs and Eigen::Affine3d
-
-```
-bool addCollisionObject ( const shape_msgs::SolidPrimitive & s1,
-                              const  Eigen::Affine3d  & wT1,unsigned int object_id );
-bool addCollisionObject ( const shape_msgs::Mesh & s1,
-                              const  Eigen::Affine3d  & wT1,unsigned int object_id );
-```
-Objects are removed by id.
-```
-bool removeCollisionObject (unsigned int object_id );
-```
+## Computation:
 The polytopes are calculated by obtaining the minimum distance from each link on the robot to objects in the collision world. FCL is used to compute these distance and access via the interface package [robot_collision_checking]((https://github.com/philip-long/ros_collision_checking)). The volume of the polytopes in _Cartesian_ space is return from the get functions as follows:
 
 ```
@@ -110,7 +86,39 @@ conversion from H-representation to V-representation is achieved using the Doubl
 Different Polytopes are available more information about allowable motion polytope is available here __Optimization-Based Human-in-the-Loop Manipulation  Using Joint Space Polytopes, Long et al 2019__ more information about the constrained velocity polytope is available here __Evaluating Robot Manipulability in Constrained Environments by Velocity Polytope Reduction Long et al 2018.__ 
 
 
-### Applications:
+## Usage:
+The main object is initialized as follows:
+```
+    ConstrainedManipulability ( ros::NodeHandle nh,
+                                std::string root,
+                                std::string tip,
+				std::string robot_description="robot_description",
+                                double distance_threshold=0.3,
+                                double linearization_limit=0.1,
+                                double dangerfield=10
+                              );
+```
+
+It reads a kinematic chain from the parameter server starting a the root and running until the tip. The joint position and velocity limits are also read and are used to define the different polytopes. The collision model of the report is also pared. A collision world is maintained, objects can be added using ros_shape_msgs and Eigen::Affine3d
+
+```
+bool addCollisionObject ( const shape_msgs::SolidPrimitive & s1,
+                              const  Eigen::Affine3d  & wT1,unsigned int object_id );
+bool addCollisionObject ( const shape_msgs::Mesh & s1,
+                              const  Eigen::Affine3d  & wT1,unsigned int object_id );
+```
+Objects are removed by id.
+```
+bool removeCollisionObject (unsigned int object_id );
+```
+#### Octomaps
+Octomaps can now be used to as objects, the class subcribes to the _"constrained_manipulability/octomap_full"_ topic 
+
+
+![Octomaps as collision object](doc/cmp-octomap.png)
+
+
+## Applications:
 A video showing the applications of the constrained allowable motion polytope is available [here](https://youtu.be/oeqj-m25t9c). A video showing the uses of the constrained velocity polytope for humanoid robots can be seen [here](https://www.youtube.com/watch?v=1Nouc4f_rIY) and [here](https://www.youtube.com/watch?v=FzlhsLH5IPU).
 
 
