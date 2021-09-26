@@ -136,7 +136,7 @@ bool ConstrainedManipulability::getPolytopeConstraintsCallback(constrained_manip
                                     constrained_manipulability::GetPolytopeConstraints::Response& res)
 {
     res.polytope_hyperplanes.resize(req.sampled_joint_states.size());
-    
+    bool server_return=false;
     for ( int var = 0; var < req.sampled_joint_states.size(); ++var )
     {
         Eigen::MatrixXd  AHrep;
@@ -161,15 +161,16 @@ bool ConstrainedManipulability::getPolytopeConstraintsCallback(constrained_manip
         }
         else
         {
+            ROS_ERROR("Unknown Polytope type");
             return false;
         }
         
         tf::matrixEigenToMsg(AHrep,res.polytope_hyperplanes[var].A);
         res.polytope_hyperplanes[var].b=utility_functions::eigenToVector(bhrep);
         res.polytope_hyperplanes[var].volume=vol;
-        
+        server_return=true;
     }
-    return true;
+    return server_return;
 }
 
 
