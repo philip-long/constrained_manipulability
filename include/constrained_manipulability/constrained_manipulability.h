@@ -21,6 +21,7 @@
 #include <Eigen/Eigen>
 #include <eigen_conversions/eigen_kdl.h>
 #include <eigen-cddlib/Polyhedron.h>
+#include <eigen_conversions/eigen_msg.h> 
 
 #include "sensor_msgs/JointState.h"
 #include "geometry_msgs/TransformStamped.h"
@@ -426,9 +427,9 @@ public:
     *  returns the volume of the manipulability polytope
     */
     double getVelocityPolytope ( const sensor_msgs::JointState & joint_states,
-                                 bool show_polytope,
                                  Eigen::MatrixXd AHrep,
                                  Eigen::VectorXd bhrep,
+                                 bool show_polytope,
                                  std::vector<double>  color_pts= {0.0,0.5,0.0,1.0},
                                  std::vector<double>  color_line= {0.0,1.0,0.0,0.8} ) ;
 

@@ -65,28 +65,7 @@ int main ( int argc, char **argv ) {
 
     polytope_volumes.volumes.resize ( 4 );
 
-    while ( ros::ok() ) {
-    	
-        {
-
-            robot_polytope.checkCollision ( joint_state );
-            polytope_volumes.volumes[0]=  robot_polytope.getAllowableMotionPolytope ( joint_state,
-                                          show_mp,
-            {0.0,0.0,0.5,0.0},
-            {0.0,0.0,1.0,0.4}
-                                                                                    );
-            polytope_volumes.volumes[1]=  robot_polytope.getConstrainedAllowableMotionPolytope ( joint_state,
-                                          show_cmp,
-            {0.0,0.0,0.5,0.0},
-            {1.0,0.0,0.0,0.4} );
-
- 	    
-
-        }
-
-        ros::spinOnce();
-        ros::Duration ( 0.001 ).sleep();
-    }
+    ros::spin();
     return 0;
 
 }

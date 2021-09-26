@@ -137,13 +137,37 @@ bool ConstrainedManipulability::getPolytopeConstraintsCallback(constrained_manip
 {
     res.polytope_hyperplanes.resize(req.sampled_joint_states.size());
     
-    for(const sensor_msgs::JointState& i :req.sampled_joint_states)
+    for ( int var = 0; var < req.sampled_joint_states.size(); ++var )
     {
         Eigen::MatrixXd  AHrep;
-        Eigen::VectorXd  bhrep;         
+        Eigen::VectorXd  bhrep;      
+        double vol(0.0);
+        
         if(req.polytope_type==req.ALLOWABLE_MOTION_POLYTOPE)
-            getAllowableMotionPolytope (i,AHrep,bhrep,false);
-            res.polytope_hyperplanes            
+        {
+            vol=getAllowableMotionPolytope(req.sampled_joint_states[var],AHrep,bhrep,false);
+        }
+        else if(req.polytope_type==req.CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE)
+        {
+            vol=getConstrainedAllowableMotionPolytope(req.sampled_joint_states[var],AHrep,bhrep,false);
+        }
+        else if(req.polytope_type==req.CONSTRAINED_VELOCITY_POLYTOPE)
+        {
+            vol=getConstrainedVelocityPolytope(req.sampled_joint_states[var],AHrep,bhrep,false);
+        }
+        else if(req.polytope_type==req.VELOCITY_POLYTOPE)
+        {
+            vol=getVelocityPolytope(req.sampled_joint_states[var],AHrep,bhrep,false);
+        }
+        else
+        {
+            return false;
+        }
+        
+        tf::matrixEigenToMsg(AHrep,res.polytope_hyperplanes[var].A);
+        res.polytope_hyperplanes[var].b=utility_functions::eigenToVector(bhrep);
+        res.polytope_hyperplanes[var].volume=vol;
+        
     }
     return true;
 }
@@ -553,9 +577,9 @@ double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::Joint
     Eigen::VectorXd bhrep;
 
     double vol=getVelocityPolytope ( joint_states,
-                                     show_polytope,
                                      AHrep,
                                      bhrep,
+                                     show_polytope,
                                      color_pts,color_line );
     return vol;
 }
@@ -579,9 +603,9 @@ void ConstrainedManipulability::getJacobian(const sensor_msgs::JointState & join
 
 
 double ConstrainedManipulability::getVelocityPolytope ( const sensor_msgs::JointState & joint_states,
-        bool show_polytope,
         Eigen::MatrixXd AHrep,
         Eigen::VectorXd bhrep,
+                bool show_polytope,
         std::vector<double>  color_pts,
         std::vector<double>  color_line ) {
 
