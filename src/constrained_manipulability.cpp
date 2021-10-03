@@ -145,19 +145,19 @@ bool ConstrainedManipulability::getPolytopeConstraintsCallback(constrained_manip
         
         if(req.polytope_type==req.ALLOWABLE_MOTION_POLYTOPE)
         {
-            vol=getAllowableMotionPolytope(req.sampled_joint_states[var],AHrep,bhrep,false);
+            vol=getAllowableMotionPolytope(req.sampled_joint_states[var],AHrep,bhrep,req.show_polytope);
         }
         else if(req.polytope_type==req.CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE)
         {
-            vol=getConstrainedAllowableMotionPolytope(req.sampled_joint_states[var],AHrep,bhrep,false);
+            vol=getConstrainedAllowableMotionPolytope(req.sampled_joint_states[var],AHrep,bhrep,req.show_polytope);
         }
         else if(req.polytope_type==req.CONSTRAINED_VELOCITY_POLYTOPE)
         {
-            vol=getConstrainedVelocityPolytope(req.sampled_joint_states[var],AHrep,bhrep,false);
+            vol=getConstrainedVelocityPolytope(req.sampled_joint_states[var],AHrep,bhrep,req.show_polytope);
         }
         else if(req.polytope_type==req.VELOCITY_POLYTOPE)
         {
-            vol=getVelocityPolytope(req.sampled_joint_states[var],AHrep,bhrep,false);
+            vol=getVelocityPolytope(req.sampled_joint_states[var],AHrep,bhrep,req.show_polytope);
         }
         else
         {
