@@ -29,6 +29,7 @@ find_library(EIGEN_CDDLIB_LIB eigen-cddlib)
 add_service_files(
   FILES
   GetPolytopeConstraints.srv
+  GetJacobianMatrix.srv
 )
 
 ## Generate messages in the 'msg' folder

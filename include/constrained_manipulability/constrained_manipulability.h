@@ -46,6 +46,7 @@
 #include "constrained_manipulability/PolytopeMesh.h"
 #include "constrained_manipulability/PolytopeVolume.h"
 #include "constrained_manipulability/GetPolytopeConstraints.h"
+#include "constrained_manipulability/GetJacobianMatrix.h"
 
 #include <pcl/surface/concave_hull.h>
 #ifndef ROBOT_POLYTOPE_HPP
@@ -161,7 +162,10 @@ private:
     ros::ServiceServer polytope_server_;
     bool getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request& req,
                                     constrained_manipulability::GetPolytopeConstraints::Response& res);
-    
+  
+    ros::ServiceServer jacobian_server_;
+    bool getJacobianCallback(constrained_manipulability::GetJacobianMatrix::Request& req,
+                                    constrained_manipulability::GetJacobianMatrix::Response& res);
     
 protected:
 

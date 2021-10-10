@@ -24,6 +24,9 @@ ConstrainedManipulability::ConstrainedManipulability ( ros::NodeHandle nh,
                                          &ConstrainedManipulability::getPolytopeConstraintsCallback,
                                         this);
     
+    jacobian_server_=nh_.advertiseService("get_jacobian_matrix",
+                                         &ConstrainedManipulability::getJacobianCallback,
+                                        this);
     
     wait_for_rviz=true;
     mkr_pub=nh_.advertise<visualization_msgs::Marker>
@@ -131,7 +134,16 @@ void ConstrainedManipulability::octomapCallback ( const octomap_msgs::Octomap::C
     }    
 }
 
-
+bool ConstrainedManipulability::getJacobianCallback(constrained_manipulability::GetJacobianMatrix::Request& req,
+                                    constrained_manipulability::GetJacobianMatrix::Response& res)
+{
+    
+    Eigen::Matrix<double,6,Eigen::Dynamic> base_J_ee;
+    getJacobian(req.joint_states,base_J_ee);
+    tf::matrixEigenToMsg(base_J_ee,res.jacobian);
+    //std::cout<<"base_J_ee ["<<base_J_ee<<std::endl;
+    return true;
+}
 bool ConstrainedManipulability::getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request& req,
                                     constrained_manipulability::GetPolytopeConstraints::Response& res)
 {
@@ -164,7 +176,7 @@ bool ConstrainedManipulability::getPolytopeConstraintsCallback(constrained_manip
             ROS_ERROR("Unknown Polytope type");
             return false;
         }
-        
+        //std::cout<<"AHrep ["<<var<<"]"<<AHrep<<std::endl;
         tf::matrixEigenToMsg(AHrep,res.polytope_hyperplanes[var].A);
         res.polytope_hyperplanes[var].b=utility_functions::eigenToVector(bhrep);
         res.polytope_hyperplanes[var].volume=vol;
