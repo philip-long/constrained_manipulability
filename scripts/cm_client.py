@@ -5,12 +5,14 @@ from std_msgs.msg import Float64MultiArray
 from std_msgs.msg import Float32
 from constrained_manipulability.srv import *
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Twist
 import numpy as np
 import random
 from rospy.numpy_msg import numpy_msg
 from threading import Thread, Lock
 from copy import deepcopy
 import cvxpy as cp
+import time
 
 # https://gist.github.com/braingineer/d801735dac07ff3ac4d746e1f218ab75
 def matprint(mat, fmt="g"):
@@ -30,10 +32,17 @@ class client_class:
         self.joint_callback_mutex=Lock()
         self.constraints_mutex=Lock()
         self.jacobian_mutex=Lock()
+        self.twist_callback_mutex=Lock()
+
+        self.wait_for_jacobian=False
+        self.wait_for_joint_state=False
+        self.wait_for_polytope=False
         
         rospy.wait_for_service('/get_polytope_constraints')
         rospy.wait_for_service('/get_jacobian_matrix')
+    
         
+        self.twist=Twist()
         self.joint_state=JointState()
         self.jacobian=None
         
@@ -49,10 +58,32 @@ class client_class:
         self.get_polytope_constraints = rospy.ServiceProxy('get_polytope_constraints', GetPolytopeConstraints)
         self.get_jacobian_matrix = rospy.ServiceProxy('get_jacobian_matrix', GetJacobianMatrix)
 
+        self.pub=rospy.Publisher('joint_states', JointState, queue_size=1)
+        
+        self.pub_joint_state=JointState()
+        self.pub_joint_state.name= ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
+        self.pub_joint_state.position=[-3.0724776152108175, -2.131256456195315, -1.0379822127460678, -1.079451235773453, 1.5783361491635128, 0.0];
+        self.pub_joint_state.header.seq=0;
+        
+        while(self.pub_joint_state.header.seq<10):
+            self.pubJointState()          
+            time.sleep(0.1)
+            
+            
+        
         
         rospy.Subscriber("joint_states", JointState, self.jointStateCallback)
-        rospy.Timer(rospy.Duration(3), self.callPolytopeServer)
+        rospy.Subscriber("cmd_vel",Twist,self.twistCallback)
+        rospy.Timer(rospy.Duration(1.0), self.callPolytopeServer)
         rospy.Timer(rospy.Duration(0.2), self.callJacobianServer)
+        time.sleep(3)      
+        rospy.Timer(rospy.Duration(0.2), self.ik_optimiztion)
+
+    def pubJointState(self):
+        self.pub_joint_state.header.seq=self.pub_joint_state.header.seq+1
+        self.pub_joint_state.header.stamp=rospy.get_rostime()
+        self.pub.publish(self.pub_joint_state)
+        self.joint_state=self.pub_joint_state # instead of subscriber
         
     def callJacobianServer(self, event=None):
         
@@ -64,23 +95,23 @@ class client_class:
         self.jacobian_mutex.acquire()
         self.jacobian=multiarray_to_np(resp.jacobian)
         self.jacobian_mutex.release()
-        
+
         
     def callPolytopeServer(self, event=None):
-        print("getPolytopeConstraints server")
-        nbr_smaples=1
+        nbr_smaples=3
         self.joint_callback_mutex.acquire()
         local_joint_state=self.joint_state
         self.joint_callback_mutex.release()
         #  sample joint state
         # 
         self.constraints_mutex.acquire()
-        self.req.sampled_joint_states=self.sampleJointState(local_joint_state,nbr_smaples,0.5)
+        self.req.sampled_joint_states=self.sampleJointState(local_joint_state,nbr_smaples,0.2)
         resp1 = self.get_polytope_constraints(self.req)
 
         
         self.Ahrep_constraints=[]
         self.bhrep_constraints=[]
+        self.volume=[]
         
         for i in range(len(resp1.polytope_hyperplanes)):
             Anp=multiarray_to_np(resp1.polytope_hyperplanes[i].A)
@@ -88,18 +119,25 @@ class client_class:
             #print("Anp")
             #matprint(Anp)
             #print("bnp",bnp)
-            print("volume",resp1.polytope_hyperplanes[i].volume)                        
+            #print("volume",resp1.polytope_hyperplanes[i].volume)                        
             self.Ahrep_constraints.append(deepcopy(Anp))
             self.bhrep_constraints.append(deepcopy(bnp))
-        print("=======================================================")
+            self.volume.append(resp1.polytope_hyperplanes[i].volume)    
         self.constraints_mutex.release()
-        self.ik_optimiztion()
 
-    def ik_optimiztion(self):
-        n=6 # 6 joints
-        dx=np.array([0.0,0.01,0.0,0.0,0.0,0.0]) # input twist
+    def ik_optimiztion(self,event=None):
+        print("=======================================================")
+        n=6 # 6 joints        
         dq=cp.Variable(n) # decision variables,
-
+        dx=np.array([0.0,0.0,0.0,0.0,0.0,0.0]) # input twist
+        # Get input twist
+        self.twist_callback_mutex.acquire()
+        dx=np.array([self.twist.linear.x,self.twist.linear.y,self.twist.linear.z\
+                     ,self.twist.angular.x,self.twist.angular.y,self.twist.angular.z])
+        self.twist_callback_mutex.release()
+        
+        
+        
         # Get current joint states
         self.joint_callback_mutex.acquire()
         local_joint_state=self.joint_state
@@ -109,6 +147,8 @@ class client_class:
         self.constraints_mutex.acquire()
         Alist=self.Ahrep_constraints
         blist=self.bhrep_constraints
+        vol_list=self.volume
+        
         sampled_joint_states=self.req.sampled_joint_states
         self.constraints_mutex.release()
 
@@ -116,24 +156,33 @@ class client_class:
         self.jacobian_mutex.acquire()
         jacobian=self.jacobian
         self.jacobian_mutex.release()
-        
-        # Need to find the shift from the current position to this position
-        pretend_joint_shift=shift_to_sampled_joint_state[0]
-        
+
         cost=cp.sum_squares(jacobian@dq - dx)
-        constraints=[Alist[0] @ (dq + pretend_joint_shift)  <= blist[0]]
-        #constraints=[]
-        prob = cp.Problem(cp.Minimize( cost),constraints)
-        prob.solve()
-        print("\nThe optimal value is", prob.value)
-        print("A solution dq is")
-        print(dq.value)
-        dx_sol=np.matmul(jacobian,dq.value)
-        print("dx_sol",dx_sol)
-        dx_con=np.matmul(Alist[0],(dq.value + pretend_joint_shift))- blist[0]
-        print("dx_con",dx_con)
-        print("shift",shift_to_sampled_joint_state)
-     
+        # Need to find the shift from the current position to this position
+        start_time = time.time()
+        best_val=1.0
+        dq_sol=np.zeros(len(local_joint_state.position))
+        
+        for i in range(len(sampled_joint_states)):            
+            print("vol",vol_list[i])
+            if(vol_list[i]<0.00001):
+                continue
+            joint_shift=np.asarray(local_joint_state.position)-np.asarray(sampled_joint_states[i].position)
+            print("joint_shift",joint_shift)
+            constraints=[Alist[i] @ (dq + joint_shift)  <= blist[i]]
+            prob = cp.Problem(cp.Minimize( cost),constraints)
+            prob.solve()
+            if(prob.value<best_val):
+                best_val=prob.value
+                dq_sol=dq.value
+
+        print("--- %s seconds ---" % (time.time() - start_time))
+        dx_sol=np.matmul(jacobian,dq_sol)
+        print("\n dx input = ",dx)
+        print("\n Best dx_sol",dx_sol,"\n Error=",best_val)
+        self.pub_joint_state.position=np.asarray(self.pub_joint_state.position)+dq_sol
+        self.pubJointState()
+        print("=======================================================\n\n")
 
         
     def sampleJointState(self,joint_state,nbr_samples,a):
@@ -146,11 +195,17 @@ class client_class:
             local_joint_state.position=tuple(np.asarray(local_joint_state.position) + (np.random.rand(len(local_joint_state.position)) - a)*a/2.)
             joint_vec.append(deepcopy(local_joint_state))
         return joint_vec
+
+    def twistCallback(self,data):
+        self.twist_callback_mutex.acquire()
+        self.twist=data
+        self.twist_callback_mutex.release()
         
     def jointStateCallback(self,data):
         self.joint_callback_mutex.acquire()
         self.joint_state=data
         self.joint_callback_mutex.release()
+
         
 if __name__ == "__main__":
     rospy.init_node('cm_client_test')

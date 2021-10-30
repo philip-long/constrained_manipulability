@@ -40,11 +40,11 @@
  <include file="$(find ur_description)/launch/view_ur5.launch"/>
  <include file="$(find ur_description)/launch/ur5_upload.launch"/>
  
-<!--  <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui"
+  <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui"
 
  name="joint_state_publisher_gui" output="screen">
   <rosparam param="source_list">["alternative_input/joint_states"]</rosparam>
- </node>-->
+ </node>
 
 <node name="constrained_manipulability_server"
     pkg="constrained_manipulability"
