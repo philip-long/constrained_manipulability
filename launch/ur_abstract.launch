@@ -1,4 +1,3 @@
-<?xml version="1.0" ?>
 <launch>
 
   <arg name="load_gripper" default="true" />
@@ -23,7 +22,4 @@
      <arg name="mp_display" default="true"/>
      <arg name="cmp_display" default="true"/>
   </include>
-
-
-
 </launch>
