@@ -1,8 +1,7 @@
-<?xml version="1.0" ?>
 <launch>
     <arg name="config" default="example_scene_ur" />
     <arg name="root_link" default="base_link" />
-    <arg name="tip_link" default="ee_link" />
+    <arg name="tip_link" default="tool0" />
     <arg name="mp_display" default="true"/>
     <arg name="cmp_display" default="true"/>
     <arg name="show_debug_statements" default="true"/>
@@ -10,7 +9,7 @@
     <arg name="samples" default="5"/>
     <arg name="deviation" default="0.05"/>
 
-    <include file="$(find ur_description)/launch/ur3_upload.launch"/>
+    <include file="$(find ur_description)/launch/load_ur3e.launch"/>
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz"/>

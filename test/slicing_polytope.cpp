@@ -19,9 +19,9 @@ void linCallback ( const std_msgs::Float32::ConstPtr& msg ) {
 
 
 int main ( int argc, char **argv ) {
-    ros::init ( argc, argv, "ik_example" );
+    ros::init ( argc, argv, "slicing_polytope" );
     std::srand(std::time(nullptr));
-    ROS_INFO ( "FCL SAWYER" );
+
     ros::NodeHandle nh; // Create a node handle and start the node
     constrained_manipulability::PolytopeVolume polytope_volumes;
 
