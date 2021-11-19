@@ -205,6 +205,7 @@ int main(int argc, char **argv)
                                                                                  show_mp,
                                                                                  {0.0, 0.0, 0.5, 0.0},
                                                                                  {0.0, 0.0, 1.0, 0.4});
+
                 // Constrained polytope
                 double allowable_vol_constrained = robot_polytope.getConstrainedAllowableMotionPolytope(sample_joint_state,
                                                                                                         AHrep,
@@ -311,9 +312,10 @@ int main(int argc, char **argv)
 
                         Eigen::VectorXd twist_shifted_output = Jacobian_g * (dq_sol + shift_to_sampled_joint_state);
                         if (debug_statements)
+                        {
                             std::cout << "twist_shifted_output  " << twist_shifted_output << std::endl;
-                        if (debug_statements)
                             std::cout << "desired_twist_g value " << desired_twist_g << std::endl;
+                        }
 
                         Eigen::VectorXd vel_err = (twist_shifted_output - desired_twist_g);
                         double sum_squared_error = vel_err.dot(vel_err);
