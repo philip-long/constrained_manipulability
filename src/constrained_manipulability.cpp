@@ -1129,7 +1129,6 @@ bool ConstrainedManipulability::getCollisionModel(const KDL::JntArray &kdl_joint
         link_origin_T_collision_origin.linear() = origin_Quat_collision.toRotationMatrix();
 
         // Finds cartesian pose w.r.t to base frame
-
         Eigen::Matrix<double, 6, Eigen::Dynamic> base_J_collision_origin, base_J_link_origin;
         getKDLKinematicInformation(kdl_joint_positions, base_T_link_origin, base_J_link_origin, i + 1);
         base_T_collision_origin = base_T_link_origin * link_origin_T_collision_origin;
@@ -1186,6 +1185,7 @@ bool ConstrainedManipulability::getVrepPolytope(const Eigen::MatrixXd &A_left,
         Poly.setHrep(A_left, b_left);
         auto vrep = Poly.vrep();
         reduced_joint_vertex_set = vrep.first;
+
         if (reduced_joint_vertex_set.rows() <= 0)
         {
             // ROS_ERROR ( "V representation error no rows" );
