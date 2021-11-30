@@ -1,32 +1,26 @@
 <launch>
-    <arg name="config" default="example_scene_ur" />
+    <arg name="config" default="example_scene_ur3" />
     <arg name="root_link" default="base_link" />
-    <arg name="tip_link" default="tool0" />
-    <arg name="mp_display" default="false"/>
-    <arg name="cmp_display" default="true"/>
-    <arg name="show_debug_statements" default="true"/>
-    <arg name="constraints_disabled" default="false"/>
+    <arg name="tip_link" default="wrist_3_link" />
+    <arg name="mp_display" default="false" />
+    <arg name="cmp_display" default="true" />
+    <arg name="show_debug_statements" default="true" />
 
-    <include file="$(find ur_description)/launch/load_ur3.launch"/>
-    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+    <include file="$(find ur_description)/launch/load_ur3e.launch" />
 
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz" required="true"/>
-
-    <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui"
-        name="joint_state_publisher_gui" output="screen">
+    <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" name="joint_state_publisher_gui" output="screen">
         <rosparam param="source_list">["alternative_input/joint_states"]</rosparam>
     </node>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
-    <node name="shrinking_polytope"
-        pkg="constrained_manipulability"
-        type="shrinking_polytope"
-        respawn="false" output="screen"  clear_params="true" launch-prefix="xterm -e gdb --args">
-    <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load"/>
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz" />
+
+    <node name="shrinking_polytope" pkg="constrained_manipulability" type="shrinking_polytope" respawn="false" output="screen" clear_params="true" launch-prefix="">
+        <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load" />
         <param name="root" type="string" value="$(arg root_link)" />
         <param name="tip" type="string" value="$(arg tip_link)" />
         <param name="show_cmp" type="bool" value="$(arg cmp_display)" />
         <param name="show_mp" type="bool" value="$(arg mp_display)" />
-        <param name="ignore_constraints" type="bool" value="$(arg constraints_disabled)" />
         <param name="debug_statements" type="bool" value="$(arg show_debug_statements)" />
     </node>
 </launch>

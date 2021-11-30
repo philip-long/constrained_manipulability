@@ -1,0 +1,26 @@
+<launch>
+    <!-- Kinova Gen3 settings -->
+    <arg name="arm" default="gen3" />
+    <arg name="dof" default="7" if="$(eval arg('arm') == 'gen3')" /> <!-- Number of degrees of freedom of the arm -->
+    <arg name="dof" default="6" if="$(eval arg('arm') == 'gen3_lite')" />
+    <arg name="gripper" default="robotiq_2f_85" />
+
+    <!-- Load the description for the robot -->
+    <param name="robot_description" command="$(find xacro)/xacro --inorder 
+        $(find kortex_description)/robots/$(arg arm)_$(arg gripper).xacro dof:=$(arg dof) vision:=false sim:=true" />
+
+    <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" name="joint_state_publisher_gui" output="screen">
+        <rosparam param="source_list">["alternative_input/joint_states"]</rosparam>
+    </node>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz" />
+
+    <include file="$(find constrained_manipulability)/launch/abstract_robot.launch">
+        <arg name="root_link" value="base_link" />
+        <arg name="tip_link" value="bracelet_link" />
+        <arg name="config" value="example_scene_gen3" />
+        <arg name="mp_display" default="true" />
+        <arg name="cmp_display" default="true" />
+    </include>
+</launch>

@@ -1,7 +1,11 @@
 #include <constrained_manipulability/constrained_manipulability.h>
+#include <random>
+#include <geometry_msgs/Twist.h>
+#include <std_msgs/Float32.h>
 
 sensor_msgs::JointState joint_state;
-bool joint_state_received(false);
+std_msgs::Float32 lin_limit;
+bool joint_state_received(false), lin_callback_received(false);
 
 void jointSensorCallback(const sensor_msgs::JointState::ConstPtr &msg)
 {
@@ -11,7 +15,8 @@ void jointSensorCallback(const sensor_msgs::JointState::ConstPtr &msg)
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "constrained_manipulability");
+    ros::init(argc, argv, "octomap_polytope");
+    std::srand(std::time(nullptr));
 
     ros::NodeHandle nh; // Create a node handle and start the node
     constrained_manipulability::PolytopeVolume polytope_volumes;
@@ -20,6 +25,9 @@ int main(int argc, char **argv)
                                              1, &jointSensorCallback);
 
     ros::Publisher vol_pub = nh.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volumes", 1);
+
+    ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1);
+
     std::string root, tip;
     std::vector<int> object_primitive;
     std::vector<std::vector<double>> obj_dimensions;
@@ -27,8 +35,9 @@ int main(int argc, char **argv)
     std::vector<shape_msgs::SolidPrimitive> shapes_in;
     TransformVector shapes_pose;
     FCLObjectSet objects;
-    bool show_mp, show_cmp;
+    bool show_mp, show_cmp, debug_statements;
 
+    utility_functions::getParameter("~/debug_statements", debug_statements);
     utility_functions::getParameter("~/root", root);
     utility_functions::getParameter("~/tip", tip);
     utility_functions::getParameter("~/show_mp", show_mp);
@@ -44,30 +53,7 @@ int main(int argc, char **argv)
 
     ConstrainedManipulability robot_polytope(nh, root, tip);
 
-    bool use_static_functions(false);
-
-    // TEST FOR STATIC FUNCTIONS
-    KDL::Tree my_tree_;
-    KDL::Chain chain_;
-    urdf::Model model_;
-    std::string robot_desc_string;
-
-    if (use_static_functions)
-    {
-        nh.param("robot_description", robot_desc_string, std::string());
-        model_.initParamWithNodeHandle("robot_description", nh);
-        if (!kdl_parser::treeFromString(robot_desc_string, my_tree_))
-        {
-            ROS_ERROR("Failed to construct kdl tree");
-        }
-        else
-        {
-            ROS_INFO("Success");
-        }
-        my_tree_.getChain(root,
-                          tip,
-                          chain_);
-    }
+    ROS_INFO("Adding Objects");
     objects.resize(shapes_in.size());
     for (int i = 0; i < shapes_in.size(); ++i)
     {
@@ -76,17 +62,21 @@ int main(int argc, char **argv)
         objects[i].object_transform = shapes_pose[i];
     }
     ros::Duration(2.0).sleep();
+    ROS_INFO("Displaying Objects");
     robot_polytope.displayObjects();
+    ROS_INFO("Finished display");
 
     polytope_volumes.names.resize(4);
-    polytope_volumes.names[0] = "allowable_motion_polytope";
-    polytope_volumes.names[1] = "constrained_allowable_motion_polytope";
-    polytope_volumes.names[2] = "velocity_polytope";
-    polytope_volumes.names[3] = "constrained_velocity_polytope";
+    polytope_volumes.names[0] = "AllowableMotion";
+    polytope_volumes.names[1] = "ConstrainedAllowableMotion";
+    polytope_volumes.names[2] = "VelocityPolytope";
+    polytope_volumes.names[3] = "ConstrainedVelocityPolytope";
 
     polytope_volumes.volumes.resize(4);
+
     while (ros::ok())
     {
+
         if (joint_state_received == true)
         {
             joint_state_received = false;
@@ -100,21 +90,10 @@ int main(int argc, char **argv)
                                                                                                show_cmp,
                                                                                                {0.0, 0.0, 0.5, 0.0},
                                                                                                {1.0, 0.0, 0.0, 0.4});
-            polytope_volumes.volumes[2] = robot_polytope.getVelocityPolytope(joint_state, false);
-            polytope_volumes.volumes[3] = robot_polytope.getConstrainedVelocityPolytope(joint_state, false);
 
-            if (use_static_functions)
-            {
-
-                Eigen::MatrixXd A;
-                Eigen::VectorXd b;
-                polytope_volumes.volumes[0] = ConstrainedManipulability::getAllowableMotionPolytope(chain_, model_, joint_state, A, b);
-                polytope_volumes.volumes[1] = ConstrainedManipulability::getConstrainedAllowableMotionPolytope(chain_, model_, objects, joint_state, A, b);
-                polytope_volumes.volumes[2] = ConstrainedManipulability::getVelocityPolytope(chain_, model_, joint_state, A, b);
-                polytope_volumes.volumes[3] = ConstrainedManipulability::getConstrainedVelocityPolytope(chain_, model_, objects, joint_state, A, b);
-            }
             vol_pub.publish(polytope_volumes);
         }
+
         ros::spinOnce();
         ros::Duration(0.001).sleep();
     }

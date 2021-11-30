@@ -1,7 +1,7 @@
+#include <constrained_manipulability/constrained_manipulability.h>
 #include <random>
 #include <geometry_msgs/Twist.h>
 #include <std_msgs/Float32.h>
-#include <constrained_manipulability/constrained_manipulability.h>
 
 sensor_msgs::JointState joint_state;
 std_msgs::Float32 lin_limit;
@@ -13,29 +13,13 @@ void jointSensorCallback(const sensor_msgs::JointState::ConstPtr &msg)
     joint_state_received = true;
 }
 
-void linCallback(const std_msgs::Float32::ConstPtr &msg)
-{
-    lin_limit = *msg;
-    lin_callback_received = true;
-}
-
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "shrinking_polytope");
+    ros::init(argc, argv, "constrained_manipulability_server");
     std::srand(std::time(nullptr));
 
     ros::NodeHandle nh; // Create a node handle and start the node
     constrained_manipulability::PolytopeVolume polytope_volumes;
-
-    ros::Subscriber joint_sub = nh.subscribe("/joint_states",
-                                             1, &jointSensorCallback);
-
-    ros::Subscriber link_sub = nh.subscribe("/lin_limit",
-                                            1, &linCallback);
-
-    ros::Publisher vol_pub = nh.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volumes", 1);
-
-    ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1);
 
     std::string root, tip;
     std::vector<int> object_primitive;
@@ -73,6 +57,7 @@ int main(int argc, char **argv)
     ros::Duration(2.0).sleep();
     ROS_INFO("Displaying Objects");
     robot_polytope.displayObjects();
+    ROS_INFO("Finished display");
 
     polytope_volumes.names.resize(4);
     polytope_volumes.names[0] = "AllowableMotion";
@@ -82,33 +67,6 @@ int main(int argc, char **argv)
 
     polytope_volumes.volumes.resize(4);
 
-    while (ros::ok())
-    {
-
-        if (joint_state_received == true)
-        {
-            joint_state_received = false;
-
-            if (lin_callback_received == true)
-            {
-                lin_callback_received == false;
-                robot_polytope.setLinearizationLimit(lin_limit.data);
-            }
-            robot_polytope.checkCollision(joint_state);
-            polytope_volumes.volumes[0] = robot_polytope.getAllowableMotionPolytope(joint_state,
-                                                                                    show_mp,
-                                                                                    {0.0, 0.0, 0.5, 0.0},
-                                                                                    {0.0, 0.0, 1.0, 0.4});
-            polytope_volumes.volumes[1] = robot_polytope.getConstrainedAllowableMotionPolytope(joint_state,
-                                                                                               show_cmp,
-                                                                                               {0.0, 0.0, 0.5, 0.0},
-                                                                                               {1.0, 0.0, 0.0, 0.4});
-
-            vol_pub.publish(polytope_volumes);
-        }
-
-        ros::spinOnce();
-        ros::Duration(0.001).sleep();
-    }
+    ros::spin();
     return 0;
 }

@@ -184,12 +184,11 @@ namespace utility_functions
             }
         }
     }
-
-    void getCollisionShapes(const std::vector<int> &object_primitive,
-                            const std::vector<std::vector<double>> &obj_dimensions,
-                            const std::vector<std::vector<double>> &obj_poses,
-                            std::vector<shape_msgs::SolidPrimitive> &shapes,
-                            TransformVector &shape_poses)
+    static void getCollisionShapes(const std::vector<int> &object_primitive,
+                                   const std::vector<std::vector<double>> &obj_dimensions,
+                                   const std::vector<std::vector<double>> &obj_poses,
+                                   std::vector<shape_msgs::SolidPrimitive> &shapes,
+                                   TransformVector &shape_poses)
     {
         ROS_ASSERT(obj_dimensions.size() == object_primitive.size());
         ROS_ASSERT(obj_poses.size() == object_primitive.size());
@@ -212,7 +211,7 @@ namespace utility_functions
         }
     }
 
-    std::vector<double> eigenAffineToVectorPosAngleAxis(const Eigen::Affine3d &T)
+    static std::vector<double> eigenAffineToVectorPosAngleAxis(const Eigen::Affine3d &T)
     {
         Eigen::VectorXd pos = T.translation();
         Eigen::AngleAxisd angles_axis(T.linear());
@@ -223,7 +222,7 @@ namespace utility_functions
         return p;
     }
 
-    std::vector<double> eigenAffineToVectorPosQuatwxyz(const Eigen::Affine3d &T)
+    static std::vector<double> eigenAffineToVectorPosQuatwxyz(const Eigen::Affine3d &T)
     {
         Eigen::VectorXd pos = T.translation();
         Eigen::Quaterniond quat(T.linear());
@@ -231,25 +230,23 @@ namespace utility_functions
         return p;
     }
 
-    std::vector<double> eigenToVector(const Eigen::VectorXd &x)
+    static std::vector<double> eigenToVector(const Eigen::VectorXd &x)
     {
         return std::vector<double>(x.data(), x.data() + x.size());
     }
 
-    Eigen::VectorXd vectorToEigen(const std::vector<double> &x)
+    static Eigen::VectorXd vectorToEigen(const std::vector<double> &x)
     {
         return Eigen::Map<const Eigen::VectorXd>(x.data(), x.size());
     }
 
-    Eigen::MatrixXd vectorToEigenMatrix(const std::vector<double> &x, const int &n)
+    static Eigen::MatrixXd vectorToEigenMatrix(const std::vector<double> &x, const int &n)
     {
         return Eigen::Map<const Eigen::MatrixXd>(x.data(), x.size(), x.size() / n);
     }
 
-    Eigen::MatrixXd vectorToEigenMatrix(const Eigen::VectorXd &x, const int &n)
+    static Eigen::MatrixXd vectorToEigenMatrix(const Eigen::VectorXd &x, const int &n)
     {
-
         return Eigen::Map<const Eigen::MatrixXd>(x.data(), n, x.size() / n);
     }
-
 }

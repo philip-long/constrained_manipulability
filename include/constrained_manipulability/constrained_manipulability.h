@@ -21,6 +21,7 @@
 #include <eigen_conversions/eigen_kdl.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <eigen-cddlib/Polyhedron.h>
+#include <eigen_conversions/eigen_msg.h>
 
 #include <sensor_msgs/JointState.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -45,7 +46,11 @@
 #include "constrained_manipulability/ObjectDistances.h"
 #include "constrained_manipulability/PolytopeMesh.h"
 #include "constrained_manipulability/PolytopeVolume.h"
+#include "constrained_manipulability/GetPolytopeConstraints.h"
+#include "constrained_manipulability/GetJacobianMatrix.h"
+
 #include <pcl/surface/concave_hull.h>
+
 #ifndef ROBOT_POLYTOPE_HPP
 #define ROBOT_POLYTOPE_HPP
 
@@ -127,14 +132,35 @@ private:
                                           KDL::JntArray &kdl_joint_positions);
 
     /** This function is taken from https://github.com/tu-darmstadt-ros-pkg with a tiny change to smart ptrs
-     * https://github.com/tu-darmstadt-ros-pkg/robot_self_filter/blob/master/src/self_mask.cpp#L76
-     **/
+    * https://github.com/tu-darmstadt-ros-pkg/robot_self_filter/blob/master/src/self_mask.cpp#L76
+    **/
     static std::unique_ptr<shapes::Shape> constructShape(const urdf::Geometry *geom);
 
     /// Convenience function to convert kdl to eigen stuff, segment=-1 returns terminal point information
     void getKDLKinematicInformation(const KDL::JntArray &kdl_joint_positions,
                                     Eigen::Affine3d &T,
                                     Eigen::Matrix<double, 6, Eigen::Dynamic> &Jac, int segment = -1);
+
+    // octomap_interface - I'm not sure if it's a good idea to put it in this class.
+    ros::Subscriber octomap_subscriber;
+    bool octomap_received_;
+    // octomap
+    octomap_msgs::Octomap octomap_;
+    /// Octomap callback
+    void octomapCallback(const octomap_msgs::Octomap::ConstPtr &msg);
+    Eigen::Affine3d octomap_pose_wrt_world_; // octomap pose
+    /// mutex as we're now multi-threading
+    boost::mutex collision_world_mutex_;
+    int octomap_id_;
+
+    // ros server fcl_interface
+    ros::ServiceServer polytope_server_;
+    bool getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request &req,
+                                        constrained_manipulability::GetPolytopeConstraints::Response &res);
+
+    ros::ServiceServer jacobian_server_;
+    bool getJacobianCallback(constrained_manipulability::GetJacobianMatrix::Request &req,
+                             constrained_manipulability::GetJacobianMatrix::Response &res);
 
 protected:
     /** getCollisionModel returns  kinematic information about collision geometry
@@ -179,6 +205,9 @@ public:
                               double dangerfield = 10);
     // Calls fcl destructor which should destroy all objects in world
     ~ConstrainedManipulability();
+
+    /// Sets octomap pose if it's different to base_link
+    void setOctomapPose(const Eigen::Affine3d &wT1);
 
     /// Add a solid primitive object to FCLInterface collision world transform w.r.t base_link of chain
     bool addCollisionObject(const shape_msgs::SolidPrimitive &s1,
@@ -253,19 +282,19 @@ public:
                                                  std::vector<double> color_line = {0.0, 0.0, 1.0, 0.8});
 
     /** getConstrainedAllowableMotionPolytope returns the polytope
-     *   approximating the constrained allowable end effector motion, considering
-     *  joint limits and objstacles & linearization
-     *
-     *  AHrep hyperplanes of the constrained allowable motion polytope
-     *  bHrep shifted distance
-     *  Vset the representation of Constrained motion Polytope in Cartesian space
-     *  offset_position the location in space of the Cartesian polytope
-     *  const sensor_msgs::JointState & joint_states, current joint states
-     *  show_polytope -> plots the polytope in rviz
-     *  color_pts -> polytope points color
-     *  color_line  -> polytope lines color
-     *  returns the volume of the constrained allowable motion polytope
-     */
+    *   approximating the constrained allowable end effector motion, considering
+    *  joint limits and objstacles & linearization
+    *
+    *  AHrep hyperplanes of the constrained allowable motion polytope
+    *  bHrep shifted distance
+    *  Vset the representation of Constrained motion Polytope in Cartesian space
+    *  offset_position the location in space of the Cartesian polytope
+    *  const sensor_msgs::JointState & joint_states, current joint states
+    *  show_polytope -> plots the polytope in rviz
+    *  color_pts -> polytope points color
+    *  color_line  -> polytope lines color
+    *  returns the volume of the constrained allowable motion polytope
+    */
 
     double getConstrainedAllowableMotionPolytope(const sensor_msgs::JointState &joint_states,
                                                  Eigen::MatrixXd &AHrep,
@@ -327,16 +356,16 @@ public:
                                       std::vector<double> color_line = {0.0, 0.0, 1.0, 0.8});
 
     /** getAllowableMotionPolytope returns the polytope
-     *   considering   linearization
-     *
-     *  AHrep hyperplanes of the constrained allowable motion polytope
-     *  bHrep shifted distance
-     *  const sensor_msgs::JointState & joint_states, current joint states
-     *  show_polytope -> plots the polytope in rviz
-     *  color_pts -> polytope points color
-     *  color_line  -> polytope lines color
-     *  returns the volume of the constrained allowable motion polytope
-     */
+    *   considering   linearization
+    *
+    *  AHrep hyperplanes of the constrained allowable motion polytope
+    *  bHrep shifted distance
+    *  const sensor_msgs::JointState & joint_states, current joint states
+    *  show_polytope -> plots the polytope in rviz
+    *  color_pts -> polytope points color
+    *  color_line  -> polytope lines color
+    *  returns the volume of the constrained allowable motion polytope
+    */
     double getAllowableMotionPolytope(const sensor_msgs::JointState &joint_states,
                                       Eigen::MatrixXd &AHrep,
                                       Eigen::VectorXd &bhrep,
@@ -345,18 +374,18 @@ public:
                                       std::vector<double> color_line = {0.0, 0.0, 1.0, 0.8});
 
     /** getAllowableMotionPolytope returns the polytope
-     *   considering   linearization
-     *
-     *  AHrep hyperplanes of the constrained allowable motion polytope
-     *  bHrep shifted distance
-     *  Eigen::MatrixXd & Vset, the cartesian V representation of polytope
-     *  Eigen::Vector3d & offset_position the position we translate the polytopte to
-     *  const sensor_msgs::JointState & joint_states, current joint states
-     *  show_polytope -> plots the polytope in rviz
-     *  color_pts -> polytope points color
-     *  color_line  -> polytope lines color
-     *  returns the volume of the constrained allowable motion polytope
-     */
+    *   considering   linearization
+    *
+    *  AHrep hyperplanes of the constrained allowable motion polytope
+    *  bHrep shifted distance
+    *  Eigen::MatrixXd & Vset, the cartesian V representation of polytope
+    *  Eigen::Vector3d & offset_position the position we translate the polytopte to
+    *  const sensor_msgs::JointState & joint_states, current joint states
+    *  show_polytope -> plots the polytope in rviz
+    *  color_pts -> polytope points color
+    *  color_line  -> polytope lines color
+    *  returns the volume of the constrained allowable motion polytope
+    */
     double getAllowableMotionPolytope(const sensor_msgs::JointState &joint_states,
                                       Eigen::MatrixXd &AHrep,
                                       Eigen::VectorXd &bhrep,
@@ -392,9 +421,9 @@ public:
     *  returns the volume of the manipulability polytope
     */
     double getVelocityPolytope(const sensor_msgs::JointState &joint_states,
-                               bool show_polytope,
                                Eigen::MatrixXd AHrep,
                                Eigen::VectorXd bhrep,
+                               bool show_polytope,
                                std::vector<double> color_pts = {0.0, 0.5, 0.0, 1.0},
                                std::vector<double> color_line = {0.0, 1.0, 0.0, 0.8});
 
@@ -456,7 +485,13 @@ public:
                                  const Eigen::VectorXd &bhrep2,
                                  Eigen::MatrixXd &Vset);
 
+    // ===================================================================
+    // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
     // Static Versions, useful for optimization engines, e.g. snopt, nlopt.
+    // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
+    // ===================================================================
 
     /** getConstrainedAllowableMotionPolytope returns the polytope
      *   approximating the constrained allowable end effector motion, considering
@@ -482,19 +517,19 @@ public:
                                                         double distance_threshold = 0.3);
 
     /** getConstrainedVelocityPolytope returns the polytope
-     *   approximating the constrained velocity end effector motion, considering
-     *  joint limits and objstacles & linearization
-     *  chain KDL::Chain already initialized
-     *  model  urdf::Model already initialized
-     *  FCLObjectSet objects, a set of collision objects
-     *  AHrep hyperplanes of the constrained allowable motion polytope
-     *  bHrep shifted distance
-     *  const sensor_msgs::JointState & joint_states, current joint states
-     *  show_polytope -> plots the polytope in rviz
-     *  color_pts -> polytope points color
-     *  color_line  -> polytope lines color
-     *  returns the volume of the constrained allowable motion polytope
-     */
+    *   approximating the constrained velocity end effector motion, considering
+    *  joint limits and objstacles & linearization
+    *  chain KDL::Chain already initialized
+    *  model  urdf::Model already initialized
+    *  FCLObjectSet objects, a set of collision objects
+    *  AHrep hyperplanes of the constrained allowable motion polytope
+    *  bHrep shifted distance
+    *  const sensor_msgs::JointState & joint_states, current joint states
+    *  show_polytope -> plots the polytope in rviz
+    *  color_pts -> polytope points color
+    *  color_line  -> polytope lines color
+    *  returns the volume of the constrained allowable motion polytope
+    */
     static double getConstrainedVelocityPolytope(KDL::Chain &chain,
                                                  urdf::Model &model,
                                                  FCLObjectSet objects,
@@ -561,17 +596,17 @@ public:
                                              double linearization_limit = 0.1);
 
     /** getVelocityPolytope returns the manipulability polytope
-     *   considering joint velocity limits
-     *  chain KDL::Chain already initialized
-     *  model  urdf::Model already initialized
-     *  AHrep hyperplanes of the constrained allowable motion polytope
-     *  bHrep shifted distance
-     *  const sensor_msgs::JointState & joint_states, current joint states
-     *  show_polytope -> plots the polytope in rviz
-     *  color_pts -> polytope points color
-     *  color_line  -> polytope lines color
-     *  returns the volume of the manipulability polytope
-     */
+    *   considering joint velocity limits
+    *  chain KDL::Chain already initialized
+    *  model  urdf::Model already initialized
+    *  AHrep hyperplanes of the constrained allowable motion polytope
+    *  bHrep shifted distance
+    *  const sensor_msgs::JointState & joint_states, current joint states
+    *  show_polytope -> plots the polytope in rviz
+    *  color_pts -> polytope points color
+    *  color_line  -> polytope lines color
+    *  returns the volume of the manipulability polytope
+    */
     static double getVelocityPolytope(KDL::Chain &chain,
                                       urdf::Model &model,
                                       const sensor_msgs::JointState &joint_states,

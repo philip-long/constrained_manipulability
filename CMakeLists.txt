@@ -20,14 +20,18 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   message_generation
+  octomap_server
 )
 
 
 find_library(EIGEN_CDDLIB_LIB eigen-cddlib)
 
 
-set(SNOPT_LIB $ENV{SNOPT_DIR}/lib/libsnopt7_cpp.so) # SNOPT INCLUDE
-
+add_service_files(
+  FILES
+  GetPolytopeConstraints.srv
+  GetJacobianMatrix.srv
+)
 
 ## Generate messages in the 'msg' folder
  add_message_files(
@@ -35,6 +39,7 @@ set(SNOPT_LIB $ENV{SNOPT_DIR}/lib/libsnopt7_cpp.so) # SNOPT INCLUDE
    ObjectDistances.msg
    PolytopeMesh.msg
    PolytopeVolume.msg
+   PolytopeHyperplanes.msg
 )
 
 
@@ -42,13 +47,14 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   shape_msgs
+  sensor_msgs
 )
 
 
 catkin_package(
   INCLUDE_DIRS include
- LIBRARIES constrained_manipulability
- CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy
+  LIBRARIES constrained_manipulability
+  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy octomap_server
 #  DEPENDS system_lib
 )
 
@@ -71,11 +77,11 @@ endif()
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  $ENV{SNOPT_DIR}/include # SNOPT INCLUDE
 )
 
 add_library(constrained_manipulability
             src/constrained_manipulability.cpp
+            src/static_constrained_manipulability.cpp
             include/${PROJECT_NAME}/constrained_manipulability.h)
 target_link_libraries(constrained_manipulability ${catkin_LIBRARIES} ${EIGEN_CDDLIB_LIB} ${fcl_interface_LIBRARIES})
 
@@ -85,11 +91,14 @@ add_dependencies(constrained_manipulability ${constrained_manipulability_EXPORTE
 add_executable(abstract_robot_test test/abstract_robot_test_node.cpp)
 target_link_libraries(abstract_robot_test ${catkin_LIBRARIES} constrained_manipulability)
 
-add_executable(ik_example test/ik_example.cpp)
-target_link_libraries(ik_example ${SNOPT_LIB} ${catkin_LIBRARIES} constrained_manipulability)
-
 add_executable(shrinking_polytope test/shrinking_polytope.cpp)
 target_link_libraries(shrinking_polytope ${catkin_LIBRARIES} constrained_manipulability)
 
+add_executable(octomap_polytope test/octomap_polytope.cpp)
+target_link_libraries(octomap_polytope ${catkin_LIBRARIES} constrained_manipulability)
+
 add_executable(slicing_polytope test/slicing_polytope.cpp)
 target_link_libraries(slicing_polytope ${catkin_LIBRARIES} constrained_manipulability)
+
+add_executable(constrained_manipulability_server test/constrained_manipulability_server.cpp)
+target_link_libraries(constrained_manipulability_server ${catkin_LIBRARIES} constrained_manipulability)

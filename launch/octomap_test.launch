@@ -1,0 +1,45 @@
+<launch>
+    <arg name="config" default="example_scene_flat" />
+    <arg name="root_link" default="base_link" />
+    <arg name="tip_link" default="wrist_3_link" />
+    <arg name="mp_display" default="false" />
+    <arg name="cmp_display" default="true" />
+    <arg name="show_debug_statements" default="false" />
+
+    <!-- Robot Setup -->
+    <include file="$(find ur_description)/launch/load_ur3e.launch" />
+
+    <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" name="joint_state_publisher_gui" output="screen">
+        <rosparam param="source_list">["alternative_input/joint_states"]</rosparam>
+    </node>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/octomap_robot.rviz" />
+
+    <!-- Octomap Server Setup -->
+    <node name="create_cloud_xyzrgb" pkg="robot_collision_checking" type="create_cloud_xyzrgb.py" />
+
+    <node pkg="octomap_server" type="octomap_tracking_server_node" name="octomap_talker" output="screen" args="">
+        <param name="resolution" value="0.04" />
+        <param name="frame_id" type="string" value="map" />
+        <param name="sensor_model/max_range" value="4.0" />
+        <param name="save_directory" value="$(optenv OCTOMAP_SAVE_DIR ./)" />
+        <param name="track_changes" value="true" />
+        <param name="listen_changes" value="false" />
+        <param name="topic_changes" value="/octomap_tracking_server/changeset" />
+        <param name="change_id_frame" value="/talker/changes" />
+        <param name="min_change_pub" value="0" />
+        <remap from="octomap_full" to="constrained_manipulability/octomap_full" />
+    </node>
+
+    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 map base_link 100" />
+
+    <node name="octomap_polytope" pkg="constrained_manipulability" type="octomap_polytope" respawn="false" output="screen" clear_params="true" launch-prefix="">
+        <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load" />
+        <param name="root" type="string" value="$(arg root_link)" />
+        <param name="tip" type="string" value="$(arg tip_link)" />
+        <param name="show_cmp" type="bool" value="$(arg cmp_display)" />
+        <param name="show_mp" type="bool" value="$(arg mp_display)" />
+        <param name="debug_statements" type="bool" value="$(arg show_debug_statements)" />
+    </node>
+</launch>

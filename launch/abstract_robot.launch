@@ -2,17 +2,14 @@
     <arg name="config" default="example_scene1" />
     <arg name="root_link" default="base" />
     <arg name="tip_link" default="ee" />
-    <arg name="mp_display" default="false"/>
-    <arg name="cmp_display" default="true"/>
+    <arg name="mp_display" default="false" />
+    <arg name="cmp_display" default="true" />
 
-    <node name="abstract_robot_test"
-        pkg="constrained_manipulability"
-        type="abstract_robot_test"
-        respawn="false" output="screen"  clear_params="true" launch-prefix="">
-      <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load"/>
-        	<param name="root" type="string" value="$(arg root_link)" />
-        	<param name="tip" type="string" value="$(arg tip_link)" />
-        	<param name="show_cmp" type="bool" value="$(arg cmp_display)" />
-        	<param name="show_mp" type="bool" value="$(arg mp_display)" />
+    <node name="abstract_robot_test" pkg="constrained_manipulability" type="abstract_robot_test" respawn="false" output="screen" clear_params="true" launch-prefix="">
+        <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load" />
+        <param name="root" type="string" value="$(arg root_link)" />
+        <param name="tip" type="string" value="$(arg tip_link)" />
+        <param name="show_cmp" type="bool" value="$(arg cmp_display)" />
+        <param name="show_mp" type="bool" value="$(arg mp_display)" />
     </node>
 </launch>
