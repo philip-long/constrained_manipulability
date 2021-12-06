@@ -65,14 +65,24 @@ ConstrainedManipulability::ConstrainedManipulability(ros::NodeHandle nh,
     // for ( int i=0; i<ndof_+1; ++i ) {
     for (int i = 0; i < chain_.getNrOfSegments(); ++i)
     {
+
         KDL::Segment seg = chain_.getSegment(i);
         KDL::Joint kdl_joint = seg.getJoint();
+        urdf::JointConstSharedPtr urdf_joint = model_.getJoint(kdl_joint.getName());
 
         if (kdl_joint.getType() != KDL::Joint::None)
         {
-
-            qmax_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->upper;
-            qmin_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->lower;
+            // No limits so assign max
+            if (urdf_joint->type == urdf::Joint::CONTINUOUS)
+            {
+                qmax_[mvable_jnt] = 2.0*M_PI;
+                qmin_[mvable_jnt] = -2.0*M_PI;
+            }
+            else
+            {
+                qmax_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->upper;
+                qmin_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->lower;
+            }
 
             qdotmax_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->velocity;
             qdotmin_[mvable_jnt] = -model_.joints_.at(kdl_joint.getName())->limits->velocity;
@@ -129,9 +139,9 @@ bool ConstrainedManipulability::getJacobianCallback(constrained_manipulability::
     Eigen::Matrix<double, 6, Eigen::Dynamic> base_J_ee;
     getJacobian(req.joint_states, base_J_ee);
     tf::matrixEigenToMsg(base_J_ee, res.jacobian);
-    //std::cout<<"base_J_ee ["<<base_J_ee<<std::endl;
     return true;
 }
+
 bool ConstrainedManipulability::getPolytopeConstraintsCallback(constrained_manipulability::GetPolytopeConstraints::Request &req,
                                                                constrained_manipulability::GetPolytopeConstraints::Response &res)
 {
@@ -164,7 +174,7 @@ bool ConstrainedManipulability::getPolytopeConstraintsCallback(constrained_manip
             ROS_ERROR("Unknown Polytope type");
             return false;
         }
-        //std::cout<<"AHrep ["<<var<<"]"<<AHrep<<std::endl;
+
         tf::matrixEigenToMsg(AHrep, res.polytope_hyperplanes[var].A);
         res.polytope_hyperplanes[var].b = utility_functions::eigenToVector(bhrep);
         res.polytope_hyperplanes[var].volume = vol;
