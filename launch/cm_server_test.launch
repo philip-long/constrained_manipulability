@@ -1,15 +1,21 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="config" default="example_scene_flat" />
+    <arg name="config" default="example_scene_gen3" />
     <arg name="root_link" default="base_link" />
-    <arg name="tip_link" default="wrist_3_link" />
+    <arg name="tip_link" default="bracelet_link" />
     <arg name="mp_display" default="false" />
     <arg name="cmp_display" default="true" />
     <arg name="show_debug_statements" default="false" />
 
     <!-- Robot Setup -->
-    <include file="$(find ur_description)/launch/load_ur3e.launch" />
+    <arg name="arm" default="gen3" />
+    <arg name="dof" default="7" if="$(eval arg('arm') == 'gen3')" /> <!-- Number of degrees of freedom of the arm -->
+    <arg name="dof" default="6" if="$(eval arg('arm') == 'gen3_lite')" />
+    <arg name="gripper" default="robotiq_2f_85" />
 
+    <!-- Load the robot -->
+    <param name="robot_description" command="$(find xacro)/xacro --inorder 
+        $(find kortex_description)/robots/$(arg arm)_$(arg gripper).xacro dof:=$(arg dof) vision:=false sim:=true" />
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/octomap_robot.rviz" />

@@ -34,6 +34,8 @@ class client_class:
         self.jacobian_mutex = Lock()
         self.twist_callback_mutex = Lock()
 
+        self.ndof = rospy.get_param('~ndof', 6)
+
         self.wait_for_jacobian = False
         self.wait_for_joint_state = False
         self.wait_for_polytope = False
@@ -62,10 +64,16 @@ class client_class:
         self.pub = rospy.Publisher('joint_states', JointState, queue_size=1)
 
         self.pub_joint_state = JointState()
-        self.pub_joint_state.name = ["shoulder_pan_joint", "shoulder_lift_joint",
-                                     "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
-        self.pub_joint_state.position = [-3.0724776152108175, -2.131256456195315, -
-                                         1.0379822127460678, -1.079451235773453, 1.5783361491635128, 0.0]
+        # self.pub_joint_state.name = ["shoulder_pan_joint", "shoulder_lift_joint",
+        #                              "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
+        # self.pub_joint_state.position = [-3.0724776152108175, -2.131256456195315, -
+        #                                  1.0379822127460678, -1.079451235773453, 1.5783361491635128, 0.0]
+        self.pub_joint_state.name = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "joint_7",
+                                     "finger_joint", "left_inner_knuckle_joint", "left_inner_finger_joint",
+                                     "right_outer_knuckle_joint", "right_inner_knuckle_joint", "right_inner_finger_joint"]
+        self.pub_joint_state.position = [-3.14, -0.06, -2.99,
+                                         0.75, -0.49, 1.15, 0.03, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
         self.pub_joint_state.header.seq = 0
 
         while(self.pub_joint_state.header.seq < 10):
@@ -80,7 +88,7 @@ class client_class:
         rospy.Timer(rospy.Duration(0.2), self.ik_optimiztion)
 
     def pubJointState(self):
-        self.pub_joint_state.header.seq = self.pub_joint_state.header.seq+1
+        self.pub_joint_state.header.seq += 1
         self.pub_joint_state.header.stamp = rospy.get_rostime()
         self.pub.publish(self.pub_joint_state)
         self.joint_state = self.pub_joint_state  # instead of subscriber
@@ -125,19 +133,20 @@ class client_class:
         self.constraints_mutex.release()
 
     def ik_optimiztion(self, event=None):
-        print("=======================================================")
-        n = 6  # 6 joints
-        dq = cp.Variable(n)  # decision variables,
+        # print("=======================================================")
+        dq = cp.Variable(self.ndof)  # decision variables,
         dx = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # input twist
         # Get input twist
         self.twist_callback_mutex.acquire()
         dx = np.array([self.twist.linear.x, self.twist.linear.y, self.twist.linear.z,
                       self.twist.angular.x, self.twist.angular.y, self.twist.angular.z])
+        # Reset twist after command received and written
+        self.twist = Twist()
         self.twist_callback_mutex.release()
 
         # Get current joint states
         self.joint_callback_mutex.acquire()
-        local_joint_state = self.joint_state
+        local_joint_state = np.array(self.joint_state.position)[:self.ndof]
         self.joint_callback_mutex.release()
 
         # Get Current constraint
@@ -156,17 +165,18 @@ class client_class:
 
         cost = cp.sum_squares(jacobian@dq - dx)
         # Need to find the shift from the current position to this position
-        start_time = time.time()
+        # start_time = time.time()
         best_val = 1.0
-        dq_sol = np.zeros(len(local_joint_state.position))
+        dq_sol = np.zeros(len(local_joint_state))
 
         for i in range(len(sampled_joint_states)):
-            print("vol", vol_list[i])
+            # print("vol", vol_list[i])
             if(vol_list[i] < 0.00001):
                 continue
-            joint_shift = np.asarray(
-                local_joint_state.position)-np.asarray(sampled_joint_states[i].position)
-            print("joint_shift", joint_shift)
+
+            sample_joint_ns = np.asarray(sampled_joint_states[i].position)[:self.ndof]
+            joint_shift = local_joint_state-sample_joint_ns
+            # print("joint_shift", joint_shift)
             constraints = [Alist[i] @ (dq + joint_shift) <= blist[i]]
             prob = cp.Problem(cp.Minimize(cost), constraints)
             prob.solve()
@@ -174,14 +184,14 @@ class client_class:
                 best_val = prob.value
                 dq_sol = dq.value
 
-        print("--- %s seconds ---" % (time.time() - start_time))
+        # print("--- %s seconds ---" % (time.time() - start_time))
         dx_sol = np.matmul(jacobian, dq_sol)
         print("\n dx input = ", dx)
         print("\n Best dx_sol", dx_sol, "\n Error=", best_val)
-        self.pub_joint_state.position = np.asarray(
-            self.pub_joint_state.position)+dq_sol
+        self.pub_joint_state.position[:self.ndof]= np.asarray(
+            self.pub_joint_state.position)[:self.ndof]+dq_sol
         self.pubJointState()
-        print("=======================================================\n\n")
+        # print("=======================================================\n\n")
 
     def sampleJointState(self, joint_state, nbr_samples, a):
         joint_vec = []
@@ -190,8 +200,8 @@ class client_class:
         # First sample is the current joint state
         for i in range(nbr_samples-1):
             local_joint_state = joint_state
-            local_joint_state.position = tuple(np.asarray(
-                local_joint_state.position) + (np.random.rand(len(local_joint_state.position)) - a)*a/2.)
+            local_joint_state.position = np.asarray(
+                local_joint_state.position) + (np.random.rand(len(local_joint_state.position)) - a)*a/2.
             joint_vec.append(deepcopy(local_joint_state))
         return joint_vec
 
