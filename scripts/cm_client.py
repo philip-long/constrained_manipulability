@@ -10,7 +10,7 @@ import numpy as np
 import random
 from rospy.numpy_msg import numpy_msg
 from threading import Thread, Lock
-from copy import deepcopy
+from copy import copy,deepcopy
 import cvxpy as cp
 import time
 
@@ -88,7 +88,7 @@ class client_class:
     def callJacobianServer(self, event=None):
         
         self.joint_callback_mutex.acquire()
-        self.jac_req.joint_states=self.joint_state
+        self.jac_req.joint_states=copy(self.joint_state)
         self.joint_callback_mutex.release()
         resp = self.get_jacobian_matrix(self.jac_req)
 
@@ -100,7 +100,7 @@ class client_class:
     def callPolytopeServer(self, event=None):
         nbr_smaples=3
         self.joint_callback_mutex.acquire()
-        local_joint_state=self.joint_state
+        local_joint_state=copy(self.joint_state)
         self.joint_callback_mutex.release()
         #  sample joint state
         # 
@@ -203,7 +203,8 @@ class client_class:
         
     def jointStateCallback(self,data):
         self.joint_callback_mutex.acquire()
-        self.joint_state=data
+        #self.joint_state=data
+        pass
         self.joint_callback_mutex.release()
 
         
