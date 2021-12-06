@@ -6,7 +6,7 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Twist
 import numpy as np
 from threading import Lock
-from copy import deepcopy
+from copy import copy, deepcopy
 import cvxpy as cp
 import time
 
@@ -96,7 +96,8 @@ class client_class:
     def callJacobianServer(self, event=None):
 
         self.joint_callback_mutex.acquire()
-        self.jac_req.joint_states = self.joint_state
+
+        self.jac_req.joint_states = copy(self.joint_state)
         self.joint_callback_mutex.release()
         resp = self.get_jacobian_matrix(self.jac_req)
 
@@ -107,7 +108,7 @@ class client_class:
     def callPolytopeServer(self, event=None):
         nbr_smaples = 3
         self.joint_callback_mutex.acquire()
-        local_joint_state = self.joint_state
+        local_joint_state = copy(self.joint_state)
         self.joint_callback_mutex.release()
         #  sample joint state
         #
@@ -174,7 +175,8 @@ class client_class:
             if(vol_list[i] < 0.00001):
                 continue
 
-            sample_joint_ns = np.asarray(sampled_joint_states[i].position)[:self.ndof]
+            sample_joint_ns = np.asarray(
+                sampled_joint_states[i].position)[:self.ndof]
             joint_shift = local_joint_state-sample_joint_ns
             # print("joint_shift", joint_shift)
             constraints = [Alist[i] @ (dq + joint_shift) <= blist[i]]
@@ -188,7 +190,7 @@ class client_class:
         dx_sol = np.matmul(jacobian, dq_sol)
         print("\n dx input = ", dx)
         print("\n Best dx_sol", dx_sol, "\n Error=", best_val)
-        self.pub_joint_state.position[:self.ndof]= np.asarray(
+        self.pub_joint_state.position[:self.ndof] = np.asarray(
             self.pub_joint_state.position)[:self.ndof]+dq_sol
         self.pubJointState()
         # print("=======================================================\n\n")
@@ -198,7 +200,7 @@ class client_class:
         local_joint_state = joint_state
         joint_vec.append(deepcopy(local_joint_state))
         # First sample is the current joint state
-        for i in range(nbr_samples-1):
+        for _ in range(nbr_samples-1):
             local_joint_state = joint_state
             local_joint_state.position = np.asarray(
                 local_joint_state.position) + (np.random.rand(len(local_joint_state.position)) - a)*a/2.
@@ -212,7 +214,8 @@ class client_class:
 
     def jointStateCallback(self, data):
         self.joint_callback_mutex.acquire()
-        self.joint_state = data
+        # self.joint_state=data
+        pass
         self.joint_callback_mutex.release()
 
 
