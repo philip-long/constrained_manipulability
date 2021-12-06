@@ -20,7 +20,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   message_generation
-  octomap_server
 )
 
 
@@ -54,7 +53,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES constrained_manipulability
-  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy octomap_server
+  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy octomap_server message_runtime
 #  DEPENDS system_lib
 )
 

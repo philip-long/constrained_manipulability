@@ -11,7 +11,7 @@ void jointSensorCallback(const sensor_msgs::JointState::ConstPtr &msg)
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "constrained_manipulability");
+    ros::init(argc, argv, "abstract_robot_test");
 
     ros::NodeHandle nh; // Create a node handle and start the node
     constrained_manipulability::PolytopeVolume polytope_volumes;
