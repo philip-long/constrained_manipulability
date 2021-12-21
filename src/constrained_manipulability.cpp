@@ -62,7 +62,8 @@ ConstrainedManipulability::ConstrainedManipulability(ros::NodeHandle nh,
     kdl_dfk_solver_.reset(new KDL::ChainJntToJacSolver(chain_));
 
     int mvable_jnt(0);
-    // for ( int i=0; i<ndof_+1; ++i ) {
+    
+    std::vector<std::string> joint_names(ndof_);
     for (int i = 0; i < chain_.getNrOfSegments(); ++i)
     {
 
@@ -83,13 +84,16 @@ ConstrainedManipulability::ConstrainedManipulability(ros::NodeHandle nh,
                 qmax_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->upper;
                 qmin_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->lower;
             }
-
+            
             qdotmax_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->velocity;
             qdotmin_[mvable_jnt] = -model_.joints_.at(kdl_joint.getName())->limits->velocity;
-
+            joint_names[mvable_jnt]=kdl_joint.getName();
             mvable_jnt++;
         }
     }
+    
+    nh.setParam("constrained_manipulability/active_dof",joint_names);
+    
     ndof_identity_matrix_.resize(ndof_, ndof_);
     ndof_identity_matrix_.setZero();
     for (int i = 0; i < ndof_identity_matrix_.rows(); i++)

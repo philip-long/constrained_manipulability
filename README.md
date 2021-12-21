@@ -53,10 +53,14 @@ First launch the octomap and the polytope server:
 ```
 roslaunch constrained_manipulability cm_server_test.launch
 ```
-Then launch the sample IK file. This calls the polytope server then uses the convex constraints in an optimization routine:
+Then launch the sample IK file. This calls the polytope server then uses the convex constraints in an optimization routine use sim parameter for visualization only or else pass the robot's joint states:
 ```
-rosrun constrained_manipulability cm_client.py
+rosrun constrained_manipulability cm_client.py _joint_state:=robot_joint_state
 ```
+```
+rosrun constrained_manipulability cm_client.py _sim:=true
+```
+
 We use [cvxpy](https://www.cvxpy.org/) (pip install cvxpy) as the solver cost function:
 ```
 cost=cp.sum_squares(jacobian@dq - dx)

@@ -34,11 +34,12 @@ class client_class:
         self.jacobian_mutex = Lock()
         self.twist_callback_mutex = Lock()
 
-        self.ndof = rospy.get_param('~ndof', 6)
-
-        self.wait_for_jacobian = False
+        self.active_joints = rospy.get_param('constrained_manipulability/active_dof')
+        self.ndof=len(self.active_joints)
+        self.sim=rospy.get_param('~sim',False)
+        self.joint_state_topic=rospy.get_param('~joint_state',"joint_states")        
         self.wait_for_joint_state = False
-        self.wait_for_polytope = False
+        
 
         rospy.wait_for_service('/get_polytope_constraints')
         rospy.wait_for_service('/get_jacobian_matrix')
@@ -60,28 +61,28 @@ class client_class:
             'get_polytope_constraints', GetPolytopeConstraints)
         self.get_jacobian_matrix = rospy.ServiceProxy(
             'get_jacobian_matrix', GetJacobianMatrix)
-
-        self.pub = rospy.Publisher('joint_states', JointState, queue_size=1)
-
-        self.pub_joint_state = JointState()
-        # self.pub_joint_state.name = ["shoulder_pan_joint", "shoulder_lift_joint",
-        #                              "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
-        # self.pub_joint_state.position = [-3.0724776152108175, -2.131256456195315, -
-        #                                  1.0379822127460678, -1.079451235773453, 1.5783361491635128, 0.0]
-        self.pub_joint_state.name = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "joint_7",
-                                     "finger_joint", "left_inner_knuckle_joint", "left_inner_finger_joint",
-                                     "right_outer_knuckle_joint", "right_inner_knuckle_joint", "right_inner_finger_joint"]
-        self.pub_joint_state.position = [-3.14, -0.06, -2.99,
-                                         0.75, -0.49, 1.15, 0.03, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-        self.pub_joint_state.header.seq = 0
-
-        while(self.pub_joint_state.header.seq < 10):
-            self.pubJointState()
-            time.sleep(0.1)
-
-        rospy.Subscriber("joint_states", JointState, self.jointStateCallback)
+        rospy.Subscriber(self.joint_state_topic, JointState, self.jointStateCallback)
         rospy.Subscriber("cmd_vel", Twist, self.twistCallback)
+        
+        self.pub = rospy.Publisher('joint_states', JointState, queue_size=1)        
+        self.pub_joint_state = JointState()
+        self.pub_joint_state.name=self.active_joints
+
+        if(self.sim):
+            self.pub_joint_state.position=np.random.rand(self.ndof,)
+            self.pub_joint_state.header.seq = 0
+            while(self.pub_joint_state.header.seq < 10):
+                self.pubJointState()
+                time.sleep(0.1)
+        else:
+            attempts=0 #this is ugly
+            while(not self.wait_for_joint_state and attempts<5):
+                print("waiting for joint state")
+                attempts=attempts+1
+                time.sleep(1)
+            if(attempts==5):
+                quit()
+        
         rospy.Timer(rospy.Duration(1.0), self.callPolytopeServer)
         rospy.Timer(rospy.Duration(0.2), self.callJacobianServer)
         time.sleep(3)
@@ -91,7 +92,8 @@ class client_class:
         self.pub_joint_state.header.seq += 1
         self.pub_joint_state.header.stamp = rospy.get_rostime()
         self.pub.publish(self.pub_joint_state)
-        self.joint_state = self.pub_joint_state  # instead of subscriber
+        if(self.sim):
+            self.joint_state = self.pub_joint_state  # instead of subscriber
 
     def callJacobianServer(self, event=None):
 
@@ -214,8 +216,9 @@ class client_class:
 
     def jointStateCallback(self, data):
         self.joint_callback_mutex.acquire()
-        # self.joint_state=data
-        pass
+        if(not self.sim):
+            self.joint_state=data
+            self.wait_for_joint_state=True
         self.joint_callback_mutex.release()
 
 
