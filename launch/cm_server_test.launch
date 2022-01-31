@@ -36,7 +36,8 @@
         <remap from="octomap_full" to="constrained_manipulability/octomap_full" />
     </node>
 
-    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 map base_link 100" />
+    <node pkg="tf" type="static_transform_publisher" name="map_to_world_broadcaster" args="0 0 0 0 0 0 map world 100" />
+    <node pkg="tf" type="static_transform_publisher" name="world_to_base_broadcaster" args="0 0 0 0 0 0 world base_link 100" />
 
     <!-- IK Server Setup -->
     <node name="constrained_manipulability_server" pkg="constrained_manipulability" type="constrained_manipulability_server" respawn="false" output="screen" clear_params="true" launch-prefix="">
