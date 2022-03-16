@@ -209,7 +209,7 @@ void ConstrainedManipulability::setRvizWait(bool flag)
     wait_for_rviz = flag;
 }
 
-bool const ConstrainedManipulability::getRvizWait(bool flag)
+bool const ConstrainedManipulability::getRvizWait()
 {
     return wait_for_rviz;
 }
