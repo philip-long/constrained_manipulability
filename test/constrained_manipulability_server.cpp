@@ -28,13 +28,14 @@ int main(int argc, char **argv)
     std::vector<shape_msgs::SolidPrimitive> shapes_in;
     TransformVector shapes_pose;
     FCLObjectSet objects;
-    bool show_mp, show_cmp, debug_statements;
+    bool show_mp, show_cmp, set_rviz_wait, debug_statements;
 
     utility_functions::getParameter("~/debug_statements", debug_statements);
     utility_functions::getParameter("~/root", root);
     utility_functions::getParameter("~/tip", tip);
     utility_functions::getParameter("~/show_mp", show_mp);
     utility_functions::getParameter("~/show_cmp", show_cmp);
+    utility_functions::getParameter("~/set_rviz_wait", set_rviz_wait);
     utility_functions::getVectorParam("~/object_primitive", object_primitive);
     utility_functions::getVectorVectorParam("~/object_dimensions", obj_dimensions);
     utility_functions::getVectorVectorParam("~/object_poses", obj_poses);
@@ -45,6 +46,7 @@ int main(int argc, char **argv)
                                           shapes_pose);
 
     ConstrainedManipulability robot_polytope(nh, root, tip);
+    robot_polytope.setRvizWait(set_rviz_wait);
 
     ROS_INFO("Adding Objects");
     objects.resize(shapes_in.size());

@@ -229,7 +229,7 @@ public:
     bool checkCollision(const sensor_msgs::JointState &joint_states);
 
     void setRvizWait(bool flag);
-    bool const getRvizWait(bool flag);
+    bool const getRvizWait();
 
     /// Convenience function to get end-effector pose as a geometry_msgs::Pose
     void getCartPos(const sensor_msgs::JointState &joint_states,
