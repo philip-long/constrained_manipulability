@@ -259,8 +259,8 @@ public:
      */
     double getConstrainedAllowableMotionPolytope(const sensor_msgs::JointState &joint_states,
                                                  bool show_polytope,
-                                                 std::vector<double> color_pts = {0.0, 0.0, 0.5, 1.0},
-                                                 std::vector<double> color_line = {0.0, 0.0, 1.0, 0.8});
+                                                 std::vector<double> color_pts = {0.0, 0.0, 0.5, 0.0},
+                                                 std::vector<double> color_line = {1.0, 0.0, 0.0, 0.4});
 
     /** getConstrainedAllowableMotionPolytope returns the polytope
      *   approximating the constrained allowable end effector motion, considering
@@ -278,8 +278,8 @@ public:
                                                  Eigen::MatrixXd &AHrep,
                                                  Eigen::VectorXd &bhrep,
                                                  bool show_polytope,
-                                                 std::vector<double> color_pts = {0.0, 0.0, 0.5, 1.0},
-                                                 std::vector<double> color_line = {0.0, 0.0, 1.0, 0.8});
+                                                 std::vector<double> color_pts = {0.0, 0.0, 0.5, 0.0},
+                                                 std::vector<double> color_line = {1.0, 0.0, 0.0, 0.4});
 
     /** getConstrainedAllowableMotionPolytope returns the polytope
     *   approximating the constrained allowable end effector motion, considering
@@ -352,8 +352,8 @@ public:
      */
     double getAllowableMotionPolytope(const sensor_msgs::JointState &joint_states,
                                       bool show_polytope,
-                                      std::vector<double> color_pts = {0.0, 0.0, 0.5, 1.0},
-                                      std::vector<double> color_line = {0.0, 0.0, 1.0, 0.8});
+                                      std::vector<double> color_pts = {0.0, 0.0, 0.5, 0.0},
+                                      std::vector<double> color_line = {0.0, 0.0, 1.0, 0.4});
 
     /** getAllowableMotionPolytope returns the polytope
     *   considering   linearization
@@ -370,8 +370,8 @@ public:
                                       Eigen::MatrixXd &AHrep,
                                       Eigen::VectorXd &bhrep,
                                       bool show_polytope,
-                                      std::vector<double> color_pts = {0.0, 0.0, 0.5, 1.0},
-                                      std::vector<double> color_line = {0.0, 0.0, 1.0, 0.8});
+                                      std::vector<double> color_pts = {0.0, 0.0, 0.5, 0.0},
+                                      std::vector<double> color_line = {0.0, 0.0, 1.0, 0.4});
 
     /** getAllowableMotionPolytope returns the polytope
     *   considering   linearization
