@@ -34,12 +34,14 @@ class client_class:
         self.jacobian_mutex = Lock()
         self.twist_callback_mutex = Lock()
 
-        self.active_joints = rospy.get_param('constrained_manipulability/active_dof')
-        self.ndof=len(self.active_joints)
-        self.sim=rospy.get_param('~sim',False)
-        self.joint_state_topic=rospy.get_param('~joint_state',"joint_states")        
+        self.active_joints = rospy.get_param(
+            'constrained_manipulability/active_dof')
+        self.ndof = len(self.active_joints)
+        self.sim = rospy.get_param('~sim', False)
+        self.joint_state_topic = rospy.get_param(
+            '~joint_state', "joint_states")
         self.wait_for_joint_state = False
-        
+        self.n_samples = rospy.get_param('~n_samples', 3)
 
         rospy.wait_for_service('/get_polytope_constraints')
         rospy.wait_for_service('/get_jacobian_matrix')
@@ -61,29 +63,30 @@ class client_class:
             'get_polytope_constraints', GetPolytopeConstraints)
         self.get_jacobian_matrix = rospy.ServiceProxy(
             'get_jacobian_matrix', GetJacobianMatrix)
-        rospy.Subscriber(self.joint_state_topic, JointState, self.jointStateCallback)
+        rospy.Subscriber(self.joint_state_topic, JointState,
+                         self.jointStateCallback)
         rospy.Subscriber("cmd_vel", Twist, self.twistCallback)
-        
-        self.pub = rospy.Publisher('joint_states', JointState, queue_size=1)        
+
+        self.pub = rospy.Publisher('joint_states', JointState, queue_size=1)
         self.pub_joint_state = JointState()
-        self.pub_joint_state.name=self.active_joints + ["finger_joint", "left_inner_knuckle_joint", "left_inner_finger_joint",
-                                     "right_outer_knuckle_joint", "right_inner_knuckle_joint", "right_inner_finger_joint"]
+        self.pub_joint_state.name = self.active_joints + ["finger_joint", "left_inner_knuckle_joint", "left_inner_finger_joint",
+                                                          "right_outer_knuckle_joint", "right_inner_knuckle_joint", "right_inner_finger_joint"]
 
         if(self.sim):
-            self.pub_joint_state.position=np.random.rand(self.ndof + 6,)
+            self.pub_joint_state.position = np.random.rand(self.ndof + 6,)
             self.pub_joint_state.header.seq = 0
             while(self.pub_joint_state.header.seq < 10):
                 self.pubJointState()
                 time.sleep(0.1)
         else:
-            attempts=0 #this is ugly
-            while(not self.wait_for_joint_state and attempts<5):
+            attempts = 0  # this is ugly
+            while(not self.wait_for_joint_state and attempts < 5):
                 print("waiting for joint state")
-                attempts=attempts+1
+                attempts = attempts+1
                 time.sleep(1)
-            if(attempts==5):
+            if(attempts == 5):
                 quit()
-        
+
         rospy.Timer(rospy.Duration(1.0), self.callPolytopeServer)
         rospy.Timer(rospy.Duration(0.2), self.callJacobianServer)
         time.sleep(3)
@@ -109,15 +112,13 @@ class client_class:
         self.jacobian_mutex.release()
 
     def callPolytopeServer(self, event=None):
-        nbr_smaples = 3
         self.joint_callback_mutex.acquire()
         local_joint_state = copy(self.joint_state)
         self.joint_callback_mutex.release()
         #  sample joint state
-        #
         self.constraints_mutex.acquire()
         self.req.sampled_joint_states = self.sampleJointState(
-            local_joint_state, nbr_smaples, 0.2)
+            local_joint_state, self.n_samples, 0.2)
         resp1 = self.get_polytope_constraints(self.req)
 
         self.Ahrep_constraints = []
@@ -218,8 +219,8 @@ class client_class:
     def jointStateCallback(self, data):
         self.joint_callback_mutex.acquire()
         if(not self.sim):
-            self.joint_state=data
-            self.wait_for_joint_state=True
+            self.joint_state = data
+            self.wait_for_joint_state = True
         self.joint_callback_mutex.release()
 
 
