@@ -71,11 +71,10 @@ class client_class:
 
         self.pub = rospy.Publisher('joint_states', JointState, queue_size=1)
         self.pub_joint_state = JointState()
-        self.pub_joint_state.name = self.active_joints + ["finger_joint", "left_inner_knuckle_joint", "left_inner_finger_joint",
-                                                          "right_outer_knuckle_joint", "right_inner_knuckle_joint", "right_inner_finger_joint"]
+        self.pub_joint_state.name = self.active_joints
 
         if(self.sim):
-            self.pub_joint_state.position = np.random.rand(self.ndof + 6,)
+            self.pub_joint_state.position = np.random.rand(self.ndof, )
             self.pub_joint_state.header.seq = 0
             while(self.pub_joint_state.header.seq < 10):
                 self.pubJointState()
