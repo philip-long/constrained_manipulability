@@ -21,7 +21,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh; // Create a node handle and start the node
     constrained_manipulability::PolytopeVolume polytope_volumes;
 
-    std::string root, tip;
+    std::string root, tip, robot_desc;
     std::vector<int> object_primitive;
     std::vector<std::vector<double>> obj_dimensions;
     std::vector<std::vector<double>> obj_poses;
@@ -33,6 +33,7 @@ int main(int argc, char **argv)
     utility_functions::getParameter("~/debug_statements", debug_statements);
     utility_functions::getParameter("~/root", root);
     utility_functions::getParameter("~/tip", tip);
+    utility_functions::getParameter("~/robot_desc", robot_desc);
     utility_functions::getParameter("~/show_mp", show_mp);
     utility_functions::getParameter("~/show_cmp", show_cmp);
     utility_functions::getParameter("~/set_rviz_wait", set_rviz_wait);
@@ -45,7 +46,7 @@ int main(int argc, char **argv)
                                           shapes_in,
                                           shapes_pose);
 
-    ConstrainedManipulability robot_polytope(nh, root, tip);
+    ConstrainedManipulability robot_polytope(nh, root, tip, robot_desc);
     robot_polytope.setRvizWait(set_rviz_wait);
 
     ROS_INFO("Adding Objects");

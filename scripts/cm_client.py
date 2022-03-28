@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 
-import rospy
-from constrained_manipulability.srv import *
-from sensor_msgs.msg import JointState
-from geometry_msgs.msg import Twist
-import numpy as np
+import time
 from threading import Lock
 from copy import copy, deepcopy
+
+import numpy as np
 import cvxpy as cp
-import time
+
+import rospy
+from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Twist
+
+from constrained_manipulability.srv import *
 
 # https://gist.github.com/braingineer/d801735dac07ff3ac4d746e1f218ab75
 
@@ -28,7 +31,6 @@ def multiarray_to_np(A):
 
 class client_class:
     def __init__(self):
-
         self.joint_callback_mutex = Lock()
         self.constraints_mutex = Lock()
         self.jacobian_mutex = Lock()
@@ -79,13 +81,12 @@ class client_class:
                 self.pubJointState()
                 time.sleep(0.1)
         else:
-            attempts = 0  # this is ugly
-            while(not self.wait_for_joint_state and attempts < 5):
+            while(not self.wait_for_joint_state):
                 print("waiting for joint state")
-                attempts = attempts+1
                 time.sleep(1)
-            if(attempts == 5):
-                quit()
+
+            # For first pub_joint_state, set to initial numpy array
+            self.pub_joint_state.position = np.array(self.joint_state.position)
 
         rospy.Timer(rospy.Duration(1.0), self.callPolytopeServer)
         rospy.Timer(rospy.Duration(0.2), self.callJacobianServer)
@@ -100,7 +101,6 @@ class client_class:
             self.joint_state = self.pub_joint_state  # instead of subscriber
 
     def callJacobianServer(self, event=None):
-
         self.joint_callback_mutex.acquire()
 
         self.jac_req.joint_states = copy(self.joint_state)
@@ -115,7 +115,8 @@ class client_class:
         self.joint_callback_mutex.acquire()
         local_joint_state = copy(self.joint_state)
         self.joint_callback_mutex.release()
-        #  sample joint state
+
+        #  Sample joint state
         self.constraints_mutex.acquire()
         self.req.sampled_joint_states = self.sampleJointState(
             local_joint_state, self.n_samples, 0.2)
@@ -128,19 +129,15 @@ class client_class:
         for i in range(len(resp1.polytope_hyperplanes)):
             Anp = multiarray_to_np(resp1.polytope_hyperplanes[i].A)
             bnp = np.array(resp1.polytope_hyperplanes[i].b)
-            # print("Anp")
-            # matprint(Anp)
-            # print("bnp",bnp)
-            # print("volume",resp1.polytope_hyperplanes[i].volume)
             self.Ahrep_constraints.append(deepcopy(Anp))
             self.bhrep_constraints.append(deepcopy(bnp))
             self.volume.append(resp1.polytope_hyperplanes[i].volume)
         self.constraints_mutex.release()
 
     def ik_optimiztion(self, event=None):
-        # print("=======================================================")
         dq = cp.Variable(self.ndof)  # decision variables,
         dx = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # input twist
+
         # Get input twist
         self.twist_callback_mutex.acquire()
         dx = np.array([self.twist.linear.x, self.twist.linear.y, self.twist.linear.z,
@@ -175,14 +172,12 @@ class client_class:
         dq_sol = np.zeros(len(local_joint_state))
 
         for i in range(len(sampled_joint_states)):
-            # print("vol", vol_list[i])
             if(vol_list[i] < 0.00001):
                 continue
 
             sample_joint_ns = np.asarray(
                 sampled_joint_states[i].position)[:self.ndof]
             joint_shift = local_joint_state-sample_joint_ns
-            # print("joint_shift", joint_shift)
             constraints = [Alist[i] @ (dq + joint_shift) <= blist[i]]
             prob = cp.Problem(cp.Minimize(cost), constraints)
             prob.solve()
@@ -194,10 +189,8 @@ class client_class:
         dx_sol = np.matmul(jacobian, dq_sol)
         print("\n dx input = ", dx)
         print("\n Best dx_sol", dx_sol, "\n Error=", best_val)
-        self.pub_joint_state.position[:self.ndof] = np.asarray(
-            self.pub_joint_state.position)[:self.ndof]+dq_sol
+        self.pub_joint_state.position[:self.ndof] += dq_sol
         self.pubJointState()
-        # print("=======================================================\n\n")
 
     def sampleJointState(self, joint_state, nbr_samples, a):
         joint_vec = []
