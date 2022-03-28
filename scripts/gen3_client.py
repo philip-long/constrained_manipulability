@@ -11,9 +11,10 @@ import rospy
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Twist
 
-from constrained_manipulability.srv import *
+from kortex_driver.srv import ExecuteAction, ExecuteActionRequest, ValidateWaypointList
+from kortex_driver.msg import ActionEvent, ActionNotification, AngularWaypoint, Waypoint, WaypointList
 
-# https://gist.github.com/braingineer/d801735dac07ff3ac4d746e1f218ab75
+from constrained_manipulability.srv import *
 
 
 def matprint(mat, fmt="g"):
@@ -39,7 +40,6 @@ class client_class:
         self.active_joints = rospy.get_param(
             'constrained_manipulability/active_dof')
         self.ndof = len(self.active_joints)
-        self.sim = rospy.get_param('~sim', False)
         self.joint_state_topic = rospy.get_param(
             '~joint_state', "joint_states")
         self.wait_for_joint_state = False
@@ -51,6 +51,21 @@ class client_class:
         self.twist = Twist()
         self.joint_state = JointState()
         self.jacobian = None
+
+        # Kinova Gen3 services
+        self.action_topic_sub = rospy.Subscriber(
+            '/my_gen3/action_topic', ActionNotification, self.cb_action_topic)
+        self.last_action_notif_type = None
+
+        execute_action_full_name = '/my_gen3/base/execute_action'
+        rospy.wait_for_service(execute_action_full_name)
+        self.execute_action = rospy.ServiceProxy(
+            execute_action_full_name, ExecuteAction)
+
+        validate_waypoint_list_full_name = '/my_gen3/base/validate_waypoint_list'
+        rospy.wait_for_service(validate_waypoint_list_full_name)
+        self.validate_waypoint_list = rospy.ServiceProxy(
+            validate_waypoint_list_full_name, ValidateWaypointList)
 
         self.req = constrained_manipulability.srv.GetPolytopeConstraintsRequest()
         self.req.polytope_type = constrained_manipulability.srv.GetPolytopeConstraintsRequest.CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE
@@ -69,35 +84,93 @@ class client_class:
                          self.jointStateCallback)
         rospy.Subscriber("cmd_vel", Twist, self.twistCallback)
 
-        self.pub = rospy.Publisher('joint_states', JointState, queue_size=1)
-        self.pub_joint_state = JointState()
-        self.pub_joint_state.name = self.active_joints
-
-        if(self.sim):
-            self.pub_joint_state.position = np.random.rand(self.ndof, )
-            self.pub_joint_state.header.seq = 0
-            while(self.pub_joint_state.header.seq < 10):
-                self.pubJointState()
-                time.sleep(0.1)
-        else:
-            while(not self.wait_for_joint_state):
-                print("waiting for joint state")
-                time.sleep(1)
-
-            # For first pub_joint_state, set to initial numpy array
-            self.pub_joint_state.position = np.array(self.joint_state.position)
+        while(not self.wait_for_joint_state):
+            print("waiting for joint state")
+            time.sleep(1)
 
         rospy.Timer(rospy.Duration(1.0), self.callPolytopeServer)
         rospy.Timer(rospy.Duration(0.2), self.callJacobianServer)
         time.sleep(3)
         rospy.Timer(rospy.Duration(0.2), self.ik_optimiztion)
 
-    def pubJointState(self):
-        self.pub_joint_state.header.seq += 1
-        self.pub_joint_state.header.stamp = rospy.get_rostime()
-        self.pub.publish(self.pub_joint_state)
-        if(self.sim):
-            self.joint_state = self.pub_joint_state  # instead of subscriber
+    def sendJointAngles(self, joint_angles):
+        self.last_action_notif_type = None
+
+        req = ExecuteActionRequest()
+
+        trajectory = WaypointList()
+        waypoint = Waypoint()
+        angularWaypoint = AngularWaypoint()
+
+        # Angles to send the arm
+        angularWaypoint.angles = joint_angles
+
+        # Each AngularWaypoint needs a duration and the global duration (from WaypointList) is disregarded.
+        # If you put something too small (for either global duration or AngularWaypoint duration), the trajectory will be rejected.
+        angular_duration = 0.1
+        angularWaypoint.duration = angular_duration
+
+        # Initialize Waypoint and WaypointList
+        waypoint.oneof_type_of_waypoint.angular_waypoint.append(
+            angularWaypoint)
+        trajectory.duration = 0.1
+        trajectory.use_optimal_blending = False
+        trajectory.waypoints.append(waypoint)
+
+        try:
+            res = self.validate_waypoint_list(trajectory)
+        except rospy.ServiceException:
+            rospy.logerr("Failed to call ValidateWaypointList")
+            return False
+
+        error_number = len(
+            res.output.trajectory_error_report.trajectory_error_elements)
+        MAX_ANGULAR_DURATION = 30
+
+        while (error_number >= 1 and angular_duration != MAX_ANGULAR_DURATION):
+            angular_duration += 1
+            trajectory.waypoints[0].oneof_type_of_waypoint.angular_waypoint[0].duration = angular_duration
+
+            try:
+                res = self.validate_waypoint_list(trajectory)
+            except rospy.ServiceException:
+                rospy.logerr("Failed to call ValidateWaypointList")
+                return False
+
+            error_number = len(
+                res.output.trajectory_error_report.trajectory_error_elements)
+
+        if (angular_duration == MAX_ANGULAR_DURATION):
+            # It should be possible to reach position within 30s
+            # WaypointList is invalid (other error than angularWaypoint duration)
+            rospy.loginfo("WaypointList is invalid")
+            return False
+
+        req.input.oneof_action_parameters.execute_waypoint_list.append(
+            trajectory)
+
+        # Send the angles
+        try:
+            self.execute_action(req)
+        except rospy.ServiceException:
+            rospy.logerr("Failed to call ExecuteWaypointjectory")
+            return False
+        else:
+            return self.wait_for_action_end_or_abort()
+
+    def wait_for_action_end_or_abort(self):
+        while not rospy.is_shutdown():
+            if (self.last_action_notif_type == ActionEvent.ACTION_END):
+                rospy.loginfo("Received ACTION_END notification")
+                return True
+            elif (self.last_action_notif_type == ActionEvent.ACTION_ABORT):
+                rospy.loginfo("Received ACTION_ABORT notification")
+                return False
+            else:
+                time.sleep(0.01)
+
+    def cb_action_topic(self, notif):
+        self.last_action_notif_type = notif.action_event
 
     def callJacobianServer(self, event=None):
         self.joint_callback_mutex.acquire()
@@ -188,8 +261,8 @@ class client_class:
         dx_sol = np.matmul(jacobian, dq_sol)
         print("\n dx input = ", dx)
         print("\n Best dx_sol", dx_sol, "\n Error=", best_val)
-        self.pub_joint_state.position[:self.ndof] += dq_sol
-        self.pubJointState()
+        joint_update = self.joint_state.position[:self.ndof] + dq_sol
+        self.sendJointAngles(joint_update)
 
     def sampleJointState(self, joint_state, nbr_samples, a):
         joint_vec = []
@@ -210,13 +283,12 @@ class client_class:
 
     def jointStateCallback(self, data):
         self.joint_callback_mutex.acquire()
-        if(not self.sim):
-            self.joint_state = data
-            self.wait_for_joint_state = True
+        self.joint_state = data
+        self.wait_for_joint_state = True
         self.joint_callback_mutex.release()
 
 
 if __name__ == "__main__":
-    rospy.init_node('cm_client')
+    rospy.init_node('gen3_client')
     client_class()
     rospy.spin()

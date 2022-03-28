@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="config" default="example_scene_gen3" />
+    <arg name="root_link" default="base_link" />
+    <arg name="tip_link" default="bracelet_link" />
+    <arg name="mp_display" default="false" />
+    <arg name="cmp_display" default="true" />
+    <arg name="rviz_wait" default="false" />
+    <arg name="show_debug_statements" default="false" />
+
+    <!-- Robot Setup -->
+    <arg name="arm" default="gen3" />
+    <arg name="gripper" default="robotiq_2f_85" />
+    <arg name="ip" value="10.75.15.10"/>
+
+    <!-- Load the robot -->
+    <include file="$(find kortex_driver)/launch/kortex_driver.launch">
+        <arg name="ip_address" value="$(arg ip)"/>
+        <arg name="username" value="river"/>
+        <arg name="password" value="river"/>
+        <arg name="gripper" value="$(arg gripper)"/>
+        <arg name="start_rviz" value="false"/>
+    </include>
+    
+    <include file="$(find kinova_vision)/launch/kinova_vision.launch">
+        <arg name="device" value="$(arg ip)"/>
+    </include>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/octomap_gen3.rviz" />
+
+    <!-- Octomap Server Setup -->
+    <node name="create_cloud_xyzrgb" pkg="robot_collision_checking" type="create_cloud_xyzrgb.py" />
+
+    <node pkg="octomap_server" type="octomap_tracking_server_node" name="octomap_talker" output="screen" args="">
+        <!-- <param name="cloud_in" value="/camera/depth_points" /> --> <!-- NEED TO PROVIDE STATIC SENSOR E.G. KINECT -->
+        <param name="resolution" value="0.04" />
+        <param name="frame_id" type="string" value="map" />
+        <param name="base_frame_id" type="string" value="base_link" />
+        <param name="sensor_model/max_range" value="4.0" />
+        <param name="save_directory" value="$(optenv OCTOMAP_SAVE_DIR ./)" />
+        <param name="track_changes" value="true" />
+        <param name="listen_changes" value="false" />
+        <param name="topic_changes" value="/octomap_tracking_server/changeset" />
+        <param name="change_id_frame" value="/talker/changes" />
+        <param name="min_change_pub" value="0" />
+        <remap from="octomap_full" to="constrained_manipulability/octomap_full" />
+    </node>
+
+    <node pkg="tf" type="static_transform_publisher" name="map_to_world_broadcaster" args="0 0 0 0 0 0 map world 100" />
+    <node pkg="tf" type="static_transform_publisher" name="world_to_base_broadcaster" args="0 0 0 0 0 0 world base_link 100" />
+
+    <!-- IK Server Setup -->
+    <node name="constrained_manipulability_server" pkg="constrained_manipulability" type="constrained_manipulability_server" respawn="false" output="screen" clear_params="true" launch-prefix="">
+        <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load" />
+        <param name="root" type="string" value="$(arg root_link)" />
+        <param name="tip" type="string" value="$(arg tip_link)" />
+        <param name="robot_desc" type="string" value="my_gen3/robot_description" />
+        <param name="show_cmp" type="bool" value="$(arg cmp_display)" />
+        <param name="show_mp" type="bool" value="$(arg mp_display)" />
+        <param name="set_rviz_wait" type="bool" value="$(arg rviz_wait)" />
+        <param name="debug_statements" type="bool" value="$(arg show_debug_statements)" />
+    </node>
+</launch>
