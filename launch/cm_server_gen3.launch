@@ -25,6 +25,11 @@
     <include file="$(find kinova_vision)/launch/kinova_vision.launch">
         <arg name="device" value="$(arg ip)"/>
     </include>
+    
+    <!-- Load robot in Gazebo -->
+    <!-- <include file="$(find kortex_gazebo)/launch/spawn_kortex_robot.launch">
+        <arg name="start_rviz" value="false"/>
+    </include> -->
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/octomap_gen3.rviz" />
 

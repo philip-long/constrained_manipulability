@@ -12,7 +12,7 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Twist
 
 from kortex_driver.srv import ExecuteAction, ExecuteActionRequest, ValidateWaypointList
-from kortex_driver.msg import ActionEvent, ActionNotification, AngularWaypoint, Waypoint, WaypointList
+from kortex_driver.msg import AngularWaypoint, Waypoint, WaypointList
 
 from constrained_manipulability.srv import *
 
@@ -53,14 +53,15 @@ class client_class:
         self.jacobian = None
 
         # Kinova Gen3 services
-        self.action_topic_sub = rospy.Subscriber(
-            '/my_gen3/action_topic', ActionNotification, self.cb_action_topic)
-        self.last_action_notif_type = None
-
         execute_action_full_name = '/my_gen3/base/execute_action'
         rospy.wait_for_service(execute_action_full_name)
         self.execute_action = rospy.ServiceProxy(
             execute_action_full_name, ExecuteAction)
+
+        # play_joint_trajectory_full_name = '/my_gen3/base/play_joint_trajectory'
+        # rospy.wait_for_service(play_joint_trajectory_full_name)
+        # self.play_joint_trajectory = rospy.ServiceProxy(
+        #     play_joint_trajectory_full_name, PlayJointTrajectory)
 
         validate_waypoint_list_full_name = '/my_gen3/base/validate_waypoint_list'
         rospy.wait_for_service(validate_waypoint_list_full_name)
@@ -85,7 +86,7 @@ class client_class:
         rospy.Subscriber("cmd_vel", Twist, self.twistCallback)
 
         while(not self.wait_for_joint_state):
-            print("waiting for joint state")
+            print("Waiting for joint state")
             time.sleep(1)
 
         rospy.Timer(rospy.Duration(1.0), self.callPolytopeServer)
@@ -94,8 +95,6 @@ class client_class:
         rospy.Timer(rospy.Duration(0.2), self.ik_optimiztion)
 
     def sendJointAngles(self, joint_angles):
-        self.last_action_notif_type = None
-
         req = ExecuteActionRequest()
 
         trajectory = WaypointList()
@@ -103,7 +102,7 @@ class client_class:
         angularWaypoint = AngularWaypoint()
 
         # Angles to send the arm
-        angularWaypoint.angles = joint_angles
+        angularWaypoint.angles = np.rad2deg(joint_angles)
 
         # Each AngularWaypoint needs a duration and the global duration (from WaypointList) is disregarded.
         # If you put something too small (for either global duration or AngularWaypoint duration), the trajectory will be rejected.
@@ -113,9 +112,25 @@ class client_class:
         # Initialize Waypoint and WaypointList
         waypoint.oneof_type_of_waypoint.angular_waypoint.append(
             angularWaypoint)
-        trajectory.duration = 0.1
+        trajectory.duration = 0.2
         trajectory.use_optimal_blending = False
         trajectory.waypoints.append(waypoint)
+
+        # GAZEBO
+        # req = PlayJointTrajectoryRequest()
+        # # Here the arm is vertical (all zeros)
+        # for i in range(self.ndof):
+        #     temp_angle = JointAngle()
+        #     temp_angle.joint_identifier = i
+        #     temp_angle.value = np.rad2deg(joint_angles[i])
+        #     req.input.joint_angles.joint_angles.append(temp_angle)
+
+        # # Send the angles
+        # try:
+        #     self.play_joint_trajectory(req)
+        # except rospy.ServiceException:
+        #     rospy.logerr("Failed to call PlayJointTrajectory")
+        #     return False
 
         try:
             res = self.validate_waypoint_list(trajectory)
@@ -155,22 +170,6 @@ class client_class:
         except rospy.ServiceException:
             rospy.logerr("Failed to call ExecuteWaypointjectory")
             return False
-        else:
-            return self.wait_for_action_end_or_abort()
-
-    def wait_for_action_end_or_abort(self):
-        while not rospy.is_shutdown():
-            if (self.last_action_notif_type == ActionEvent.ACTION_END):
-                rospy.loginfo("Received ACTION_END notification")
-                return True
-            elif (self.last_action_notif_type == ActionEvent.ACTION_ABORT):
-                rospy.loginfo("Received ACTION_ABORT notification")
-                return False
-            else:
-                time.sleep(0.01)
-
-    def cb_action_topic(self, notif):
-        self.last_action_notif_type = notif.action_event
 
     def callJacobianServer(self, event=None):
         self.joint_callback_mutex.acquire()
