@@ -112,7 +112,7 @@ class client_class:
         # Initialize Waypoint and WaypointList
         waypoint.oneof_type_of_waypoint.angular_waypoint.append(
             angularWaypoint)
-        trajectory.duration = 0.2
+        trajectory.duration = 0.1
         trajectory.use_optimal_blending = False
         trajectory.waypoints.append(waypoint)
 
@@ -261,7 +261,8 @@ class client_class:
         print("\n dx input = ", dx)
         print("\n Best dx_sol", dx_sol, "\n Error=", best_val)
         joint_update = self.joint_state.position[:self.ndof] + dq_sol
-        self.sendJointAngles(joint_update)
+        if (np.all((dx_sol != 0.0))):
+            self.sendJointAngles(joint_update)
 
     def sampleJointState(self, joint_state, nbr_samples, a):
         joint_vec = []
