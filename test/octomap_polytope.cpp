@@ -81,7 +81,8 @@ int main(int argc, char **argv)
         {
             joint_state_received = false;
             robot_polytope.addOctomaptoWorld();
-            robot_polytope.checkCollision(joint_state);
+            
+            ROS_ERROR_COND(robot_polytope.checkCollision(joint_state),"Robot in collision");
             polytope_volumes.volumes[0] = robot_polytope.getAllowableMotionPolytope(joint_state,
                                                                                     show_mp,
                                                                                     {0.0, 0.0, 0.5, 0.0},

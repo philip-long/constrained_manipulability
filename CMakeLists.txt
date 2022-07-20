@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometric_shapes
   kdl_parser
   pcl_ros
+  sensor_msgs
   robot_collision_checking
   roscpp
   rospy
