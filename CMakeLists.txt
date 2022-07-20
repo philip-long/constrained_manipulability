@@ -96,6 +96,9 @@ target_link_libraries(shrinking_polytope ${catkin_LIBRARIES} constrained_manipul
 add_executable(octomap_polytope test/octomap_polytope.cpp)
 target_link_libraries(octomap_polytope ${catkin_LIBRARIES} constrained_manipulability)
 
+add_executable(filter_octomap_polytope test/filter_octomap_polytope.cpp)
+target_link_libraries(filter_octomap_polytope ${catkin_LIBRARIES} constrained_manipulability)
+
 add_executable(slicing_polytope test/slicing_polytope.cpp)
 target_link_libraries(slicing_polytope ${catkin_LIBRARIES} constrained_manipulability)
 

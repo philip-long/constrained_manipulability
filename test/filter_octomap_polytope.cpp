@@ -80,7 +80,7 @@ int main(int argc, char **argv)
         if (joint_state_received == true)
         {
             joint_state_received = false;
-            robot_polytope.addOctomaptoWorld();
+
             robot_polytope.checkCollision(joint_state);
             polytope_volumes.volumes[0] = robot_polytope.getAllowableMotionPolytope(joint_state,
                                                                                     show_mp,
