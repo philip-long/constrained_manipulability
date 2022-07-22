@@ -141,6 +141,8 @@ void ConstrainedManipulability::addOctomaptoWorld()
     }
 }
 
+
+
 void ConstrainedManipulability::addFilteredOctomaptoWorld(const sensor_msgs::JointState &joint_states)
 {
     KDL::JntArray kdl_joint_positions(ndof_);
@@ -150,28 +152,17 @@ void ConstrainedManipulability::addFilteredOctomaptoWorld(const sensor_msgs::Joi
 
     jointStatetoKDLJointArray(joint_states, kdl_joint_positions);    
     getCollisionModel(kdl_joint_positions, geometry_information);
-    std::cout<<"get collision model scope"<<std::endl;
+    
     convertCollisionModel(geometry_information,current_shapes,shapes_poses);
-    std::cout<<"Pre scope"<<std::endl;
+    
     // remove the old octomap from the world
     {
         boost::mutex::scoped_lock lock(collision_world_mutex_);
-        std::cout<<"Remove old collision object"<<std::endl;
         fclInterface.removeCollisionObject(octomap_id_);
-        // update octomap from the world
-        std::cout<<"Filtering"<<std::endl;                                             
-        shape_msgs::Mesh s1=boost::get<shape_msgs::Mesh>(current_shapes[0]);                 
-            std::cout<<"\n meshing complete \n \n \n"<<std::endl;
-        
-        std::cout<<"Stuck here"<<std::endl;
-        // https://github.com/ros-planning/moveit_task_constructor/issues/241
-        bodies::Body *body =bodies::constructBodyFromMsg ( s1,shapes_poses[0]);
-        std::cout<<"Bodied it"<<std::endl;
-                        
-        FCLCollisionGeometryPtr cg=fclInterface.filterObjectFromOctomap(octomap_,
+        // This is a bit messy
+        FCLCollisionGeometryPtr cg=fclInterface.filterObjectOctomapFCL(octomap_,
                                              current_shapes,
-                                             shapes_poses);
-        std::cout<<"Add new collision object"<<std::endl;                                             
+                                             geometry_information.geometry_transforms);
         fclInterface.addCollisionObject(cg, octomap_pose_wrt_world_, octomap_id_);
     }
 }
