@@ -127,6 +127,11 @@ void ConstrainedManipulability::octomapCallback(const octomap_msgs::Octomap::Con
 {
     octomap_ = *msg;
     octomap_received_ = true;
+
+}
+
+void ConstrainedManipulability::addOctomaptoWorld()
+{
     // remove the old octomap from the world
     {
         boost::mutex::scoped_lock lock(collision_world_mutex_);
@@ -134,6 +139,49 @@ void ConstrainedManipulability::octomapCallback(const octomap_msgs::Octomap::Con
         // update octomap from the world
         fclInterface.addCollisionObject(octomap_, octomap_pose_wrt_world_, octomap_id_);
     }
+}
+
+
+
+void ConstrainedManipulability::addFilteredOctomaptoWorld(const sensor_msgs::JointState &joint_states)
+{
+    KDL::JntArray kdl_joint_positions(ndof_);
+    std::vector<shapes::ShapeMsg> current_shapes;
+    std::vector<geometry_msgs::Pose> shapes_poses;
+    GeometryInformation geometry_information;
+
+    jointStatetoKDLJointArray(joint_states, kdl_joint_positions);    
+    getCollisionModel(kdl_joint_positions, geometry_information);
+    
+    convertCollisionModel(geometry_information,current_shapes,shapes_poses);
+    
+    // remove the old octomap from the world
+    {
+        boost::mutex::scoped_lock lock(collision_world_mutex_);
+        fclInterface.removeCollisionObject(octomap_id_);
+        // This is a bit messy
+        FCLCollisionGeometryPtr cg=fclInterface.filterObjectOctomapFCL(octomap_,
+                                             current_shapes,
+                                             geometry_information.geometry_transforms);
+        fclInterface.addCollisionObject(cg, octomap_pose_wrt_world_, octomap_id_);
+    }
+}
+
+bool ConstrainedManipulability::convertCollisionModel(const GeometryInformation &geometry_information,
+                            std::vector<shapes::ShapeMsg> & current_shapes,                                
+                            std::vector<geometry_msgs::Pose> & shapes_poses)
+{
+
+    current_shapes.resize(geometry_information.geometry_transforms.size());
+    shapes_poses.resize(geometry_information.geometry_transforms.size());
+
+    for (int i = 0; i < geometry_information.geometry_transforms.size(); i++)
+        {
+        shapes::ShapeMsg current_shape;
+        shapes::constructMsgFromShape(geometry_information.shapes[i].get(), current_shapes[i]);
+        tf::poseEigenToMsg(geometry_information.geometry_transforms[i], shapes_poses[i]);
+        }
+    return true;
 }
 
 bool ConstrainedManipulability::getJacobianCallback(constrained_manipulability::GetJacobianMatrix::Request &req,

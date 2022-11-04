@@ -148,6 +148,7 @@ private:
     octomap_msgs::Octomap octomap_;
     /// Octomap callback
     void octomapCallback(const octomap_msgs::Octomap::ConstPtr &msg);
+
     Eigen::Affine3d octomap_pose_wrt_world_; // octomap pose
     /// mutex as we're now multi-threading
     boost::mutex collision_world_mutex_;
@@ -172,6 +173,11 @@ protected:
      */
     bool getCollisionModel(const KDL::JntArray &jointpositions,
                            GeometryInformation &geometry_information);
+
+
+    bool convertCollisionModel(const GeometryInformation &geometry_information,
+                                std::vector<shapes::ShapeMsg> & current_shapes,                                
+                                std::vector<geometry_msgs::Pose> & shapes_poses);
 
     /** getPolytopeHyperPlanes returns hyperplanes for constrained joint polytope
      * For ith link (segment) in the kinematic serial chain, we return
@@ -209,6 +215,11 @@ public:
     /// Sets octomap pose if it's different to base_link
     void setOctomapPose(const Eigen::Affine3d &wT1);
 
+
+    /// add Octomap to collision world from callback
+    void addOctomaptoWorld();
+    /// add Octomap after filtering the robot at this joint position 
+    void addFilteredOctomaptoWorld(const sensor_msgs::JointState &joint_states);
     /// Add a solid primitive object to FCLInterface collision world transform w.r.t base_link of chain
     bool addCollisionObject(const shape_msgs::SolidPrimitive &s1,
                             const Eigen::Affine3d &wT1, unsigned int object_id);
