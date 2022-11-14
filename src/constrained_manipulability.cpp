@@ -62,7 +62,7 @@ ConstrainedManipulability::ConstrainedManipulability(ros::NodeHandle nh,
     kdl_dfk_solver_.reset(new KDL::ChainJntToJacSolver(chain_));
 
     int mvable_jnt(0);
-    
+
     std::vector<std::string> joint_names(ndof_);
     for (int i = 0; i < chain_.getNrOfSegments(); ++i)
     {
@@ -76,24 +76,24 @@ ConstrainedManipulability::ConstrainedManipulability(ros::NodeHandle nh,
             // No limits so assign max
             if (urdf_joint->type == urdf::Joint::CONTINUOUS)
             {
-                qmax_[mvable_jnt] = 2.0*M_PI;
-                qmin_[mvable_jnt] = -2.0*M_PI;
+                qmax_[mvable_jnt] = 2.0 * M_PI;
+                qmin_[mvable_jnt] = -2.0 * M_PI;
             }
             else
             {
                 qmax_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->upper;
                 qmin_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->lower;
             }
-            
+
             qdotmax_[mvable_jnt] = model_.joints_.at(kdl_joint.getName())->limits->velocity;
             qdotmin_[mvable_jnt] = -model_.joints_.at(kdl_joint.getName())->limits->velocity;
-            joint_names[mvable_jnt]=kdl_joint.getName();
+            joint_names[mvable_jnt] = kdl_joint.getName();
             mvable_jnt++;
         }
     }
-    
-    nh.setParam("constrained_manipulability/active_dof",joint_names);
-    
+
+    nh.setParam("constrained_manipulability/active_dof", joint_names);
+
     ndof_identity_matrix_.resize(ndof_, ndof_);
     ndof_identity_matrix_.setZero();
     for (int i = 0; i < ndof_identity_matrix_.rows(); i++)
@@ -127,7 +127,6 @@ void ConstrainedManipulability::octomapCallback(const octomap_msgs::Octomap::Con
 {
     octomap_ = *msg;
     octomap_received_ = true;
-
 }
 
 void ConstrainedManipulability::addOctomaptoWorld()
@@ -141,8 +140,6 @@ void ConstrainedManipulability::addOctomaptoWorld()
     }
 }
 
-
-
 void ConstrainedManipulability::addFilteredOctomaptoWorld(const sensor_msgs::JointState &joint_states)
 {
     KDL::JntArray kdl_joint_positions(ndof_);
@@ -150,37 +147,38 @@ void ConstrainedManipulability::addFilteredOctomaptoWorld(const sensor_msgs::Joi
     std::vector<geometry_msgs::Pose> shapes_poses;
     GeometryInformation geometry_information;
 
-    jointStatetoKDLJointArray(joint_states, kdl_joint_positions);    
+    jointStatetoKDLJointArray(joint_states, kdl_joint_positions);
     getCollisionModel(kdl_joint_positions, geometry_information);
-    
-    convertCollisionModel(geometry_information,current_shapes,shapes_poses);
-    
+
+    convertCollisionModel(geometry_information, current_shapes, shapes_poses);
+
     // remove the old octomap from the world
     {
         boost::mutex::scoped_lock lock(collision_world_mutex_);
         fclInterface.removeCollisionObject(octomap_id_);
         // This is a bit messy
-        FCLCollisionGeometryPtr cg=fclInterface.filterObjectOctomapFCL(octomap_,
-                                             current_shapes,
-                                             geometry_information.geometry_transforms);
+        FCLCollisionGeometryPtr cg = fclInterface.filterObjectFromOctomap(octomap_,
+                                                                          current_shapes,
+                                                                          shapes_poses);
+                                                                          //geometry_information.geometry_transforms);
         fclInterface.addCollisionObject(cg, octomap_pose_wrt_world_, octomap_id_);
     }
 }
 
 bool ConstrainedManipulability::convertCollisionModel(const GeometryInformation &geometry_information,
-                            std::vector<shapes::ShapeMsg> & current_shapes,                                
-                            std::vector<geometry_msgs::Pose> & shapes_poses)
+                                                      std::vector<shapes::ShapeMsg> &current_shapes,
+                                                      std::vector<geometry_msgs::Pose> &shapes_poses)
 {
 
     current_shapes.resize(geometry_information.geometry_transforms.size());
     shapes_poses.resize(geometry_information.geometry_transforms.size());
 
     for (int i = 0; i < geometry_information.geometry_transforms.size(); i++)
-        {
+    {
         shapes::ShapeMsg current_shape;
         shapes::constructMsgFromShape(geometry_information.shapes[i].get(), current_shapes[i]);
         tf::poseEigenToMsg(geometry_information.geometry_transforms[i], shapes_poses[i]);
-        }
+    }
     return true;
 }
 

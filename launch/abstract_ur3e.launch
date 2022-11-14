@@ -1,5 +1,5 @@
 <launch>
-    <include file="$(find ur_description)/launch/ur3_upload.launch" />
+    <include file="$(find ur_description)/launch/load_ur3e.launch" />
 
     <node pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" name="joint_state_publisher_gui" output="screen">
         <rosparam param="source_list">["alternative_input/joint_states"]</rosparam>
