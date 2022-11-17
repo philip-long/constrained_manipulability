@@ -27,7 +27,7 @@
         <param name="track_changes" value="true" />
         <param name="listen_changes" value="false" />
         <param name="topic_changes" value="/octomap_tracking_server/changeset" />
-        <param name="change_id_frame" value="/talker/changes" />
+        <param name="change_id_frame" value="map" />
         <param name="min_change_pub" value="0" />
         <remap from="octomap_full" to="constrained_manipulability/octomap_full" />
     </node>
