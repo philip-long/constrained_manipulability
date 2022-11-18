@@ -15,7 +15,7 @@
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz" />
 
-    <node name="shrinking_polytope" pkg="constrained_manipulability" type="shrinking_polytope" respawn="false" output="screen" clear_params="true" launch-prefix="">
+    <node name="shrinking_polytope_test" pkg="constrained_manipulability" type="shrinking_polytope_test" respawn="false" output="screen" clear_params="true" launch-prefix="">
         <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load" />
         <param name="root" type="string" value="$(arg root_link)" />
         <param name="tip" type="string" value="$(arg tip_link)" />

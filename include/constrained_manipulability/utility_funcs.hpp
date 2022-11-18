@@ -1,17 +1,15 @@
-#include <Eigen/StdVector>
-#include <shape_msgs/SolidPrimitive.h>
-#include <pcl_ros/point_cloud.h>
-#include <pcl/point_types.h>
+#include <iostream>
+#include <vector>
+
+#include <Eigen/Eigen>
+
 #include <ros/ros.h>
-#include <ros/package.h>
+#include <shape_msgs/SolidPrimitive.h>
 
-typedef std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>> TransformVector;
-typedef std::vector<Eigen::Matrix<double, 6, Eigen::Dynamic>> JacobianVector;
-typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
-typedef PointCloud::Ptr PointCloudPtr;
-
-namespace utility_functions
+namespace constrained_manipulability
 {
+    typedef std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>> TransformVector;
+    typedef std::vector<Eigen::Matrix<double, 6, Eigen::Dynamic>> JacobianVector;
 
     template <typename T>
     void printVector(std::vector<T> p, std::string name = "p= ")
@@ -184,6 +182,7 @@ namespace utility_functions
             }
         }
     }
+
     static void getCollisionShapes(const std::vector<int> &object_primitive,
                                    const std::vector<std::vector<double>> &obj_dimensions,
                                    const std::vector<std::vector<double>> &obj_poses,
