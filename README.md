@@ -14,7 +14,7 @@ Constrained Manipulability is a library used to compute and vizualize a robot's 
     - [pcl_ros](http://wiki.ros.org/pcl_ros)
     - [kdl_parser](https://wiki.ros.org/kdl_parser)
 - [Eigen 3](https://eigen.tuxfamily.org/dox/GettingStarted.html)
-- [robot_collision_checking](https://github.com/philip-long/ros_collision_checking)
+- [robot_collision_checking](https://github.com/mazrk7/robot_collision_checking)
 - [eigen-cddlib](https://github.com/philip-long/eigen-cddlib)
 
 ### Install instructions
