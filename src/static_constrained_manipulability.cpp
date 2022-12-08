@@ -88,7 +88,7 @@ namespace constrained_manipulability
 
     Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(KDL::Chain &chain,
                                                                               urdf::Model &model,
-                                                                              FCLObjectSet objects,
+                                                                              robot_collision_checking::FCLObjectSet objects,
                                                                               const sensor_msgs::JointState &joint_states,
                                                                               Eigen::MatrixXd &AHrep,
                                                                               Eigen::VectorXd &bhrep,
@@ -220,7 +220,7 @@ namespace constrained_manipulability
 
     Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(KDL::Chain &chain,
                                                                        urdf::Model &model,
-                                                                       FCLObjectSet objects,
+                                                                       robot_collision_checking::FCLObjectSet objects,
                                                                        const sensor_msgs::JointState &joint_states,
                                                                        Eigen::MatrixXd &AHrep,
                                                                        Eigen::VectorXd &bhrep,
@@ -279,7 +279,7 @@ namespace constrained_manipulability
 
     bool ConstrainedManipulability::getPolytopeHyperPlanes(KDL::Chain &chain,
                                                            urdf::Model &model,
-                                                           FCLObjectSet objects,
+                                                           robot_collision_checking::FCLObjectSet objects,
                                                            const KDL::JntArray &kdl_joint_positions,
                                                            const GeometryInformation &geometry_information,
                                                            Eigen::MatrixXd &AHrep,
@@ -346,21 +346,21 @@ namespace constrained_manipulability
 
             if (current_shape.which() == 0)
             {
-                FCLInterface::checkDistanceObjectWorld(boost::get<shape_msgs::SolidPrimitive>(current_shape),
-                                                       geometry_information.geometry_transforms[i],
-                                                       objects,
-                                                       obj_distances,
-                                                       p1w,
-                                                       p2w);
+                robot_collision_checking::FCLInterface::checkDistanceObjectWorld(boost::get<shape_msgs::SolidPrimitive>(current_shape),
+                                                                                 geometry_information.geometry_transforms[i],
+                                                                                 objects,
+                                                                                 obj_distances,
+                                                                                 p1w,
+                                                                                 p2w);
             }
             else if (current_shape.which() == 1)
             {
-                FCLInterface::checkDistanceObjectWorld(boost::get<shape_msgs::Mesh>(current_shape),
-                                                       geometry_information.geometry_transforms[i],
-                                                       objects,
-                                                       obj_distances,
-                                                       p1w,
-                                                       p2w);
+                robot_collision_checking::FCLInterface::checkDistanceObjectWorld(boost::get<shape_msgs::Mesh>(current_shape),
+                                                                                 geometry_information.geometry_transforms[i],
+                                                                                 objects,
+                                                                                 obj_distances,
+                                                                                 p1w,
+                                                                                 p2w);
             }
             else
             {

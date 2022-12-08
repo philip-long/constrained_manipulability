@@ -16,6 +16,7 @@ Constrained Manipulability is a library used to compute and vizualize a robot's 
 - [Eigen 3](https://eigen.tuxfamily.org/dox/GettingStarted.html)
 - [robot_collision_checking](https://github.com/mazrk7/robot_collision_checking)
 - [eigen-cddlib](https://github.com/philip-long/eigen-cddlib)
+- [octomap_filter](https://github.com/mazrk7/octomap_filter)
 
 ### Install instructions
 Clone repo into your current workspace as follows:
@@ -43,13 +44,8 @@ There are several example scenes in scene_config folder, which have been tested 
  rosrun constrained_manipulability lin_limit_pub.py 
 ```
 
-## Launching Octomap Test
-```
-roslaunch constrained_manipulability octomap_test.launch
-```
-
 ## Launching IK Teleoperation Test
-First launch the octomap and the polytope server:
+First launch the polytope server:
 ```
 roslaunch constrained_manipulability cm_server_test.launch
 ```
@@ -129,9 +125,10 @@ Objects are removed by id.
 ```
 bool removeCollisionObject (unsigned int object_id );
 ```
-#### Octomaps
-Octomaps can now be used to as objects, the class subcribes to the _"constrained_manipulability/octomap_full"_ topic 
 
+#### Octomaps
+
+Octomaps can now be used to as objects, but require the [octomap_filter](https://github.com/mazrk7/octomap_filter) to remove the robot body from the OcTree representation.
 
 ![Octomaps as collision object](doc/cmp-octomap.png)
 

@@ -50,7 +50,7 @@ int main(int argc, char **argv)
     std::vector<std::vector<double>> obj_poses;
     std::vector<shape_msgs::SolidPrimitive> shapes_in;
     constrained_manipulability::TransformVector shapes_pose;
-    FCLObjectSet objects;
+    robot_collision_checking::FCLObjectSet objects;
     bool show_mp, show_cmp, debug_statements;
 
     constrained_manipulability::getParameter("~/debug_statements", debug_statements);

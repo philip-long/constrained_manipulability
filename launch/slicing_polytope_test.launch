@@ -12,8 +12,6 @@
     </node>
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz" />
-
     <node name="slicing_polytope_test" pkg="constrained_manipulability" type="slicing_polytope_test" respawn="false" output="screen" clear_params="true" launch-prefix="">
         <rosparam file="$(find constrained_manipulability)/scene_config/$(arg config).yaml" command="load" />
         <param name="root" type="string" value="$(arg root_link)" />
@@ -21,4 +19,6 @@
         <param name="show_cmp" type="bool" value="$(arg cmp_display)" />
         <param name="debug_statements" type="bool" value="$(arg show_debug_statements)" />
     </node>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz" />
 </launch>

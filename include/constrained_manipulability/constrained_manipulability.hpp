@@ -44,8 +44,9 @@
 
 #include <robot_collision_checking/fcl_interface.h>
 
+#include <octomap_filter/octomap_filter.hpp>
+
 #include <constrained_manipulability/polytope.hpp>
-#include <constrained_manipulability/octomap_filter.hpp>
 #include <constrained_manipulability/utility_funcs.hpp>
 
 #include <constrained_manipulability/GetPolytopeConstraints.h>
@@ -75,13 +76,13 @@ namespace constrained_manipulability
             unsigned int ndof_;
             ros::NodeHandle nh_;
 
-            OctomapFilter *octo_filter_;
+            octomap_filter::OctomapFilter *octo_filter_;
 
             /// mutex as we're now multi-threading
             boost::mutex collision_world_mutex_;
 
             /// Collision checker
-            FCLInterface fclInterface;
+            robot_collision_checking::FCLInterface fclInterface;
 
             /// Robot base link
             std::string base_link_;
@@ -116,7 +117,7 @@ namespace constrained_manipulability
             // ROS publishers
             ros::Publisher obj_dist_pub_;
             ros::Publisher mkr_pub_;
-
+            
             /// Convert a joint state message to a KDL joint array based on segment names
             void jointStatetoKDLJointArray(const sensor_msgs::JointState &joint_states,
                                         KDL::JntArray &kdl_joint_positions);
@@ -165,8 +166,11 @@ namespace constrained_manipulability
             /// Add a mesh object to FCLInterface collision world transform w.r.t base_link of chain
             bool addCollisionObject(const shape_msgs::Mesh &s1,
                                     const Eigen::Affine3d &wT1, unsigned int object_id);
+            /// Add an Octomap map object to FCLInterface collision world transform w.r.t base_link of chain
+            bool addCollisionObject(const octomap_msgs::Octomap &map,
+                                    const Eigen::Affine3d &wT1, unsigned int object_id);
             /// Add a set of object to FCLInterface collision world transform w.r.t base_link of chain
-            bool addCollisionObject(FCLObjectSet objects);
+            bool addCollisionObject(robot_collision_checking::FCLObjectSet objects);
             /// Remove an object from FCLInterface collision world
             bool removeCollisionObject(unsigned int object_id);
 
@@ -443,7 +447,7 @@ namespace constrained_manipulability
              */
             static Polytope getConstrainedAllowableMotionPolytope(KDL::Chain &chain,
                                                                   urdf::Model &model,
-                                                                  FCLObjectSet objects,
+                                                                  robot_collision_checking::FCLObjectSet objects,
                                                                   const sensor_msgs::JointState &joint_states,
                                                                   Eigen::MatrixXd &AHrep,
                                                                   Eigen::VectorXd &bhrep,
@@ -484,7 +488,7 @@ namespace constrained_manipulability
              */
             static Polytope getConstrainedVelocityPolytope(KDL::Chain &chain,
                                                            urdf::Model &model,
-                                                           FCLObjectSet objects,
+                                                           robot_collision_checking::FCLObjectSet objects,
                                                            const sensor_msgs::JointState &joint_states,
                                                            Eigen::MatrixXd &AHrep,
                                                            Eigen::VectorXd &bhrep,
@@ -505,7 +509,7 @@ namespace constrained_manipulability
              */
             static bool getPolytopeHyperPlanes(KDL::Chain &chain,
                                             urdf::Model &model,
-                                            FCLObjectSet objects,
+                                            robot_collision_checking::FCLObjectSet objects,
                                             const KDL::JntArray &kdl_joint_positions,
                                             const GeometryInformation &geometry_information,
                                             Eigen::MatrixXd &AHrep,

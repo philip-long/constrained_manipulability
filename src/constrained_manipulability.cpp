@@ -1,5 +1,8 @@
 #include <constrained_manipulability/ObjectDistances.h>
 
+#include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/PoseStamped.h>
+
 #include <constrained_manipulability/constrained_manipulability.hpp>
 
 namespace constrained_manipulability
@@ -14,7 +17,7 @@ namespace constrained_manipulability
         obj_dist_pub_ = nh_.advertise<constrained_manipulability::ObjectDistances>("constrained_manipulability/obj_distances", 1);
         mkr_pub_ = nh_.advertise<visualization_msgs::Marker>("/visualization_marker", 1);
 
-        octo_filter_ = new OctomapFilter(nh_);
+        octo_filter_ = new octomap_filter::OctomapFilter(nh_);
 
         std::string robot_desc_string;
         nh_.param(robot_description, robot_desc_string, std::string());
@@ -583,7 +586,6 @@ namespace constrained_manipulability
             Eigen::VectorXd bhrep;
             // Safe to assign, no pointer members
             Polytope poly;
-
             if (req.polytope_type == req.ALLOWABLE_MOTION_POLYTOPE)
             {
                 poly = getAllowableMotionPolytope(req.sampled_joint_states[var], AHrep, bhrep, req.show_polytope);
@@ -645,7 +647,14 @@ namespace constrained_manipulability
         return fclInterface.addCollisionObject(s1, wT1, object_id);
     }
 
-    bool ConstrainedManipulability::addCollisionObject(FCLObjectSet objects)
+    bool ConstrainedManipulability::addCollisionObject(const octomap_msgs::Octomap &map,
+                                                       const Eigen::Affine3d &wT1, unsigned int object_id)
+    {
+        boost::mutex::scoped_lock lock(collision_world_mutex_);
+        return fclInterface.addCollisionObject(map, wT1, object_id);
+    }
+
+    bool ConstrainedManipulability::addCollisionObject(robot_collision_checking::FCLObjectSet objects)
     {
         boost::mutex::scoped_lock lock(collision_world_mutex_);
         return fclInterface.addCollisionObject(objects);
@@ -760,19 +769,33 @@ namespace constrained_manipulability
         std::vector<geometry_msgs::Pose> shapes_poses;
 
         convertCollisionModel(geometry_information, current_shapes, shapes_poses);
-        
+
         boost::mutex::scoped_lock lock(collision_world_mutex_);
 
-        // If octomap is available, then filter robot from octomap and add to collision world
-        if (octo_filter_->filterObjectFromOctomap(current_shapes, shapes_poses))
+        std::vector<geometry_msgs::PoseStamped> shapes_poses_stamped;
+        for (int i = 0; i < shapes_poses.size(); i++)
         {
+            geometry_msgs::PoseStamped shape_stamped;
+            shape_stamped.header.stamp = joint_states.header.stamp;
+            shape_stamped.header.frame_id = base_link_;
+            shape_stamped.pose = shapes_poses[i];
+            shapes_poses_stamped.push_back(shape_stamped);
+        }
+
+        // If octomap is available, then filter robot from octomap and add to collision world
+        if (octo_filter_->addObjectToOctoFilter(current_shapes, shapes_poses_stamped))
+        {
+            // Get the octomap properties, including its pose in the robot base frame
             octomap_msgs::Octomap octomap;
-            Eigen::Affine3d octomap_pose_wrt_world;
-            octo_filter_->getOctomapProperties(octomap, octomap_pose_wrt_world);
+            geometry_msgs::TransformStamped octomap_wrt_base;
+            octo_filter_->getOctomapProperties(base_link_, octomap, octomap_wrt_base);
+            Eigen::Affine3d octomap_pose_wrt_base;
+            tf::transformMsgToEigen(octomap_wrt_base.transform, octomap_pose_wrt_base);
+
             // Remove the old octomap from the world
             fclInterface.removeCollisionObject(octomap_id_);
             // Update with the new
-            fclInterface.addCollisionObject(octomap, octomap_pose_wrt_world, octomap_id_);
+            fclInterface.addCollisionObject(octomap, octomap_pose_wrt_base, octomap_id_);
         }
 
         for (int i = 0; i < geometry_information.geometry_transforms.size(); i++)
@@ -801,6 +824,7 @@ namespace constrained_manipulability
                 ROS_ERROR("Collision Geometry not support");
             }
         }
+
         return false;
     }
 

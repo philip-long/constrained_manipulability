@@ -14,8 +14,6 @@
     </node>
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz" />
-
     <include file="$(find constrained_manipulability)/launch/abstract_robot.launch">
         <arg name="root_link" value="base_link" />
         <arg name="tip_link" value="bracelet_link" />
@@ -23,4 +21,6 @@
         <arg name="mp_display" default="true" />
         <arg name="cmp_display" default="true" />
     </include>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/view_robot.rviz" />
 </launch>

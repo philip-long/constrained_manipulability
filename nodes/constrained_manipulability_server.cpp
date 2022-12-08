@@ -38,12 +38,8 @@ int main(int argc, char **argv)
 
     constrained_manipulability::ConstrainedManipulability constrained_manip(nh, root, tip, robot_desc);
 
-    constrained_manip.displayObjects();
-    ROS_INFO("Finished display");
-
     while (ros::ok())
     {
-
         if (joint_state_received == true)
         {
             joint_state_received = false;
@@ -55,6 +51,5 @@ int main(int argc, char **argv)
         ros::Duration(0.001).sleep();
     }
 
-    ros::spin();
     return 0;
 }

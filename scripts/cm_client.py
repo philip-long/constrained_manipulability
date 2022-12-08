@@ -16,20 +16,11 @@ from constrained_manipulability.srv import *
 # https://gist.github.com/braingineer/d801735dac07ff3ac4d746e1f218ab75
 
 
-def matprint(mat, fmt="g"):
-    col_maxes = [max([len(("{:"+fmt+"}").format(x))
-                     for x in col]) for col in mat.T]
-    for x in mat:
-        for i, y in enumerate(x):
-            print(("{:"+str(col_maxes[i])+fmt+"}").format(y), end="  ")
-        print("")
-
-
 def multiarray_to_np(A):
     return np.array(A.data).reshape(A.layout.dim[0].size, A.layout.dim[1].size)
 
 
-class client_class:
+class cm_client:
     def __init__(self):
         self.joint_callback_mutex = Lock()
         self.constraints_mutex = Lock()
@@ -82,14 +73,13 @@ class client_class:
         else:
             while(not self.wait_for_joint_state):
                 print("waiting for joint state")
-                time.sleep(1)
 
             # For first pub_joint_state, set to initial numpy array
             self.pub_joint_state.position = np.array(self.joint_state.position)
 
-        rospy.Timer(rospy.Duration(1.0), self.callPolytopeServer)
+        rospy.Timer(rospy.Duration(0.5), self.callPolytopeServer)
         rospy.Timer(rospy.Duration(0.2), self.callJacobianServer)
-        time.sleep(3)
+        time.sleep(1.0)
         rospy.Timer(rospy.Duration(0.2), self.ik_optimiztion)
 
     def pubJointState(self):
@@ -218,5 +208,5 @@ class client_class:
 
 if __name__ == "__main__":
     rospy.init_node('cm_client')
-    client_class()
+    cm_client()
     rospy.spin()
