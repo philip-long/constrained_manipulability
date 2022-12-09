@@ -800,20 +800,17 @@ namespace constrained_manipulability
 
         for (int i = 0; i < geometry_information.geometry_transforms.size(); i++)
         {
-            shapes::ShapeMsg current_shape;
-            shapes::constructMsgFromShape(geometry_information.shapes[i].get(), current_shape);
-
-            if (current_shape.which() == 0)
+            if (current_shapes[i].which() == 0)
             {
-                if (fclInterface.checkCollisionObjectWorld(boost::get<shape_msgs::SolidPrimitive>(current_shape),
+                if (fclInterface.checkCollisionObjectWorld(boost::get<shape_msgs::SolidPrimitive>(current_shapes[i]),
                                                            geometry_information.geometry_transforms[i]))
                 {
                     return true;
                 }
             }
-            else if (current_shape.which() == 1)
+            else if (current_shapes[i].which() == 1)
             {
-                if (fclInterface.checkCollisionObjectWorld(boost::get<shape_msgs::Mesh>(current_shape),
+                if (fclInterface.checkCollisionObjectWorld(boost::get<shape_msgs::Mesh>(current_shapes[i]),
                                                            geometry_information.geometry_transforms[i]))
                 {
                     return true;
