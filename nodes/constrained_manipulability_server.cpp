@@ -23,8 +23,7 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh; // Create a node handle and start the node
 
-    ros::Subscriber joint_sub = nh.subscribe("/joint_states",
-                                             1, &jointSensorCallback);
+    ros::Subscriber joint_sub = nh.subscribe("/joint_states", 10, &jointSensorCallback);
 
     std::string root, tip, robot_desc;
     bool show_mp, show_cmp, debug_statements;
@@ -38,6 +37,8 @@ int main(int argc, char **argv)
 
     constrained_manipulability::ConstrainedManipulability constrained_manip(nh, root, tip, robot_desc);
 
+    // Loop with 100 Hz rate
+    ros::Rate loop_rate(100);
     while (ros::ok())
     {
         if (joint_state_received == true)
@@ -48,7 +49,7 @@ int main(int argc, char **argv)
         }
 
         ros::spinOnce();
-        ros::Duration(0.001).sleep();
+        loop_rate.sleep();
     }
 
     return 0;
