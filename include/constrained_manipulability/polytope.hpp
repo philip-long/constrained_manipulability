@@ -7,7 +7,9 @@
 
 #include <Eigen/Eigen>
 
-#include <ros/ros.h>
+#include <geometry_msgs/Point.h>
+
+#include <constrained_manipulability/PolytopeMesh.h>
 
 namespace constrained_manipulability
 {
@@ -24,24 +26,23 @@ namespace constrained_manipulability
             Polytope();
             Polytope(std::string name, const Eigen::MatrixXd &vertex_set);
             Polytope(std::string name, const Eigen::MatrixXd &A_left, const Eigen::VectorXd &b_left);
-
-            Polytope(ros::NodeHandle nh, std::string name, std::string frame, const Eigen::MatrixXd &vertex_set);
-            Polytope(ros::NodeHandle nh, std::string name, std::string frame, const Eigen::MatrixXd &A_left, const Eigen::VectorXd &b_left);
             ~Polytope() {}
 
-            // Get the volume of a polytope defined by its vertex set
-            double getVolume() const;
+            inline std::string getName() const { return name_; }
+            inline double getVolume() const { return volume_; }
 
-            /** Plot a Polytope defined by a set of vertices
-             *   The vertices are shifted to the offset position, e.g. the robot end effector
+            // Compute the volume of a polytope defined by its vertex set
+            double computeVolume() const;
+
+            /** Get a Polytope's defined set of vertices
+             *   The vertices are shifted to the offset position, e.g., the robot end effector
              *   PCL is used to obtain the convex hull
-             *   A mesh message is created from the convex hull and published to RViz
-             *   The facet color is defined by color_line, while points by color_pts
-             *   The return value is the volume of the polytope
+             *   A PolytopeMesh message is created from the convex hull and returned
+             *   The return value is a flag for whether the computation was successful or not
              */
-            bool plot(Eigen::Vector3d offset_position,
-                    std::vector<double> color_pts = {1.0, 0.4, 0.4, 1.0},
-                    std::vector<double> color_line = {1.0, 0.4, 0.4, 1.0}) const;
+            bool getPolytopeMesh(const Eigen::Vector3d &offset,
+                    std::vector<geometry_msgs::Point> &points,
+                    constrained_manipulability::PolytopeMesh &poly_mesh) const;
 
             /// Transform polytope to Cartesian space
             void transformCartesian(Eigen::Matrix<double, 3, Eigen::Dynamic> Jp, Eigen::Vector3d P);
@@ -59,20 +60,13 @@ namespace constrained_manipulability
                                             const Eigen::VectorXd &bHrep_other) const;
 
         private:
-            ros::NodeHandle nh_;
-
-            /// RViz Display publishers
-            ros::Publisher mkr_pub_;
-            ros::Publisher poly_mesh_pub_;
-            ros::Publisher poly_vol_pub_;
-
             // Polytope properties
-            std::string frame_;
             std::string name_;
+            double volume_;
+
             Eigen::MatrixXd vertex_set_;
             Eigen::MatrixXd AHrep_;
             Eigen::VectorXd bHrep_;
-            double volume_;
     };
 }
 

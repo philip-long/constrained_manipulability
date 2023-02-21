@@ -1,7 +1,11 @@
-#include <constrained_manipulability/ObjectDistances.h>
-
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/PoseStamped.h>
+
+#include <visualization_msgs/Marker.h>
+
+#include <constrained_manipulability/ObjectDistances.h>
+#include <constrained_manipulability/PolytopeMesh.h>
+#include <constrained_manipulability/PolytopeVolume.h>
 
 #include <constrained_manipulability/constrained_manipulability.hpp>
 
@@ -14,8 +18,10 @@ namespace constrained_manipulability
         polytope_server_ = nh_.advertiseService("get_polytope_constraints", &ConstrainedManipulability::getPolytopeConstraintsCallback, this);
         jacobian_server_ = nh_.advertiseService("get_jacobian_matrix", &ConstrainedManipulability::getJacobianCallback, this);
 
-        obj_dist_pub_ = nh_.advertise<constrained_manipulability::ObjectDistances>("constrained_manipulability/obj_distances", 1);
         mkr_pub_ = nh_.advertise<visualization_msgs::Marker>("/visualization_marker", 1);
+        obj_dist_pub_ = nh_.advertise<constrained_manipulability::ObjectDistances>("constrained_manipulability/obj_distances", 1);
+        poly_mesh_pub_ = nh_.advertise<constrained_manipulability::PolytopeMesh>("constrained_manipulability/polytope_mesh", 1);
+        poly_vol_pub_ = nh_.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volume", 1);
 
         octo_filter_ = new octomap_filter::OctomapFilter(nh_);
 
@@ -194,14 +200,22 @@ namespace constrained_manipulability
         offset_position = base_T_ee.translation();
 
         // Convert to V-representation polytope
-        Polytope vrep_polytope(nh_, "allowable_motion_polytope", base_link_, AHrep, bhrep);
+        Polytope vrep_polytope("allowable_motion_polytope", AHrep, bhrep);
+        // Transform to Cartesian Space
         vrep_polytope.transformCartesian(base_J_ee.topRows(3), offset_position);
 
         if (show_polytope)
         {
-            vrep_polytope.plot(offset_position, color_pts, color_line);
+            plotPolytope(vrep_polytope, offset_position, color_pts, color_line);
         }
 
+        // Publish polytope volume
+        constrained_manipulability::PolytopeVolume polytope_volume;
+        polytope_volume.name = vrep_polytope.getName();
+        polytope_volume.volume = vrep_polytope.getVolume();
+        poly_vol_pub_.publish(polytope_volume);
+
+        // Return the calculated polytope
         return vrep_polytope;
     }
 
@@ -272,14 +286,22 @@ namespace constrained_manipulability
         offset_position = geometry_information.geometry_transforms.back().translation();
 
         // Convert to V-representation polytope
-        Polytope vrep_polytope(nh_, "constrained_allowable_motion_polytope", base_link_, AHrep, bhrep);
+        Polytope vrep_polytope("constrained_allowable_motion_polytope", AHrep, bhrep);
+        // Transform to Cartesian Space
         vrep_polytope.transformCartesian(geometry_information.geometry_jacobians.back().topRows(3), offset_position);
 
         if (show_polytope)
         {
-            vrep_polytope.plot(offset_position, color_pts, color_line);
+            plotPolytope(vrep_polytope, offset_position, color_pts, color_line);
         }
 
+        // Publish polytope volume
+        constrained_manipulability::PolytopeVolume polytope_volume;
+        polytope_volume.name = vrep_polytope.getName();
+        polytope_volume.volume = vrep_polytope.getVolume();
+        poly_vol_pub_.publish(polytope_volume);
+
+        // Return the calculated polytope
         return vrep_polytope;
     }
 
@@ -327,16 +349,23 @@ namespace constrained_manipulability
         }
 
         // Convert to V-representation polytope
-        Polytope vrep_polytope(nh_, "velocity_polytope", base_link_, AHrep, bhrep);
+        Polytope vrep_polytope("velocity_polytope", AHrep, bhrep);
         // Transform to Cartesian Space
-        vrep_polytope.transformCartesian(base_J_ee.topRows(3), base_T_ee.translation());
+        Eigen::Vector3d offset_position = base_T_ee.translation();
+        vrep_polytope.transformCartesian(base_J_ee.topRows(3), offset_position);
 
         if (show_polytope)
         {
-            vrep_polytope.plot(base_T_ee.translation(), color_pts, color_line);
+            plotPolytope(vrep_polytope, offset_position, color_pts, color_line);
         }
 
-        // Return the calculated volume
+        // Publish polytope volume
+        constrained_manipulability::PolytopeVolume polytope_volume;
+        polytope_volume.name = vrep_polytope.getName();
+        polytope_volume.volume = vrep_polytope.getVolume();
+        poly_vol_pub_.publish(polytope_volume);
+
+        // Return the calculated polytope
         return vrep_polytope;
     }
 
@@ -381,16 +410,75 @@ namespace constrained_manipulability
         }
 
         // Convert to V-representation polytope
-        Polytope vrep_polytope(nh_, "constrained_velocity_polytope", base_link_, AHrep, bhrep);
-        vrep_polytope.transformCartesian(geometry_information.geometry_jacobians.back().topRows(3),
-                                         geometry_information.geometry_transforms.back().translation());
+        Polytope vrep_polytope("constrained_velocity_polytope", AHrep, bhrep);
+        // Transform to Cartesian Space
+        Eigen::Vector3d offset_position = geometry_information.geometry_transforms.back().translation();
+        vrep_polytope.transformCartesian(geometry_information.geometry_jacobians.back().topRows(3), offset_position);
 
         if (show_polytope)
         {
-            vrep_polytope.plot(geometry_information.geometry_transforms.back().translation(), color_pts, color_line);
+            plotPolytope(vrep_polytope, offset_position, color_pts, color_line);
         }
 
+        // Publish polytope volume
+        constrained_manipulability::PolytopeVolume polytope_volume;
+        polytope_volume.name = vrep_polytope.getName();
+        polytope_volume.volume = vrep_polytope.getVolume();
+        poly_vol_pub_.publish(polytope_volume);
+
+        // Return the calculated polytope
         return vrep_polytope;
+    }
+
+    bool ConstrainedManipulability::plotPolytope(const Polytope &poly,
+                                                 const Eigen::Vector3d &offset_position,
+                                                 std::vector<double> color_pts,
+                                                 std::vector<double> color_line) const
+    {
+        std::vector<geometry_msgs::Point> points;
+        constrained_manipulability::PolytopeMesh poly_mesh;
+        bool success = poly.getPolytopeMesh(offset_position, points, poly_mesh);
+
+        if (success)
+        {
+            visualization_msgs::Marker mkr;
+            mkr.ns = poly_mesh.name;
+            mkr.action = visualization_msgs::Marker::ADD;
+            mkr.type = visualization_msgs::Marker::TRIANGLE_LIST;
+            mkr.header.frame_id = base_link_;
+            mkr.id = 2;
+            mkr.lifetime = ros::Duration(0.0);
+            mkr.color.r = color_line[0];
+            mkr.color.g = color_line[1];
+            mkr.color.b = color_line[2];
+            mkr.color.a = color_line[3]; // fmax(auto_alpha,0.1);
+            mkr.scale.x = 1.0;
+            mkr.scale.y = 1.0;
+            mkr.scale.z = 1.0;
+            mkr.points = points;
+
+            mkr_pub_.publish(mkr);
+
+            poly_mesh.color = mkr.color;
+            poly_mesh_pub_.publish(poly_mesh);
+
+            mkr.type = visualization_msgs::Marker::SPHERE_LIST;
+            mkr.header.frame_id = base_link_;
+            mkr.id = 1;
+            mkr.lifetime = ros::Duration(0.0);
+            mkr.color.r = color_pts[0];
+            mkr.color.g = color_pts[1];
+            mkr.color.b = color_pts[2];
+            mkr.color.a = color_pts[3];
+            mkr.scale.x = 0.005;
+            mkr.scale.y = 0.005;
+            mkr.scale.z = 0.005;
+            mkr.points = points;
+
+            mkr_pub_.publish(mkr);
+        }
+
+        return success;
     }
 
     bool ConstrainedManipulability::getPolytopeHyperPlanes(const KDL::JntArray &kdl_joint_positions,
@@ -611,8 +699,10 @@ namespace constrained_manipulability
             tf::matrixEigenToMsg(AHrep, res.polytope_hyperplanes[var].A);
             res.polytope_hyperplanes[var].b = constrained_manipulability::eigenToVector(bhrep);
             res.polytope_hyperplanes[var].volume = poly.getVolume();
+
             server_return = true;
         }
+
         return server_return;
     }
 

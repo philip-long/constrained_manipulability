@@ -95,17 +95,17 @@ int main(int argc, char **argv)
                 // If this doesn't happen in unity you can reduce this 0.001 -> 1mm
                 constrained_manipulability::Polytope xy_slice = constrained_poly.slice(
                     "xy_slice", constrained_manipulability::SLICING_PLANE::XY_PLANE, 0.004);
-                xy_slice.plot(offset_position, {1.0, 0.0, 0.0, 1.0}, {1.0, 0.0, 0.0, 0.4});
+                constrained_manip.plotPolytope(xy_slice, offset_position, {1.0, 0.0, 0.0, 1.0}, {1.0, 0.0, 0.0, 0.4});
                 ros::spinOnce();
 
                 constrained_manipulability::Polytope xz_slice = constrained_poly.slice(
                     "xz_slice", constrained_manipulability::SLICING_PLANE::XZ_PLANE, 0.004);
-                xz_slice.plot(offset_position, {1.0, 1.0, 0.0, 1.0}, {1.0, 1.0, 0.0, 0.4});
+                constrained_manip.plotPolytope(xz_slice, offset_position, {1.0, 1.0, 0.0, 1.0}, {1.0, 1.0, 0.0, 0.4});
                 ros::spinOnce();
 
                 constrained_manipulability::Polytope yz_slice = constrained_poly.slice(
                     "yz_slice", constrained_manipulability::SLICING_PLANE::YZ_PLANE, 0.004);
-                yz_slice.plot(offset_position, {0.0, 1.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 0.4});
+                constrained_manip.plotPolytope(yz_slice, offset_position, {0.0, 1.0, 0.0, 1.0}, {0.0, 1.0, 0.0, 0.4});
                 ros::spinOnce();
             }
         }

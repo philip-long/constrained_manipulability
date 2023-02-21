@@ -2,9 +2,6 @@
 <launch>
     <arg name="root_link" default="base_link" />
     <arg name="tip_link" default="wrist_3_link" />
-    <arg name="mp_display" default="false" />
-    <arg name="cmp_display" default="true" />
-    <arg name="show_debug_statements" default="false" />
 
     <!-- Load the robot -->
     <include file="$(find ur_description)/launch/load_ur3e.launch" />
@@ -28,9 +25,6 @@
         <param name="root" type="string" value="$(arg root_link)" />
         <param name="tip" type="string" value="$(arg tip_link)" />
         <param name="robot_desc" type="string" value="robot_description" />
-        <param name="show_cmp" type="bool" value="$(arg cmp_display)" />
-        <param name="show_mp" type="bool" value="$(arg mp_display)" />
-        <param name="debug_statements" type="bool" value="$(arg show_debug_statements)" />
     </node>
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find constrained_manipulability)/rviz/octomap_robot.rviz" />

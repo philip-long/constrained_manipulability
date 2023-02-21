@@ -35,8 +35,8 @@
 
 #include <ros/ros.h>
 
-#include <sensor_msgs/JointState.h>
 #include <geometry_msgs/Pose.h>
+#include <sensor_msgs/JointState.h>
 
 #include <geometric_shapes/shapes.h>
 #include <geometric_shapes/shape_operations.h>
@@ -115,9 +115,11 @@ namespace constrained_manipulability
                                     constrained_manipulability::GetJacobianMatrix::Response &res);
 
             // ROS publishers
-            ros::Publisher obj_dist_pub_;
             ros::Publisher mkr_pub_;
-            
+            ros::Publisher obj_dist_pub_;
+            ros::Publisher poly_mesh_pub_;
+            ros::Publisher poly_vol_pub_;
+
             /// Convert a joint state message to a KDL joint array based on segment names
             void jointStatetoKDLJointArray(const sensor_msgs::JointState &joint_states,
                                         KDL::JntArray &kdl_joint_positions);
@@ -366,6 +368,14 @@ namespace constrained_manipulability
                                                     bool show_polytope,
                                                     std::vector<double> color_pts = {0.0, 0.5, 0.0, 1.0},
                                                     std::vector<double> color_line = {0.0, 1.0, 0.0, 0.8});
+
+            /** Plot a Polytope defined by a set of vertices
+             *   The facet color is defined by color_line, while points by color_pts
+             */
+            bool plotPolytope(const Polytope &poly,
+                              const Eigen::Vector3d &offset_position,
+                              std::vector<double> color_pts = {1.0, 0.4, 0.4, 1.0},
+                              std::vector<double> color_line = {1.0, 0.4, 0.4, 1.0}) const;
 
             /** getPolytopeHyperPlanes returns hyperplanes for constrained joint polytope
              * For ith link (segment) in the kinematic serial chain, we return

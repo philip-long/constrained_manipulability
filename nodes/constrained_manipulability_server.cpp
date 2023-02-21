@@ -26,14 +26,10 @@ int main(int argc, char **argv)
     ros::Subscriber joint_sub = nh.subscribe("/joint_states", 10, &jointSensorCallback);
 
     std::string root, tip, robot_desc;
-    bool show_mp, show_cmp, debug_statements;
 
-    constrained_manipulability::getParameter("~/debug_statements", debug_statements);
     constrained_manipulability::getParameter("~/root", root);
     constrained_manipulability::getParameter("~/tip", tip);
     constrained_manipulability::getParameter("~/robot_desc", robot_desc);
-    constrained_manipulability::getParameter("~/show_mp", show_mp);
-    constrained_manipulability::getParameter("~/show_cmp", show_cmp);
 
     constrained_manipulability::ConstrainedManipulability constrained_manip(nh, root, tip, robot_desc);
 
