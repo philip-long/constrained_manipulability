@@ -154,9 +154,11 @@ By evaluating the volume of the CMP at points in the workspace, a reachability m
 ![Planar 2DOF workspace analysis](doc/wksp2.png) ![Humanoid workspace analysis](doc/wrkspval.png)
 
 ## Citing
-If you use this package, please cite either :
+
+If you use this package, please cite either:
+
 ```
-@inproceedings{long2019optimization,
+@inproceedings{Long2019Optimization,
   title={Optimization-Based Human-in-the-Loop Manipulation  Using Joint Space Polytopes},
   author={{Philip Long, Tar{\i}k Kele\c{s}temur, Aykut \"{O}zg\"{u}n \"{O}nol and Ta\c{s}k{\i}n Pad{\i}r },
   booktitle={2019 IEEE International Conference on Robotics and Automation (ICRA)},
@@ -168,15 +170,29 @@ If you use this package, please cite either :
 or 
 
 ```
-@INPROCEEDINGS{8624962,
-author={P. {Long} and T. {Padir}},
-booktitle={2018 IEEE-RAS 18th International Conference on Humanoid Robots (Humanoids)},
-title={Evaluating Robot Manipulability in Constrained Environments by Velocity Polytope Reduction},
-year={2018},
-volume={},
-number={},
-pages={1-9},
-doi={10.1109/HUMANOIDS.2018.8624962},
-ISSN={2164-0580},
-month={Nov},}
+@INPROCEEDINGS{Long2018Evaluating,
+  author={P. {Long} and T. {Padir}},
+  booktitle={2018 IEEE-RAS 18th International Conference on Humanoid Robots (Humanoids)},
+  title={Evaluating Robot Manipulability in Constrained Environments by Velocity Polytope Reduction},
+  year={2018},
+  volume={},
+  number={},
+  pages={1-9},
+  doi={10.1109/HUMANOIDS.2018.8624962},
+  ISSN={2164-0580},
+  month={Nov},}
+```
+
+And for the teleoperation use-case, especially alongside AR/VR, then please also cite:
+
+```
+@ARTICLE{Zolotas2021Motion,
+  AUTHOR={Zolotas, Mark and Wonsick, Murphy and Long, Philip and Padır, Taşkın},   
+  TITLE={Motion Polytopes in Virtual Reality for Shared Control in Remote Manipulation Applications},      
+  JOURNAL={Frontiers in Robotics and AI},      
+  VOLUME={8},           
+  YEAR={2021},      	
+  DOI={10.3389/frobt.2021.730433},      
+  ISSN={2296-9144},
+}
 ```
