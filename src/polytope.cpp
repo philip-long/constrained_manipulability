@@ -136,18 +136,36 @@ namespace constrained_manipulability
         if (!(cloud_hull->points.empty()))
         {
             points.clear();
-            // points.resize(cloud_hull->points.size());
 
-            // Plotting polytope mesh and visualization markers
+            unsigned int n_triangles = polygons.size();
+            unsigned int n_vertices = cloud_hull->points.size();
+
+            // Generating the polytope mesh
             poly_mesh.name = name_;
-            poly_mesh.mesh.triangles.resize(polygons.size());
-            poly_mesh.mesh.vertices.resize(polygons.size() * 3);
 
+            for (int i = 0; i < n_vertices; i++)
+            {
+                geometry_msgs::Point pp;
+                pp.x = cloud_hull->points[i].x;
+                pp.y = cloud_hull->points[i].y;
+                pp.z = cloud_hull->points[i].z;
+                poly_mesh.mesh.vertices.push_back(pp);
+            }
+
+            for (int i = 0; i < n_triangles; i++){
+                shape_msgs::MeshTriangle tri;
+                tri.vertex_indices[0] = polygons[i].vertices[0];
+                tri.vertex_indices[1] = polygons[i].vertices[1];
+                tri.vertex_indices[2] = polygons[i].vertices[2];
+                poly_mesh.mesh.triangles.push_back(tri);
+            }
+
+            // Also producing a vector of points for the visualization marker
             // Polygons are a vector of triangles represented by 3 indices
             // The indices correspond to points in cloud_hull
-            // Therefore for each triangle in the polgyon
+            // Therefore for each triangle in the polygon
             // we find its three vertices and extract their x y z coordinates
-            for (int tri = 0; tri < polygons.size(); ++tri)
+            for (int tri = 0; tri < n_triangles; ++tri)
             {
                 pcl::Vertices triangle = polygons[tri];
 
@@ -158,9 +176,6 @@ namespace constrained_manipulability
                     pp.y = cloud_hull->points[triangle.vertices[var]].y;
                     pp.z = cloud_hull->points[triangle.vertices[var]].z;
                     points.push_back(pp);
-
-                    poly_mesh.mesh.triangles[tri].vertex_indices[var] = triangle.vertices[var];
-                    poly_mesh.mesh.vertices[tri*3 + var] = pp;
                 }
             }
         }
