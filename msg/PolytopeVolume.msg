@@ -1,2 +1,2 @@
-string[] names
-float64[] volumes
+string name
+float64 volume

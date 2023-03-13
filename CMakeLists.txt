@@ -6,8 +6,6 @@ project(constrained_manipulability)
 
 set(CMAKE_CXX_STANDARD 14)
 
-
-
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -21,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   message_generation
+  octomap_filter
 )
 
 
@@ -54,7 +53,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES constrained_manipulability
-  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy octomap_server message_runtime
+  CATKIN_DEPENDS eigen_conversions geometric_shapes kdl_parser pcl_ros robot_collision_checking roscpp rospy message_runtime octomap_filter octomap_server
 #  DEPENDS system_lib
 )
 
@@ -79,29 +78,21 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_library(constrained_manipulability
+add_library(${PROJECT_NAME}
             src/constrained_manipulability.cpp
-            src/static_constrained_manipulability.cpp
-            include/${PROJECT_NAME}/constrained_manipulability.h)
-target_link_libraries(constrained_manipulability ${catkin_LIBRARIES} ${EIGEN_CDDLIB_LIB} ${fcl_interface_LIBRARIES})
+            src/polytope.cpp
+            src/static_constrained_manipulability.cpp)
+add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${EIGEN_CDDLIB_LIB} ${fcl_interface_LIBRARIES})
 
-## Add cmake target dependencies of the library for message generation code necessary before library compilation
-add_dependencies(constrained_manipulability ${constrained_manipulability_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(abstract_robot_test nodes/abstract_robot_test.cpp)
+target_link_libraries(abstract_robot_test ${catkin_LIBRARIES} ${PROJECT_NAME})
 
-add_executable(abstract_robot_test test/abstract_robot_test_node.cpp)
-target_link_libraries(abstract_robot_test ${catkin_LIBRARIES} constrained_manipulability)
+add_executable(constrained_manipulability_server nodes/constrained_manipulability_server.cpp)
+target_link_libraries(constrained_manipulability_server ${catkin_LIBRARIES} ${PROJECT_NAME})
 
-add_executable(shrinking_polytope test/shrinking_polytope.cpp)
-target_link_libraries(shrinking_polytope ${catkin_LIBRARIES} constrained_manipulability)
+add_executable(shrinking_polytope_test nodes/shrinking_polytope_test.cpp)
+target_link_libraries(shrinking_polytope_test ${catkin_LIBRARIES} ${PROJECT_NAME})
 
-add_executable(octomap_polytope test/octomap_polytope.cpp)
-target_link_libraries(octomap_polytope ${catkin_LIBRARIES} constrained_manipulability)
-
-add_executable(filter_octomap_polytope test/filter_octomap_polytope.cpp)
-target_link_libraries(filter_octomap_polytope ${catkin_LIBRARIES} constrained_manipulability)
-
-add_executable(slicing_polytope test/slicing_polytope.cpp)
-target_link_libraries(slicing_polytope ${catkin_LIBRARIES} constrained_manipulability)
-
-add_executable(constrained_manipulability_server test/constrained_manipulability_server.cpp)
-target_link_libraries(constrained_manipulability_server ${catkin_LIBRARIES} constrained_manipulability)
+add_executable(slicing_polytope_test nodes/slicing_polytope_test.cpp)
+target_link_libraries(slicing_polytope_test ${catkin_LIBRARIES} ${PROJECT_NAME})
