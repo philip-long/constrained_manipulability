@@ -14,7 +14,7 @@ Constrained Manipulability is a library used to compute and vizualize a robot's 
     - [pcl_ros](http://wiki.ros.org/pcl_ros)
     - [kdl_parser](https://wiki.ros.org/kdl_parser)
 - [Eigen 3](https://eigen.tuxfamily.org/dox/GettingStarted.html)
-- [robot_collision_checking](https://github.com/mazrk7/robot_collision_checking)
+- [robot_collision_checking](https://github.com/philip-long/robot_collision_checking)
 - [eigen-cddlib](https://github.com/philip-long/eigen-cddlib)
 - [octomap_filter](https://github.com/mazrk7/octomap_filter)
 
@@ -160,7 +160,7 @@ If you use this package, please cite either:
 ```
 @inproceedings{Long2019Optimization,
   title={Optimization-Based Human-in-the-Loop Manipulation  Using Joint Space Polytopes},
-  author={{Philip Long, Tar{\i}k Kele\c{s}temur, Aykut \"{O}zg\"{u}n \"{O}nol and Ta\c{s}k{\i}n Pad{\i}r },
+  author={Philip Long, Tar{\i}k Kele\c{s}temur, Aykut \"{O}zg\"{u}n \"{O}nol and Ta\c{s}k{\i}n Pad{\i}r },
   booktitle={2019 IEEE International Conference on Robotics and Automation (ICRA)},
   year={2019},
   organization={IEEE}
