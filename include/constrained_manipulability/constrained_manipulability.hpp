@@ -42,9 +42,13 @@
 #include <geometric_shapes/shape_operations.h>
 #include <geometric_shapes/mesh_operations.h>
 
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+
 #include <robot_collision_checking/fcl_interface.h>
 
 #include <octomap_filter/octomap_filter.hpp>
+#include <costmap_2d/VoxelGrid.h>
 
 #include <constrained_manipulability/polytope.hpp>
 #include <constrained_manipulability/utility_funcs.hpp>
@@ -77,7 +81,9 @@ namespace constrained_manipulability
             ros::NodeHandle nh_;
 
             octomap_filter::OctomapFilter *octo_filter_;
-
+            costmap_2d::VoxelGrid voxel_grid_;
+            bool voxel_grid_received_;
+            
             /// mutex as we're now multi-threading
             boost::mutex collision_world_mutex_;
 
@@ -102,8 +108,13 @@ namespace constrained_manipulability
 
             Eigen::MatrixXd ndof_identity_matrix_;
 
-            // Tracking the octomap ID if available
+            // Tracking the voxel and octomap ID if available
             int octomap_id_;
+            int voxel_grid_id_;
+
+            // Transforms voxel grid frame to base
+            tf2_ros::Buffer buffer_;
+            tf2_ros::TransformListener listener_;
 
             // ROS server fcl_interface
             ros::ServiceServer polytope_server_;
@@ -119,6 +130,8 @@ namespace constrained_manipulability
             ros::Publisher obj_dist_pub_;
             ros::Publisher poly_mesh_pub_;
             ros::Publisher poly_vol_pub_;
+            // Voxel grid subscriber
+            ros::Subscriber voxel_grid_sub_;
 
             /// Convert a joint state message to a KDL joint array based on segment names
             void jointStatetoKDLJointArray(const sensor_msgs::JointState &joint_states,
@@ -162,6 +175,9 @@ namespace constrained_manipulability
             // Calls fcl destructor which should destroy all objects in world
             ~ConstrainedManipulability();
 
+            // Voxel grid callback function
+            void gridCallback(const costmap_2d::VoxelGridConstPtr &grid);
+
             /// Add a solid primitive object to FCLInterface collision world transform w.r.t base_link of chain
             bool addCollisionObject(const shape_msgs::SolidPrimitive &s1,
                                     const Eigen::Affine3d &wT1, unsigned int object_id);
@@ -175,6 +191,8 @@ namespace constrained_manipulability
             bool addCollisionObject(robot_collision_checking::FCLObjectSet objects);
             /// Remove an object from FCLInterface collision world
             bool removeCollisionObject(unsigned int object_id);
+            /// Remove a voxel grid object from FCLInterface collision world
+            bool removeVoxelGridObject(unsigned int object_id);
 
             /// Display collision world objects
             bool displayObjects();

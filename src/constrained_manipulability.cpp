@@ -3,6 +3,8 @@
 
 #include <visualization_msgs/Marker.h>
 
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #include <constrained_manipulability/ObjectDistances.h>
 #include <constrained_manipulability/PolytopeMesh.h>
 #include <constrained_manipulability/PolytopeVolume.h>
@@ -13,7 +15,8 @@ namespace constrained_manipulability
 {
     ConstrainedManipulability::ConstrainedManipulability(ros::NodeHandle nh, std::string root, std::string tip, std::string robot_description,
                                                          double distance_threshold, double linearization_limit, double dangerfield)
-        : nh_(nh), fclInterface(nh), distance_threshold_(distance_threshold), dangerfield_(dangerfield), octomap_id_(-1)
+        : nh_(nh), fclInterface(nh), distance_threshold_(distance_threshold), dangerfield_(dangerfield),
+          listener_(buffer_), voxel_grid_received_(false), octomap_id_(-1), voxel_grid_id_(-2)
     {
         polytope_server_ = nh_.advertiseService("get_polytope_constraints", &ConstrainedManipulability::getPolytopeConstraintsCallback, this);
         jacobian_server_ = nh_.advertiseService("get_jacobian_matrix", &ConstrainedManipulability::getJacobianCallback, this);
@@ -22,6 +25,8 @@ namespace constrained_manipulability
         obj_dist_pub_ = nh_.advertise<constrained_manipulability::ObjectDistances>("constrained_manipulability/obj_distances", 1);
         poly_mesh_pub_ = nh_.advertise<constrained_manipulability::PolytopeMesh>("constrained_manipulability/polytope_mesh", 1);
         poly_vol_pub_ = nh_.advertise<constrained_manipulability::PolytopeVolume>("constrained_manipulability/polytope_volume", 1);
+
+        voxel_grid_sub_ = nh_.subscribe("voxel_grid", 1, &ConstrainedManipulability::gridCallback, this);
 
         octo_filter_ = new octomap_filter::OctomapFilter(nh_);
 
@@ -69,7 +74,6 @@ namespace constrained_manipulability
         std::vector<std::string> joint_names(ndof_);
         for (int i = 0; i < chain_.getNrOfSegments(); ++i)
         {
-
             KDL::Segment seg = chain_.getSegment(i);
             KDL::Joint kdl_joint = seg.getJoint();
             urdf::JointConstSharedPtr urdf_joint = model_.getJoint(kdl_joint.getName());
@@ -128,6 +132,19 @@ namespace constrained_manipulability
         {
             delete octo_filter_;
         }
+    }
+
+    void ConstrainedManipulability::gridCallback(const costmap_2d::VoxelGridConstPtr &grid)
+    {
+        if (grid->data.empty())
+        {
+            ROS_ERROR("Received empty voxel grid");
+            return;
+        }
+
+        boost::mutex::scoped_lock lock(collision_world_mutex_);
+        voxel_grid_ = *grid;
+        voxel_grid_received_ = true;
     }
 
     Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs::JointState &joint_states,
@@ -541,7 +558,7 @@ namespace constrained_manipulability
 
                 if (obj_distances[j] < 0.0)
                 {
-                    // ROS_WARN ( " In collision" );
+                    // ROS_WARN ( "In collision" );
                     return false;
                 }
                 else if (obj_distances[j] < distance_threshold_)
@@ -756,6 +773,12 @@ namespace constrained_manipulability
         return fclInterface.removeCollisionObject(object_id);
     }
 
+    bool ConstrainedManipulability::removeVoxelGridObject(unsigned int object_id)
+    {
+        boost::mutex::scoped_lock lock(collision_world_mutex_);
+        return fclInterface.removeVoxelGridObject(object_id);
+    }
+
     bool ConstrainedManipulability::displayObjects()
     {
         boost::mutex::scoped_lock lock(collision_world_mutex_);
@@ -886,6 +909,33 @@ namespace constrained_manipulability
             fclInterface.removeCollisionObject(octomap_id_);
             // Update with the new
             fclInterface.addCollisionObject(octomap, octomap_pose_wrt_base, octomap_id_);
+        }
+
+        // If voxel grid is available, then add to collision world
+        if (voxel_grid_received_)
+        {
+            // Get the voxel grid properties, including its pose in the robot base frame
+            geometry_msgs::TransformStamped voxel_g_wrt_base;
+            try
+            {
+                voxel_g_wrt_base = buffer_.lookupTransform(
+                    base_link_,
+                    voxel_grid_.header.frame_id,
+                    ros::Time(0));
+            }
+            catch (const tf2::TransformException &ex)
+            {
+                ROS_ERROR("Error during transform: %s", ex.what());
+            }
+
+            Eigen::Affine3d voxel_g_pose_wrt_base;
+            tf::transformMsgToEigen(voxel_g_wrt_base.transform, voxel_g_pose_wrt_base);
+
+            // Remove the old voxel grid from the world
+            fclInterface.removeVoxelGridObject(voxel_grid_id_);
+            // Update with the new
+            fclInterface.addCollisionObject(voxel_grid_, voxel_g_pose_wrt_base, voxel_grid_id_);
+            voxel_grid_received_ = false;
         }
 
         for (int i = 0; i < geometry_information.geometry_transforms.size(); i++)
