@@ -32,7 +32,7 @@ Demos can be launched for a robot, using the provided test file:
 ```
 roslaunch constrained_manipulability abstract_robot.launch root_link:=<your root link> root_link:=<your end effector>  config:=<your scene stored in .yaml>
 ```
-There are several example scenes in scene_config folder, which have been tested for the Universal Robot (requires ur-description) and Kinova Gen3 (requires kortex_description) arms. Please launch for reference:
+There are several example scenes in scene_config folder, which have been tested for the Universal Robot (requires [ur_description](https://wiki.ros.org/ur_description)) and Kinova Gen3 (requires [kortex_description](https://github.com/Kinovarobotics/ros_kortex/tree/noetic-devel/kortex_description)) arms. Please launch for reference:
 ```
  roslaunch constrained_manipulability abstract_ur3e.launch
  roslaunch constrained_manipulability abstract_gen3.launch

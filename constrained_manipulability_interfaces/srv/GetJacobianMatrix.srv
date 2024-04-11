@@ -1,0 +1,4 @@
+
+sensor_msgs/JointState joint_states  # Configuration at which to calculate jacobian 
+---
+constrained_manipulability_interfaces/Matrix jacobian

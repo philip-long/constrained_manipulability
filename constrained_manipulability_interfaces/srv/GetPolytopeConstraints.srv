@@ -3,10 +3,8 @@ int32 CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE=2
 int32 VELOCITY_POLYTOPE=3
 int32 CONSTRAINED_VELOCITY_POLYTOPE=4
 
-
 int32 polytope_type
-sensor_msgs/JointState[] sampled_joint_states # Configuration at which to calculate constraints at 
+sensor_msgs/JointState[] sampled_joint_states  # Configuration at which to calculate constraints 
 bool show_polytope
 ---
-constrained_manipulability/PolytopeHyperplanes[] polytope_hyperplanes
-
+constrained_manipulability_interfaces/PolytopeHyperplanes[] polytope_hyperplanes
