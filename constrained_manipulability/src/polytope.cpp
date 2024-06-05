@@ -1,7 +1,7 @@
 #include <eigen-cddlib/Polyhedron.h>
 
 #include <pcl/point_types.h>
-#include <pcl/surface/concave_hull.h>
+#include <pcl/surface/impl/convex_hull.hpp>
 
 #include <rclcpp/logger.hpp>
 #include <rclcpp/logging.hpp>
@@ -24,7 +24,7 @@ Polytope::Polytope() : name_("invalid_polytope"), volume_(0.0)
 {
 }
 
-Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& vertex_set) 
+Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& vertex_set, const Eigen::Vector3d& offset) 
     : name_(polytope_name), vertex_set_(vertex_set)
 {
     // Convert from V rep to H rep
@@ -41,6 +41,11 @@ Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& vert
         bHrep_ = hrep.second;
 
         volume_ = computeVolume();
+
+        if (!constructMesh(offset))
+        {
+            RCLCPP_ERROR(getLogger(), "Failed to construct mesh");
+        }
     }
     catch (...)
     {
@@ -48,7 +53,7 @@ Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& vert
     }
 }
 
-Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& A_left, const Eigen::VectorXd& b_left)
+Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& A_left, const Eigen::VectorXd& b_left, const Eigen::Vector3d& offset)
     : name_(polytope_name), AHrep_(A_left), bHrep_(b_left)
 {
     // Convert from H rep to V rep
@@ -58,12 +63,20 @@ Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& A_le
         poly.setHrep(A_left, b_left);
         auto vrep = poly.vrep();
         vertex_set_ = vrep.first;
-
+        
         volume_ = computeVolume();
-
+        
         if (vertex_set_.rows() <= 0)
         {
-            RCLCPP_INFO(getLogger(), "V representation has no rows");
+            // RCLCPP_INFO(getLogger(), "V representation has no rows");
+        }
+        else 
+        {   
+            // If V rep has rows try constructing mesh
+            if (!constructMesh(offset))
+            {
+                RCLCPP_ERROR(getLogger(), "Failed to construct mesh");
+            }
         }
     }
     catch (...)
@@ -95,7 +108,7 @@ double Polytope::computeVolume() const
     std::vector<pcl::Vertices> polygons;
     try
     {
-        chull.setComputeAreaVolume(true);
+        chull.setComputeAreaVolume(false);
         chull.setInputCloud(cloud_projected);
         chull.reconstruct(*cloud_hull, polygons);
     }
@@ -108,9 +121,7 @@ double Polytope::computeVolume() const
     return chull.getTotalVolume();
 }
 
-bool Polytope::getPolytopeMesh(const Eigen::Vector3d& offset,
-                               std::vector<geometry_msgs::msg::Point>& points,
-                               constrained_manipulability_interfaces::msg::PolytopeMesh& poly_mesh) const
+bool Polytope::constructMesh(const Eigen::Vector3d& offset)
 {
     if (name_ == "invalid_polytope")
     {
@@ -137,27 +148,25 @@ bool Polytope::getPolytopeMesh(const Eigen::Vector3d& offset,
     }
     catch (...)
     {
-        RCLCPP_ERROR(getLogger(), "plot: Qhull error");
+        // RCLCPP_ERROR(getLogger(), "plot: Qhull error");
         return false;
     }
 
     if (!(cloud_hull->points.empty()))
     {
-        points.clear();
+        points_.clear();
 
         unsigned int n_triangles = polygons.size();
         unsigned int n_vertices = cloud_hull->points.size();
 
         // Generating the polytope mesh
-        poly_mesh.name = name_;
-
         for (unsigned int i = 0; i < n_vertices; i++)
         {
             geometry_msgs::msg::Point pp;
             pp.x = cloud_hull->points[i].x;
             pp.y = cloud_hull->points[i].y;
             pp.z = cloud_hull->points[i].z;
-            poly_mesh.mesh.vertices.push_back(pp);
+            mesh_.vertices.push_back(pp);
         }
 
         for (unsigned int i = 0; i < n_triangles; i++)
@@ -166,7 +175,7 @@ bool Polytope::getPolytopeMesh(const Eigen::Vector3d& offset,
             tri.vertex_indices[0] = polygons[i].vertices[0];
             tri.vertex_indices[1] = polygons[i].vertices[1];
             tri.vertex_indices[2] = polygons[i].vertices[2];
-            poly_mesh.mesh.triangles.push_back(tri);
+            mesh_.triangles.push_back(tri);
         }
 
         // Also producing a vector of points for the visualization marker
@@ -184,20 +193,20 @@ bool Polytope::getPolytopeMesh(const Eigen::Vector3d& offset,
                 pp.x = cloud_hull->points[triangle.vertices[var]].x;
                 pp.y = cloud_hull->points[triangle.vertices[var]].y;
                 pp.z = cloud_hull->points[triangle.vertices[var]].z;
-                points.push_back(pp);
+                points_.push_back(pp);
             }
         }
     }
     else
     {
-        RCLCPP_WARN(getLogger(), "plot: Qhull empty");
+        // RCLCPP_WARN(getLogger(), "plot: Qhull empty");
         return false;
     }
 
     return true;
 }
 
-void Polytope::transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>& Jp)
+void Polytope::transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>& Jp, const Eigen::Vector3d& offset)
 {
     if (name_ == "invalid_polytope")
     {
@@ -218,8 +227,9 @@ void Polytope::transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>
     // Deep copy
     vertex_set_ = V;
 
-    // Changing state, so make sure to re-compute volume
+    // Changing state, so make sure to re-compute volume and mesh
     volume_ = computeVolume();
+    constructMesh(offset);
 }
 
 Polytope Polytope::slice(const std::string& name, SLICING_PLANE index, double plane_width) const
@@ -260,8 +270,8 @@ Polytope Polytope::slice(const std::string& name, SLICING_PLANE index, double pl
     }
 
     // Set dimension orgonal to plane to a small number
-    bHrep_other[(int)index] = plane_width;
-    bHrep_other[((int)index) + 3] = plane_width;
+    bHrep_other[static_cast<int> (index)] = plane_width;
+    bHrep_other[(static_cast<int> (index)) + 3] = plane_width;
 
     // Concacentate the polytope constraints to get the intersection
     return getPolytopeIntersection(name, AHrep_other, bHrep_other);

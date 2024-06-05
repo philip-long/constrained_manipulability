@@ -18,8 +18,8 @@ class LinearizationLimitPublisher(Node):
 
         # Tkinter GUI setup
         master = tkinter.Tk()
-        self.xslider = tkinter.Scale(master, from_=0.001, to=0.5, tickinterval=0.1,
-                             resolution=0.001, length=900, orient=tkinter.HORIZONTAL, command=self.slider_event)
+        self.xslider = tkinter.Scale(master, from_=0.001, to=0.5, tickinterval=0.1, resolution=0.001, 
+                                     length=900, orient=tkinter.HORIZONTAL, command=self.slider_event)
         self.xslider.pack()
         
         # Start GUI loop

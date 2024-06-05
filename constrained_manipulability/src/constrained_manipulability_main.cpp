@@ -7,8 +7,15 @@
 int main(int argc, char* argv[])
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<constrained_manipulability::ConstrainedManipulability>();
-  rclcpp::spin(node->get_node_base_interface());
+
+  const rclcpp::NodeOptions options;
+  auto node = std::make_shared<constrained_manipulability::ConstrainedManipulability>(options);
+
+  // Use a MultiThreadedExecutor to handle multiple callback groups
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
+  
   rclcpp::shutdown();
 
   return 0;

@@ -1,0 +1,7 @@
+
+shape_msgs/SolidPrimitive solid     # Collision object as solid primitive
+geometry_msgs/Pose pose             # Pose of mesh (should be in base_link frame)
+int32 object_id                     # Collision object ID
+bool remove                         # Whether to add or remove the object
+---
+bool result

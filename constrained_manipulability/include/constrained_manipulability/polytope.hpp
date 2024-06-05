@@ -7,9 +7,8 @@
 #include <Eigen/Eigen>
 
 #include <geometry_msgs/msg/point.hpp>
+#include <shape_msgs/msg/mesh.hpp>
 #include <shape_msgs/msg/mesh_triangle.hpp>
-
-#include "constrained_manipulability_interfaces/msg/polytope_mesh.hpp"
 
 namespace constrained_manipulability
 {
@@ -24,28 +23,17 @@ class Polytope
 {
     public:
         Polytope();
-        Polytope(const std::string& name, const Eigen::MatrixXd& vertex_set);
-        Polytope(const std::string& name, const Eigen::MatrixXd& A_left, const Eigen::VectorXd& b_left);
+        Polytope(const std::string& name, const Eigen::MatrixXd& vertex_set, const Eigen::Vector3d& offset);
+        Polytope(const std::string& name, const Eigen::MatrixXd& A_left, const Eigen::VectorXd& b_left, const Eigen::Vector3d& offset);
         ~Polytope() {}
 
         inline std::string getName() const { return name_; }
         inline double getVolume() const { return volume_; }
-
-        // Compute the volume of a polytope defined by its vertex set
-        double computeVolume() const;
-
-        /** Get a Polytope's defined set of vertices
-         *   The vertices are shifted to the offset position, e.g., the robot end effector
-         *   PCL is used to obtain the convex hull
-         *   A PolytopeMesh message is created from the convex hull and returned
-         *   The return value is a flag for whether the computation was successful or not
-         */
-        bool getPolytopeMesh(const Eigen::Vector3d& offset,
-                             std::vector<geometry_msgs::msg::Point>& points,
-                             constrained_manipulability_interfaces::msg::PolytopeMesh& poly_mesh) const;
-
-        /// Transform polytope to Cartesian space
-        void transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>& Jp);
+        inline shape_msgs::msg::Mesh getMesh() const { return mesh_; }
+        inline std::vector<geometry_msgs::msg::Point> getPoints() const { return points_; }
+        
+        // Transform polytope to Cartesian space (offset provided to recompute mesh)
+        void transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>& Jp, const Eigen::Vector3d& offset);
 
         // yz plane = 0
         // xz plane = 1
@@ -60,9 +48,22 @@ class Polytope
                                          const Eigen::VectorXd& bHrep_other) const;
 
     private:
+        // Compute the volume of a polytope defined by its vertex set
+        double computeVolume() const;
+
+        /** Construct the Polytope's corresponding mesh using its vertices
+         *  These vertices are shifted to the offset position, e.g., the robot end effector
+         *  PCL is used to obtain the convex hull
+         *  A shape_msgs::Mesh message is created from the convex hull
+         *  The return value is a flag for whether the computation was successful or not
+         */
+        bool constructMesh(const Eigen::Vector3d& offset);
+
         // Polytope properties
         std::string name_;
         double volume_;
+        shape_msgs::msg::Mesh mesh_;
+        std::vector<geometry_msgs::msg::Point> points_;
 
         Eigen::MatrixXd vertex_set_;
         Eigen::MatrixXd AHrep_;

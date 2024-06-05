@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,8 @@
 
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <shape_msgs/msg/solid_primitive.hpp>
+
+#include "constrained_manipulability_interfaces/msg/matrix.hpp"
 
 namespace constrained_manipulability
 {
@@ -47,12 +50,19 @@ inline void printVector(const std::vector<T>& p, const std::string& name = "p= "
 {
     static rclcpp::Logger logger = rclcpp::get_logger("printVector");
 
-    RCLCPP_INFO(logger, "%s[", name.c_str());
+    std::stringstream ss;
+    ss << name << "[";
     for (size_t i = 0; i < p.size(); ++i)
     {
-        RCLCPP_INFO(logger, "%f  ", p[i]);
+        ss << p[i];
+        if (i != p.size() - 1)
+        {
+            ss << ", ";
+        }
     }
-    RCLCPP_INFO(logger, "]");
+    ss << "]";
+
+    RCLCPP_INFO(logger, "%s", ss.str().c_str());
 }
 
 template <typename T>
@@ -60,12 +70,26 @@ inline void printVector(const std::vector<std::vector<T>>& p, const std::string&
 {
     static rclcpp::Logger logger = rclcpp::get_logger("printVector");
 
-    RCLCPP_INFO(logger, "%s[", name.c_str());
+    std::stringstream ss;
+    ss << name << "[";
     for (size_t i = 0; i < p.size(); ++i)
     {
-        printVector(p[i], "");
+        for (size_t j = 0; j < p[i].size(); ++j)
+        {
+            ss << p[i][j];
+            if (j != p[i].size() - 1)
+            {
+                ss << ", ";
+            }
+        }
+        if (i != p.size() - 1)
+        {
+            ss << ", ";
+        }
     }
-    RCLCPP_INFO(logger, "]");
+    ss << "]";
+
+    RCLCPP_INFO(logger, "%s", ss.str().c_str());
 }
 
 template <typename T>
@@ -120,20 +144,6 @@ inline void matrix2Vector(const std::vector<std::vector<T>>& M1, std::vector<T>&
 }
 
 template <typename T>
-inline void getParameter(const rclcpp::Node::SharedPtr& node, const std::string& param_name, T& val)
-{
-    if (node->has_parameter(param_name))
-    {
-        node->get_parameter(param_name, val);
-        RCLCPP_INFO(node->get_logger(), "Parameter %s exists with value %s", param_name.c_str(), std::to_string(val).c_str());
-    }
-    else
-    {
-        RCLCPP_ERROR(node->get_logger(), "Parameter %s does not exist", param_name.c_str());
-    }
-}
-
-template <typename T>
 inline void printEigenTransform(const Eigen::Transform<T, 3, Eigen::Affine>& lTcom)
 {
     static rclcpp::Logger logger = rclcpp::get_logger("printEigenTransform");
@@ -170,41 +180,42 @@ inline double vectorNorm(const std::vector<T>& a)
     return pow(sum, 0.5);
 }
 
-// TODO: Use ROS 2 parameter parsing
-// template <typename T>
-// inline void getVectorParam(const rclcpp::Node::SharedPtr& node, const std::string& parameter, std::vector<T>& qparam)
-// {
-//     XmlRpc::XmlRpcValue Axml;
-//     node->get_parameter(parameter, Axml);
+template <typename T>
+inline void getParameter(const rclcpp::Node::SharedPtr& node, const std::string& param_name, T& val)
+{
+    if (node->has_parameter(param_name))
+    {
+        node->get_parameter(param_name, val);
+        RCLCPP_INFO(node->get_logger(), "Parameter %s exists with value %s", param_name.c_str(), std::to_string(val).c_str());
+    }
+    else
+    {
+        RCLCPP_ERROR(node->get_logger(), "Parameter %s does not exist", param_name.c_str());
+    }
+}
 
-//     assert(Axml.getType() == Axml.TypeArray);
-//     int axml_size = Axml.size();
-//     qparam.resize(axml_size);
-//     for (int i = 0; i < axml_size; ++i)
-//     {
-//         qparam[i] = Axml[i];
-//     }
-// }
+template <typename T>
+inline std::vector<T> parseVector(const std::string& str) {
+    std::vector<T> result;
+    std::stringstream ss(str);
+    T value;
+    while (ss >> value) {
+        result.push_back(value);
+        if (ss.peek() == ',') {
+            ss.ignore();
+        }
+    }
+    return result;
+}
 
-// template <typename T>
-// inline void getVectorVectorParam(const rclcpp::Node::SharedPtr &node, const std::string& parameter, std::vector<std::vector<T>>& vector_of_vectors)
-// {
-//     XmlRpc::XmlRpcValue Axml;
-//     node->get_parameter(parameter, Axml);
-
-//     assert(Axml.getType() == Axml.TypeArray);
-//     int axml_size = Axml.size();
-//     vector_of_vectors.resize(axml_size);
-//     for (int i = 0; i < axml_size; ++i)
-//     {
-//         assert(Axml[i].getType() == Axml.TypeArray);
-//         vector_of_vectors[i].resize(Axml[i].size());
-//         for (int j = 0; j < Axml[i].size(); ++j)
-//         {
-//             vector_of_vectors[i][j] = Axml[i][j];
-//         }
-//     }
-// }
+template <typename T>
+inline std::vector<std::vector<T>> parseNestedVector(const std::vector<std::string>& strs) {
+    std::vector<std::vector<T>> result;
+    for (const auto &str : strs) {
+        result.push_back(parseVector<T>(str));
+    }
+    return result;
+}
 
 std::vector<double> eigenAffineToVectorPosAngleAxis(const Eigen::Affine3d& T);
 
@@ -229,4 +240,7 @@ inline Eigen::MatrixXd vectorToEigenMatrix(const Eigen::VectorXd& x, int n)
 {
     return Eigen::Map<const Eigen::MatrixXd>(x.data(), n, x.size() / n);
 }
+
+constrained_manipulability_interfaces::msg::Matrix eigenToMatrix(const Eigen::MatrixXd& A);
+
 } // namespace constrained_manipulability

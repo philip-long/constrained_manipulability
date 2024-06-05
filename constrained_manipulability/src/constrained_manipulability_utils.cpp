@@ -91,7 +91,6 @@ bool projectTranslationalJacobian(const Eigen::Vector3d& nT,
                                   const Eigen::Matrix<double, 6, Eigen::Dynamic>& J0N_in,
                                   Eigen::Matrix<double, 1, Eigen::Dynamic>& J0N_out)
 {
-
     int n = J0N_in.cols();
     assert(J0N_in.rows() > 3);
     J0N_out.setZero();
@@ -116,5 +115,23 @@ std::vector<double> eigenAffineToVectorPosQuatwxyz(const Eigen::Affine3d& T)
     Eigen::Quaterniond quat(T.linear());
     std::vector<double> p = {pos(0), pos(1), pos(2), quat.w(), quat.x(), quat.y(), quat.z()};
     return p;
+}
+
+constrained_manipulability_interfaces::msg::Matrix eigenToMatrix(const Eigen::MatrixXd& A)
+{
+    constrained_manipulability_interfaces::msg::Matrix mat;
+    mat.rows = A.rows();
+    mat.columns = A.cols();
+    mat.data.resize(A.size());
+
+    int ii = 0;
+    for (uint i = 0; i < A.rows(); ++i)
+    {
+        for (int j = 0; j < A.cols(); ++j)
+        {
+            mat.data[ii++] = A.coeff(i, j);
+        }
+    }
+    return mat;
 }
 } // namespace constrained_manipulability

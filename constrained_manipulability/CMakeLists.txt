@@ -104,6 +104,16 @@ ament_target_dependencies(constrained_manipulability_node
   ${dependencies}
 )
 
+add_executable(abstract_scene_example
+  examples/abstract_scene_example.cpp
+)
+target_link_libraries(abstract_scene_example
+  ${PROJECT_NAME}
+)
+ament_target_dependencies(abstract_scene_example
+  ${dependencies}
+)
+
 ### Install ###
 
 install(TARGETS ${PROJECT_NAME}
@@ -112,7 +122,7 @@ install(TARGETS ${PROJECT_NAME}
   RUNTIME DESTINATION bin
 )
 
-install(TARGETS constrained_manipulability_node
+install(TARGETS constrained_manipulability_node abstract_scene_example
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -120,7 +130,7 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
-# install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
 
 # install(PROGRAMS 
 #   scripts/cm_client.py
