@@ -52,6 +52,7 @@
 #include "constrained_manipulability_interfaces/srv/add_remove_collision_solid.hpp"
 #include "constrained_manipulability_interfaces/srv/get_jacobian_matrix.hpp"
 #include "constrained_manipulability_interfaces/srv/get_polytopes.hpp"
+#include "constrained_manipulability_interfaces/srv/get_sliced_polytope.hpp"
 
 namespace constrained_manipulability
 {
@@ -90,7 +91,9 @@ class ConstrainedManipulability : public rclcpp::Node
                                  std::shared_ptr<constrained_manipulability_interfaces::srv::GetJacobianMatrix::Response> res);
         void getPolytopesCallback(const std::shared_ptr<constrained_manipulability_interfaces::srv::GetPolytopes::Request> req,
                                   std::shared_ptr<constrained_manipulability_interfaces::srv::GetPolytopes::Response> res);
-        
+        void getSlicedPolytopeCallback(const std::shared_ptr<constrained_manipulability_interfaces::srv::GetSlicedPolytope::Request> req,
+                                       std::shared_ptr<constrained_manipulability_interfaces::srv::GetSlicedPolytope::Response> res);
+
         void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg);
         void octomapCallback(const octomap_msgs::msg::Octomap::SharedPtr msg);
         void linLimitCallback(const std_msgs::msg::Float32::SharedPtr msg);
@@ -125,7 +128,7 @@ class ConstrainedManipulability : public rclcpp::Node
 
         /** getAllowableMotionPolytope returns the polytope considering linearization
          *
-         *  joint_states -> a given joint state
+         *  joint_state -> a given joint state
          *  show_polytope -> plots the polytope in RViz
          *  color_pts -> polytope points color
          *  color_line -> polytope lines color
@@ -134,7 +137,7 @@ class ConstrainedManipulability : public rclcpp::Node
          *  Eigen::Vector3d offset_position the location in space of the Cartesian polytope
          *  returns the allowable motion polytope
          */
-        Polytope getAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_states,
+        Polytope getAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_state,
                                             bool show_polytope,
                                             Eigen::MatrixXd& AHrep,
                                             Eigen::VectorXd& bHrep,
@@ -142,7 +145,7 @@ class ConstrainedManipulability : public rclcpp::Node
                                             const std::vector<double>& color_pts = {0.0, 0.0, 0.5, 0.0},
                                             const std::vector<double>& color_line = {0.0, 0.0, 1.0, 0.4}) const;
         // Function overload if output parameters not required
-        Polytope getAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_states,
+        Polytope getAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_state,
                                             bool show_polytope,
                                             const std::vector<double>& color_pts = {0.0, 0.0, 0.5, 0.0},
                                             const std::vector<double>& color_line = {0.0, 0.0, 1.0, 0.4}) const;
@@ -151,7 +154,7 @@ class ConstrainedManipulability : public rclcpp::Node
          *  that approximates the constrained allowable end effector motion, 
          *  considering joint limits, obstacles, and linearization
          *
-         *  joint_states -> a given joint state
+         *  joint_state -> a given joint state
          *  show_polytope -> plots the polytope in RViz
          *  AHrep hyperplanes of the constrained allowable motion polytope
          *  bHrep shifted distance
@@ -160,7 +163,7 @@ class ConstrainedManipulability : public rclcpp::Node
          *  color_pts -> polytope points color
          *  color_line -> polytope lines color
          */
-        Polytope getConstrainedAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_states,
+        Polytope getConstrainedAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                        bool show_polytope, 
                                                        Eigen::MatrixXd& AHrep,
                                                        Eigen::VectorXd& bHrep,
@@ -168,14 +171,14 @@ class ConstrainedManipulability : public rclcpp::Node
                                                        const std::vector<double>& color_pts = {0.0, 0.0, 0.5, 0.0}, 
                                                        const std::vector<double>& color_line = {1.0, 0.0, 0.0, 0.4});
         // Function overload if output parameters not required
-        Polytope getConstrainedAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_states,
+        Polytope getConstrainedAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                        bool show_polytope, 
                                                        const std::vector<double>& color_pts = {0.0, 0.0, 0.5, 0.0}, 
                                                        const std::vector<double>& color_line = {1.0, 0.0, 0.0, 0.4});
 
         /** getVelocityPolytope returns the manipulability polytope considering joint velocity limits
          * 
-         *  joint_states -> a given joint state
+         *  joint_state -> a given joint state
          *  show_polytope -> plots the polytope in RViz
          *  AHrep hyperplanes of the velocity polytope
          *  bHrep shifted distance
@@ -184,7 +187,7 @@ class ConstrainedManipulability : public rclcpp::Node
          *  color_pts -> polytope points color
          *  color_line -> polytope lines color
         */
-        Polytope getVelocityPolytope(const sensor_msgs::msg::JointState& joint_states,
+        Polytope getVelocityPolytope(const sensor_msgs::msg::JointState& joint_state,
                                      bool show_polytope,
                                      Eigen::MatrixXd& AHrep,
                                      Eigen::VectorXd& bHrep,
@@ -192,7 +195,7 @@ class ConstrainedManipulability : public rclcpp::Node
                                      const std::vector<double>& color_pts = {0.0, 0.5, 0.0, 1.0},
                                      const std::vector<double>& color_line = {0.0, 1.0, 0.0, 0.8}) const;
         // Function overload if output parameters not required
-        Polytope getVelocityPolytope(const sensor_msgs::msg::JointState& joint_states,
+        Polytope getVelocityPolytope(const sensor_msgs::msg::JointState& joint_state,
                                      bool show_polytope,
                                      const std::vector<double>& color_pts = {0.0, 0.5, 0.0, 1.0},
                                      const std::vector<double>& color_line = {0.0, 1.0, 0.0, 0.8}) const;
@@ -201,7 +204,7 @@ class ConstrainedManipulability : public rclcpp::Node
          *  that approximates the constrained allowable end effector velocities, 
          *  considering joint velocity limits, obstacles, and dangerfield values
          *
-         *  joint_states -> a given joint state
+         *  joint_state -> a given joint state
          *  show_polytope -> plots the polytope in RViz
          *  AHrep hyperplanes of the velocity polytope
          *  bHrep shifted distance
@@ -210,7 +213,7 @@ class ConstrainedManipulability : public rclcpp::Node
          *  color_pts -> polytope points color
          *  color_line -> polytope lines color
          */
-        Polytope getConstrainedVelocityPolytope(const sensor_msgs::msg::JointState& joint_states,
+        Polytope getConstrainedVelocityPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                 bool show_polytope,
                                                 Eigen::MatrixXd& AHrep,
                                                 Eigen::VectorXd& bHrep,
@@ -218,7 +221,7 @@ class ConstrainedManipulability : public rclcpp::Node
                                                 const std::vector<double>& color_pts = {0.0, 0.5, 0.0, 1.0},
                                                 const std::vector<double>& color_line = {0.0, 1.0, 0.0, 0.8});
         // Function overload if output parameters not required
-        Polytope getConstrainedVelocityPolytope(const sensor_msgs::msg::JointState& joint_states,
+        Polytope getConstrainedVelocityPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                 bool show_polytope,
                                                 const std::vector<double>& color_pts = {0.0, 0.5, 0.0, 1.0},
                                                 const std::vector<double>& color_line = {0.0, 1.0, 0.0, 0.8});
@@ -232,7 +235,7 @@ class ConstrainedManipulability : public rclcpp::Node
                           const std::vector<double>& color_line = {1.0, 0.4, 0.4, 1.0}) const;
 
         // Check for collisions given a joint state
-        bool checkCollision(const sensor_msgs::msg::JointState& joint_states);
+        bool checkCollision(const sensor_msgs::msg::JointState& joint_state);
 
         // Display calculated collision model in RViz
         void displayCollisionModel(const GeometryInformation& geometry_information, const Eigen::Vector4d& color = {0.1, 0.5, 0.2, 0.5}) const;
@@ -240,6 +243,9 @@ class ConstrainedManipulability : public rclcpp::Node
         void convertCollisionModel(const GeometryInformation& geometry_information,
                                    std::vector<shapes::ShapeMsg>& current_shapes,
                                    std::vector<geometry_msgs::msg::Pose>& shapes_poses) const;
+
+        // Create robot collision geometry after receiving first robot geometry information instance
+        void createRobotCollisionModel(const GeometryInformation& geometry_information);
 
         // This function is taken from https://github.com/tu-darmstadt-ros-pkg with a tiny change to smart ptrs
         // https://github.com/tu-darmstadt-ros-pkg/robot_self_filter/blob/master/src/self_mask.cpp#L76
@@ -258,13 +264,13 @@ class ConstrainedManipulability : public rclcpp::Node
         void getCollisionModel(const KDL::JntArray& joint_positions, GeometryInformation& geometry_information) const;
 
         // Getter for Jacobian based on a given joint state
-        void getJacobian(const sensor_msgs::msg::JointState& joint_states, Eigen::Matrix<double, 6, Eigen::Dynamic>& Jac) const;
+        void getJacobian(const sensor_msgs::msg::JointState& joint_state, Eigen::Matrix<double, 6, Eigen::Dynamic>& Jac) const;
 
         // Getter for transform matrix based on a given joint state
-        void getTransform(const sensor_msgs::msg::JointState& joint_states, Eigen::Affine3d& T) const;
+        void getTransform(const sensor_msgs::msg::JointState& joint_state, Eigen::Affine3d& T) const;
     
         // Convenience function to get end-effector pose as a geometry_msgs::Pose
-        void getCartPos(const sensor_msgs::msg::JointState& joint_states, geometry_msgs::msg::Pose& geo_pose) const;
+        void getCartPos(const sensor_msgs::msg::JointState& joint_state, geometry_msgs::msg::Pose& geo_pose) const;
 
         // Set a new limit for all joints
         inline void setLinearizationLimit(double linearization_limit)
@@ -324,7 +330,7 @@ class ConstrainedManipulability : public rclcpp::Node
         boost::scoped_ptr<KDL::ChainJntToJacSolver> kdl_dfk_solver_;
         boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> kdl_fk_solver_;
 
-        sensor_msgs::msg::JointState joint_states_;
+        sensor_msgs::msg::JointState joint_state_;
         boost::mutex joint_state_mutex_;
 
         // Transforms to correctly filter objects from octomap (irrespective of frame differences)
@@ -335,7 +341,8 @@ class ConstrainedManipulability : public rclcpp::Node
         rclcpp::Service<constrained_manipulability_interfaces::srv::AddRemoveCollisionMesh>::SharedPtr mesh_coll_server_;
         rclcpp::Service<constrained_manipulability_interfaces::srv::AddRemoveCollisionSolid>::SharedPtr solid_coll_server_;
         rclcpp::Service<constrained_manipulability_interfaces::srv::GetJacobianMatrix>::SharedPtr jacobian_server_;
-        rclcpp::Service<constrained_manipulability_interfaces::srv::GetPolytopes>::SharedPtr polytope_server_;
+        rclcpp::Service<constrained_manipulability_interfaces::srv::GetPolytopes>::SharedPtr polytopes_server_;
+        rclcpp::Service<constrained_manipulability_interfaces::srv::GetSlicedPolytope>::SharedPtr sliced_polytope_server_;
 
         // ROS subscribers/publishers/timers
         rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_sub_;

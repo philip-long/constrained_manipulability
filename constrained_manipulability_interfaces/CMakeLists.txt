@@ -23,6 +23,7 @@ set(srv_files
   srv/AddRemoveCollisionSolid.srv
   srv/GetJacobianMatrix.srv
   srv/GetPolytopes.srv
+  srv/GetSlicedPolytope.srv
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

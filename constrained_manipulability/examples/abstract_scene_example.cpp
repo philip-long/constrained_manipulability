@@ -1,14 +1,14 @@
-#include <memory>
+#include <chrono>
 #include <vector>
 
 #include <tf2_eigen/tf2_eigen.hpp>
+
+#include <rclcpp/rclcpp.hpp>
 
 #include <shape_msgs/msg/solid_primitive.hpp>
 
 #include "constrained_manipulability/constrained_manipulability_utils.hpp"
 #include "constrained_manipulability_interfaces/srv/add_remove_collision_solid.hpp"
-
-#include "robot_collision_checking/fcl_interface.hpp"
 
 int main(int argc, char **argv)
 {

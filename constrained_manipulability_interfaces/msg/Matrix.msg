@@ -1,3 +1,3 @@
-uint32 rows             # number of matrix rows
-uint32 columns          # number of matrix columns
-float64[] data          # size is (rows * columns)
+uint32 rows             # Number of matrix rows
+uint32 columns          # Number of matrix columns
+float64[] data          # Size is (rows * columns)

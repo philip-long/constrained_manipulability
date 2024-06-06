@@ -30,7 +30,7 @@ def generate_launch_description():
     root_arg = DeclareLaunchArgument(
         'root',
         default_value='base_link',
-        description='Base/root frame of the robot'
+        description='Base frame of the robot'
     )
     tip_arg = DeclareLaunchArgument(
         'tip',

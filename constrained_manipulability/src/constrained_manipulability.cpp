@@ -169,8 +169,10 @@ ConstrainedManipulability::ConstrainedManipulability(const rclcpp::NodeOptions& 
         "add_remove_collision_solid",  std::bind(&ConstrainedManipulability::addRemoveSolidCallback, this, std::placeholders::_1, std::placeholders::_2));
     jacobian_server_ = this->create_service<constrained_manipulability_interfaces::srv::GetJacobianMatrix>(
         "get_jacobian_matrix",  std::bind(&ConstrainedManipulability::getJacobianCallback, this, std::placeholders::_1, std::placeholders::_2));
-    polytope_server_ = this->create_service<constrained_manipulability_interfaces::srv::GetPolytopes>(
-        "get_polytope_constraints",  std::bind(&ConstrainedManipulability::getPolytopesCallback, this, std::placeholders::_1, std::placeholders::_2));
+    polytopes_server_ = this->create_service<constrained_manipulability_interfaces::srv::GetPolytopes>(
+        "get_polytopes",  std::bind(&ConstrainedManipulability::getPolytopesCallback, this, std::placeholders::_1, std::placeholders::_2));
+    sliced_polytope_server_ = this->create_service<constrained_manipulability_interfaces::srv::GetSlicedPolytope>(
+        "get_sliced_polytope",  std::bind(&ConstrainedManipulability::getSlicedPolytopeCallback, this, std::placeholders::_1, std::placeholders::_2));
 
     rclcpp::SubscriptionOptions joint_sub_options;
     joint_sub_options.callback_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -255,8 +257,8 @@ void ConstrainedManipulability::getJacobianCallback(const std::shared_ptr<constr
                                                     std::shared_ptr<constrained_manipulability_interfaces::srv::GetJacobianMatrix::Response> res)
 {
     Eigen::Matrix<double, 6, Eigen::Dynamic> base_J_ee;
-    getJacobian(req->joint_states, base_J_ee);
-    res->jacobian = constrained_manipulability::eigenToMatrix(base_J_ee);
+    getJacobian(req->joint_state, base_J_ee);
+    res->jacobian = eigenToMatrix(base_J_ee);
 }
 
 void ConstrainedManipulability::getPolytopesCallback(const std::shared_ptr<constrained_manipulability_interfaces::srv::GetPolytopes::Request> req,
@@ -271,52 +273,125 @@ void ConstrainedManipulability::getPolytopesCallback(const std::shared_ptr<const
         Eigen::Vector3d offset_position;
         // Safe to assign, no pointer members
         Polytope poly;
-        bool valid_polytope = true;
-        if (req->polytope_type == req->ALLOWABLE_MOTION_POLYTOPE)
+        if (req->polytopes_type == req->ALLOWABLE_MOTION_POLYTOPE)
         {
-            poly = getAllowableMotionPolytope(req->joint_states[i], req->show_polytope, AHrep, bHrep, offset_position);
+            poly = getAllowableMotionPolytope(req->joint_states[i], req->show_polytopes, AHrep, bHrep, offset_position);
         }
-        else if (req->polytope_type == req->CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE)
+        else if (req->polytopes_type == req->CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE)
         {
-            poly = getConstrainedAllowableMotionPolytope(req->joint_states[i], req->show_polytope, AHrep, bHrep, offset_position);
+            poly = getConstrainedAllowableMotionPolytope(req->joint_states[i], req->show_polytopes, AHrep, bHrep, offset_position);
         }
-        else if (req->polytope_type == req->VELOCITY_POLYTOPE)
+        else if (req->polytopes_type == req->VELOCITY_POLYTOPE)
         {
-            poly = getVelocityPolytope(req->joint_states[i], req->show_polytope, AHrep, bHrep, offset_position);
+            poly = getVelocityPolytope(req->joint_states[i], req->show_polytopes, AHrep, bHrep, offset_position);
         }
-        else if (req->polytope_type == req->CONSTRAINED_VELOCITY_POLYTOPE)
+        else if (req->polytopes_type == req->CONSTRAINED_VELOCITY_POLYTOPE)
         {
-            poly = getConstrainedVelocityPolytope(req->joint_states[i], req->show_polytope, AHrep, bHrep, offset_position);
+            poly = getConstrainedVelocityPolytope(req->joint_states[i], req->show_polytopes, AHrep, bHrep, offset_position);
         }
         else
         {
             RCLCPP_ERROR(this->get_logger(), "Unknown Polytope type");
             poly = Polytope();
-            valid_polytope = false;
         }
 
         constrained_manipulability_interfaces::msg::Polytope poly_msg;
         poly_msg.stamp = req->joint_states[i].header.stamp;
         poly_msg.name = poly.getName();
         poly_msg.volume = poly.getVolume();
-        if (valid_polytope)
+        if (poly.isValid())
         {
             poly_msg.mesh = poly.getMesh();
-            poly_msg.hyperplanes = constrained_manipulability::eigenToMatrix(AHrep);
-            poly_msg.shifted_distance =  constrained_manipulability::eigenToVector(bHrep);
+            poly_msg.hyperplanes = eigenToMatrix(AHrep);
+            poly_msg.shifted_distance =  eigenToVector(bHrep);
         }
 
         res->polytopes[i] = poly_msg;
     }
 }
 
+void ConstrainedManipulability::getSlicedPolytopeCallback(const std::shared_ptr<constrained_manipulability_interfaces::srv::GetSlicedPolytope::Request> req,
+                                                          std::shared_ptr<constrained_manipulability_interfaces::srv::GetSlicedPolytope::Response> res)
+{
+    Eigen::MatrixXd AHrep;
+    Eigen::VectorXd bHrep;
+    Eigen::Vector3d offset_position;
+
+    // Safe to assign, no pointer members
+    Polytope poly;
+    if (req->polytope_type == req->ALLOWABLE_MOTION_POLYTOPE)
+    {
+        poly = getAllowableMotionPolytope(req->joint_state, false, AHrep, bHrep, offset_position);
+    }
+    else if (req->polytope_type == req->CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE)
+    {
+        poly = getConstrainedAllowableMotionPolytope(req->joint_state, false, AHrep, bHrep, offset_position);
+    }
+    else if (req->polytope_type == req->VELOCITY_POLYTOPE)
+    {
+        poly = getVelocityPolytope(req->joint_state, false, AHrep, bHrep, offset_position);
+    }
+    else if (req->polytope_type == req->CONSTRAINED_VELOCITY_POLYTOPE)
+    {
+        poly = getConstrainedVelocityPolytope(req->joint_state, false, AHrep, bHrep, offset_position);
+    }
+    else
+    {
+        RCLCPP_ERROR(this->get_logger(), "Unknown Polytope type");
+        poly = Polytope();
+    }
+
+    Polytope sliced_poly;
+    if (poly.isValid())
+    {
+        std::vector<double> color_pts;
+        std::vector<double> color_line;
+        if (req->slicing_plane == req->YZ_PLANE)
+        {
+            sliced_poly = poly.slice("yz_slice", SLICING_PLANE::YZ_PLANE, req->plane_width);
+            color_pts = {1.0, 0.0, 0.0, 1.0};
+            color_line = {1.0, 0.0, 0.0, 0.4};
+        }
+        else if (req->slicing_plane == req->XZ_PLANE)
+        {
+            sliced_poly = poly.slice("xz_slice", SLICING_PLANE::XZ_PLANE, req->plane_width);
+            color_pts = {1.0, 1.0, 0.0, 1.0};
+            color_line = {1.0, 1.0, 0.0, 0.4};
+        }
+        else
+        {
+            sliced_poly = poly.slice("xy_slice", SLICING_PLANE::XY_PLANE, req->plane_width);
+            color_pts = {0.0, 1.0, 0.0, 1.0};
+            color_line = {0.0, 1.0, 0.0, 0.4};
+        }
+
+        if (sliced_poly.isValid())
+        {
+            plotPolytope(sliced_poly.getName(), sliced_poly.getPoints(), color_pts, color_line);
+        }
+    }
+
+    constrained_manipulability_interfaces::msg::Polytope poly_msg;
+    poly_msg.stamp = req->joint_state.header.stamp;
+    poly_msg.name = sliced_poly.getName();
+    poly_msg.volume = sliced_poly.getVolume();
+    if (sliced_poly.isValid())
+    {
+        poly_msg.mesh = sliced_poly.getMesh();
+        poly_msg.hyperplanes = eigenToMatrix(AHrep);
+        poly_msg.shifted_distance =  eigenToVector(bHrep);
+    }
+
+    res->polytope = poly_msg;
+}
+
 void ConstrainedManipulability::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
     boost::mutex::scoped_lock lock(joint_state_mutex_);
-    joint_states_ = *msg;
+    joint_state_ = *msg;
 
     KDL::JntArray kdl_joint_positions(ndof_);
-    jointStatetoKDLJointArray(chain_, joint_states_, kdl_joint_positions);
+    jointStatetoKDLJointArray(chain_, joint_state_, kdl_joint_positions);
 
     GeometryInformation geometry_information;
     getCollisionModel(kdl_joint_positions, geometry_information);
@@ -324,41 +399,6 @@ void ConstrainedManipulability::jointStateCallback(const sensor_msgs::msg::Joint
     std::vector<shapes::ShapeMsg> current_shapes;
     std::vector<geometry_msgs::msg::Pose> shapes_poses;
     convertCollisionModel(geometry_information, current_shapes, shapes_poses);
-
-    // Populate collision geometry for robot on first receival of geometry info
-    if (robot_collision_geometry_.size() == 0)
-    {
-        int num_transforms = geometry_information.geometry_transforms.size();
-        for (int i = 0; i < num_transforms; i++)
-        {
-            Eigen::Affine3d obj_pose;
-            tf2::fromMsg(shapes_poses[i], obj_pose);
-            if (current_shapes[i].which() == 0)
-            {
-                robot_collision_checking::FCLObjectPtr obj = std::make_shared<robot_collision_checking::FCLObject>(
-                    boost::get<shape_msgs::msg::SolidPrimitive>(current_shapes[i]), obj_pose);
-
-                // Create the collision object
-                robot_collision_checking::FCLCollisionGeometryPtr cg = robot_collision_checking::fcl_interface::createCollisionGeometry(obj);
-                // Cache geometry of robot
-                robot_collision_geometry_.push_back(cg);
-            }
-            else if (current_shapes[i].which() == 1)
-            {
-                robot_collision_checking::FCLObjectPtr obj = std::make_shared<robot_collision_checking::FCLObject>(
-                    boost::get<shape_msgs::msg::Mesh>(current_shapes[i]), robot_collision_checking::MESH, obj_pose);
-
-                // Create the collision object
-                robot_collision_checking::FCLCollisionGeometryPtr cg = robot_collision_checking::fcl_interface::createCollisionGeometry(obj);
-                // Cache geometry of robot
-                robot_collision_geometry_.push_back(cg);
-            }
-            else
-            {
-                RCLCPP_ERROR(this->get_logger(), "Collision geometry not supported");
-            }
-        }
-    }
 
     int num_shapes = current_shapes.size();
     for (int i = 0; i < num_shapes; i++)
@@ -423,41 +463,35 @@ void ConstrainedManipulability::linLimitCallback(const std_msgs::msg::Float32::S
 void ConstrainedManipulability::checkCollisionCallback()
 {
     joint_state_mutex_.lock();
-    sensor_msgs::msg::JointState curr_joint_states = joint_states_;
+    sensor_msgs::msg::JointState curr_joint_state = joint_state_;
     joint_state_mutex_.unlock();
-    if (robot_collision_geometry_.size() != 0)
-    {
-        checkCollision(curr_joint_states);
-    }
+    checkCollision(curr_joint_state);
 }
 
 void ConstrainedManipulability::polytopePubCallback()
 {
     joint_state_mutex_.lock();
-    sensor_msgs::msg::JointState curr_joint_states = joint_states_;
+    sensor_msgs::msg::JointState curr_joint_state = joint_state_;
     joint_state_mutex_.unlock();
 
-    if (robot_collision_geometry_.size() != 0)
+    if (publish_mp_)
     {
-        if (publish_mp_)
-        {
-            Polytope allowable_poly = getAllowableMotionPolytope(curr_joint_states, show_mp_);
-        }
+        Polytope allowable_poly = getAllowableMotionPolytope(curr_joint_state, show_mp_);
+    }
 
-        if (publish_cmp_)
-        {
-            Polytope constrained_motion_poly = getConstrainedAllowableMotionPolytope(curr_joint_states, show_cmp_);
-        }
+    if (publish_cmp_)
+    {
+        Polytope constrained_motion_poly = getConstrainedAllowableMotionPolytope(curr_joint_state, show_cmp_);
+    }
 
-        if (publish_vp_)
-        {
-            Polytope velocity_poly = getVelocityPolytope(curr_joint_states, show_vp_);
-        }
+    if (publish_vp_)
+    {
+        Polytope velocity_poly = getVelocityPolytope(curr_joint_state, show_vp_);
+    }
 
-        if (publish_cvp_)
-        {
-            Polytope constrained_velocity_poly = getConstrainedVelocityPolytope(curr_joint_states, show_cvp_);
-        }
+    if (publish_cvp_)
+    {
+        Polytope constrained_velocity_poly = getConstrainedVelocityPolytope(curr_joint_state, show_cvp_);
     }
 }
 
@@ -636,7 +670,7 @@ bool ConstrainedManipulability::getPolytopeHyperPlanes(const KDL::JntArray& kdl_
     return true;
 }
 
-Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_states,
+Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                                bool show_polytope,
                                                                Eigen::MatrixXd& AHrep,
                                                                Eigen::VectorXd& bHrep,
@@ -648,7 +682,7 @@ Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs
     Eigen::Matrix<double, 6, Eigen::Dynamic> base_J_ee;
     KDL::JntArray kdl_joint_positions(ndof_);
 
-    jointStatetoKDLJointArray(chain_, joint_states, kdl_joint_positions);
+    jointStatetoKDLJointArray(chain_, joint_state, kdl_joint_positions);
     getKDLKinematicInformation(kdl_joint_positions, base_T_ee, base_J_ee);
 
     // Define Hyperplanes
@@ -671,19 +705,19 @@ Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs
     Polytope vrep_polytope("allowable_motion_polytope", AHrep, bHrep, offset_position);
 
     // Transform to Cartesian Space
-    vrep_polytope.transformCartesian(base_J_ee.topRows(3), offset_position);
+    vrep_polytope.transformCartesian(base_J_ee.topRows(3));
 
     // Publish polytope
     constrained_manipulability_interfaces::msg::Polytope poly_msg;
-    poly_msg.stamp = joint_states.header.stamp;
+    poly_msg.stamp = joint_state.header.stamp;
     poly_msg.name = vrep_polytope.getName();
     poly_msg.mesh = vrep_polytope.getMesh();
     poly_msg.volume = vrep_polytope.getVolume();
-    poly_msg.hyperplanes = constrained_manipulability::eigenToMatrix(AHrep);
-    poly_msg.shifted_distance =  constrained_manipulability::eigenToVector(bHrep);
+    poly_msg.hyperplanes = eigenToMatrix(AHrep);
+    poly_msg.shifted_distance =  eigenToVector(bHrep);
     poly_pub_->publish(poly_msg);
 
-    if (show_polytope)
+    if (show_polytope && vrep_polytope.isValid())
     {
         plotPolytope(poly_msg.name, vrep_polytope.getPoints(), color_pts, color_line);
     }
@@ -692,7 +726,7 @@ Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs
     return vrep_polytope;
 }
 
-Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_states,
+Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                                bool show_polytope,
                                                                const std::vector<double>& color_pts,
                                                                const std::vector<double>& color_line) const
@@ -701,7 +735,7 @@ Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs
     Eigen::VectorXd bhrep;
     Eigen::Vector3d offset_position;
 
-    Polytope poly = getAllowableMotionPolytope(joint_states,
+    Polytope poly = getAllowableMotionPolytope(joint_state,
                                                show_polytope,
                                                AHrep,
                                                bhrep,
@@ -711,7 +745,7 @@ Polytope ConstrainedManipulability::getAllowableMotionPolytope(const sensor_msgs
     return poly;
 }
 
-Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_states,
+Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                                           bool show_polytope,
                                                                           Eigen::MatrixXd& AHrep,
                                                                           Eigen::VectorXd& bHrep,
@@ -722,10 +756,17 @@ Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(const 
     GeometryInformation geometry_information;
     KDL::JntArray kdl_joint_positions(ndof_);
 
-    jointStatetoKDLJointArray(chain_, joint_states, kdl_joint_positions);
+    jointStatetoKDLJointArray(chain_, joint_state, kdl_joint_positions);
     getCollisionModel(kdl_joint_positions, geometry_information);
 
-    bool collision_free = getPolytopeHyperPlanes(kdl_joint_positions, geometry_information, joint_states.header.stamp, AHrep, bHrep);
+    // Build collision geometry for robot if not yet created
+    // Assume collision geometry for robot's meshes do not change
+    if (robot_collision_geometry_.size() == 0)
+    {
+        createRobotCollisionModel(geometry_information);
+    }
+    
+    bool collision_free = getPolytopeHyperPlanes(kdl_joint_positions, geometry_information, joint_state.header.stamp, AHrep, bHrep);
     if (!collision_free)
     {
         return Polytope();
@@ -737,19 +778,19 @@ Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(const 
     // Convert to V-representation polytope
     Polytope vrep_polytope("constrained_allowable_motion_polytope", AHrep, bHrep, offset_position);
     // Transform to Cartesian Space
-    vrep_polytope.transformCartesian(geometry_information.geometry_jacobians.back().topRows(3), offset_position);
+    vrep_polytope.transformCartesian(geometry_information.geometry_jacobians.back().topRows(3));
 
     // Publish polytope
     constrained_manipulability_interfaces::msg::Polytope poly_msg;
-    poly_msg.stamp = joint_states.header.stamp;
+    poly_msg.stamp = joint_state.header.stamp;
     poly_msg.name = vrep_polytope.getName();
     poly_msg.mesh = vrep_polytope.getMesh();
     poly_msg.volume = vrep_polytope.getVolume();
-    poly_msg.hyperplanes = constrained_manipulability::eigenToMatrix(AHrep);
-    poly_msg.shifted_distance =  constrained_manipulability::eigenToVector(bHrep);
+    poly_msg.hyperplanes = eigenToMatrix(AHrep);
+    poly_msg.shifted_distance =  eigenToVector(bHrep);
     poly_pub_->publish(poly_msg);
 
-    if (show_polytope)
+    if (show_polytope && vrep_polytope.isValid())
     {
         plotPolytope(poly_msg.name, vrep_polytope.getPoints(), color_pts, color_line);
     }
@@ -758,7 +799,7 @@ Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(const 
     return vrep_polytope;
 }
 
-Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_states,
+Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                                           bool show_polytope,
                                                                           const std::vector<double>& color_pts,
                                                                           const std::vector<double>& color_line)
@@ -767,7 +808,7 @@ Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(const 
     Eigen::VectorXd bhrep;
     Eigen::Vector3d offset_position;
 
-    Polytope poly = getConstrainedAllowableMotionPolytope(joint_states,
+    Polytope poly = getConstrainedAllowableMotionPolytope(joint_state,
                                                           show_polytope,
                                                           AHrep,
                                                           bhrep,
@@ -777,7 +818,7 @@ Polytope ConstrainedManipulability::getConstrainedAllowableMotionPolytope(const 
     return poly;
 }
 
-Polytope ConstrainedManipulability::getVelocityPolytope(const sensor_msgs::msg::JointState& joint_states,
+Polytope ConstrainedManipulability::getVelocityPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                         bool show_polytope,
                                                         Eigen::MatrixXd& AHrep,
                                                         Eigen::VectorXd& bHrep,
@@ -789,7 +830,7 @@ Polytope ConstrainedManipulability::getVelocityPolytope(const sensor_msgs::msg::
     Eigen::Matrix<double, 6, Eigen::Dynamic> base_J_ee;
     KDL::JntArray kdl_joint_positions(ndof_);
 
-    jointStatetoKDLJointArray(chain_, joint_states, kdl_joint_positions);
+    jointStatetoKDLJointArray(chain_, joint_state, kdl_joint_positions);
     getKDLKinematicInformation(kdl_joint_positions, base_T_ee, base_J_ee);
 
     // Define Hyperplanes
@@ -811,19 +852,19 @@ Polytope ConstrainedManipulability::getVelocityPolytope(const sensor_msgs::msg::
     // Convert to V-representation polytope
     Polytope vrep_polytope("velocity_polytope", AHrep, bHrep, offset_position);
     // Transform to Cartesian Space
-    vrep_polytope.transformCartesian(base_J_ee.topRows(3), offset_position);
+    vrep_polytope.transformCartesian(base_J_ee.topRows(3));
 
     // Publish polytope
     constrained_manipulability_interfaces::msg::Polytope poly_msg;
-    poly_msg.stamp = joint_states.header.stamp;
+    poly_msg.stamp = joint_state.header.stamp;
     poly_msg.name = vrep_polytope.getName();
     poly_msg.mesh = vrep_polytope.getMesh();
     poly_msg.volume = vrep_polytope.getVolume();
-    poly_msg.hyperplanes = constrained_manipulability::eigenToMatrix(AHrep);
-    poly_msg.shifted_distance =  constrained_manipulability::eigenToVector(bHrep);
+    poly_msg.hyperplanes = eigenToMatrix(AHrep);
+    poly_msg.shifted_distance =  eigenToVector(bHrep);
     poly_pub_->publish(poly_msg);
 
-    if (show_polytope)
+    if (show_polytope && vrep_polytope.isValid())
     {
         plotPolytope(poly_msg.name, vrep_polytope.getPoints(), color_pts, color_line);
     }
@@ -832,7 +873,7 @@ Polytope ConstrainedManipulability::getVelocityPolytope(const sensor_msgs::msg::
     return vrep_polytope;
 }
 
-Polytope ConstrainedManipulability::getVelocityPolytope(const sensor_msgs::msg::JointState& joint_states,
+Polytope ConstrainedManipulability::getVelocityPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                         bool show_polytope,
                                                         const std::vector<double>& color_pts,
                                                         const std::vector<double>& color_line) const
@@ -841,7 +882,7 @@ Polytope ConstrainedManipulability::getVelocityPolytope(const sensor_msgs::msg::
     Eigen::VectorXd bhrep;
     Eigen::Vector3d offset_position;
 
-    Polytope poly = getVelocityPolytope(joint_states,
+    Polytope poly = getVelocityPolytope(joint_state,
                                         show_polytope,
                                         AHrep,
                                         bhrep,
@@ -851,7 +892,7 @@ Polytope ConstrainedManipulability::getVelocityPolytope(const sensor_msgs::msg::
     return poly;
 }
 
-Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(const sensor_msgs::msg::JointState& joint_states,
+Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                                    bool show_polytope,
                                                                    Eigen::MatrixXd& AHrep,
                                                                    Eigen::VectorXd& bHrep,
@@ -862,11 +903,18 @@ Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(const sensor_
     GeometryInformation geometry_information;
     KDL::JntArray kdl_joint_positions(ndof_);
 
-    jointStatetoKDLJointArray(chain_, joint_states, kdl_joint_positions);
+    jointStatetoKDLJointArray(chain_, joint_state, kdl_joint_positions);
     getCollisionModel(kdl_joint_positions, geometry_information);
 
-    bool collision_free = getPolytopeHyperPlanes(kdl_joint_positions, geometry_information, joint_states.header.stamp, AHrep, bHrep, true);
+    // Build collision geometry for robot if not yet created
+    // Assume collision geometry for robot's meshes do not change
+    if (robot_collision_geometry_.size() == 0)
+    {
+        createRobotCollisionModel(geometry_information);
+    }
+    
 
+    bool collision_free = getPolytopeHyperPlanes(kdl_joint_positions, geometry_information, joint_state.header.stamp, AHrep, bHrep, true);
     if (!collision_free)
     {
         return Polytope();
@@ -878,19 +926,19 @@ Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(const sensor_
     // Convert to V-representation polytope
     Polytope vrep_polytope("constrained_velocity_polytope", AHrep, bHrep, offset_position);
     // Transform to Cartesian Space
-    vrep_polytope.transformCartesian(geometry_information.geometry_jacobians.back().topRows(3), offset_position);
+    vrep_polytope.transformCartesian(geometry_information.geometry_jacobians.back().topRows(3));
 
     // Publish polytope
     constrained_manipulability_interfaces::msg::Polytope poly_msg;
-    poly_msg.stamp = joint_states.header.stamp;
+    poly_msg.stamp = joint_state.header.stamp;
     poly_msg.name = vrep_polytope.getName();
     poly_msg.mesh = vrep_polytope.getMesh();
     poly_msg.volume = vrep_polytope.getVolume();
-    poly_msg.hyperplanes = constrained_manipulability::eigenToMatrix(AHrep);
-    poly_msg.shifted_distance =  constrained_manipulability::eigenToVector(bHrep);
+    poly_msg.hyperplanes = eigenToMatrix(AHrep);
+    poly_msg.shifted_distance =  eigenToVector(bHrep);
     poly_pub_->publish(poly_msg);
 
-    if (show_polytope)
+    if (show_polytope && vrep_polytope.isValid())
     {
         plotPolytope(poly_msg.name, vrep_polytope.getPoints(), color_pts, color_line);
     }
@@ -899,7 +947,7 @@ Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(const sensor_
     return vrep_polytope;
 }
 
-Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(const sensor_msgs::msg::JointState& joint_states,
+Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(const sensor_msgs::msg::JointState& joint_state,
                                                                    bool show_polytope,
                                                                    const std::vector<double>& color_pts,
                                                                    const std::vector<double>& color_line)
@@ -908,7 +956,7 @@ Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(const sensor_
     Eigen::VectorXd bhrep;
     Eigen::Vector3d offset_position;
 
-    Polytope poly = getConstrainedVelocityPolytope(joint_states,
+    Polytope poly = getConstrainedVelocityPolytope(joint_state,
                                                    show_polytope,
                                                    AHrep,
                                                    bhrep,
@@ -959,10 +1007,10 @@ void ConstrainedManipulability::plotPolytope(const std::string& poly_name, const
     mkr_pub_->publish(*marker_array_msg);
 }
 
-bool ConstrainedManipulability::checkCollision(const sensor_msgs::msg::JointState& joint_states)
+bool ConstrainedManipulability::checkCollision(const sensor_msgs::msg::JointState& joint_state)
 {
     KDL::JntArray kdl_joint_positions(ndof_);
-    jointStatetoKDLJointArray(chain_, joint_states, kdl_joint_positions);
+    jointStatetoKDLJointArray(chain_, joint_state, kdl_joint_positions);
 
     GeometryInformation geometry_information;
     getCollisionModel(kdl_joint_positions, geometry_information);
@@ -971,6 +1019,13 @@ bool ConstrainedManipulability::checkCollision(const sensor_msgs::msg::JointStat
     std::vector<geometry_msgs::msg::Pose> shapes_poses;
     convertCollisionModel(geometry_information, current_shapes, shapes_poses);
 
+    // Build collision geometry for robot if not yet created
+    // Assume collision geometry for robot's meshes do not change
+    if (robot_collision_geometry_.size() == 0)
+    {
+        createRobotCollisionModel(geometry_information);
+    }
+    
     boost::mutex::scoped_lock lock(collision_world_mutex_);
     int num_transforms = geometry_information.geometry_transforms.size();
     for (int i = 0; i < num_transforms; i++)
@@ -1164,6 +1219,44 @@ void ConstrainedManipulability::convertCollisionModel(const GeometryInformation&
     }
 }
 
+void ConstrainedManipulability::createRobotCollisionModel(const GeometryInformation& geometry_information)
+{
+    std::vector<shapes::ShapeMsg> current_shapes;
+    std::vector<geometry_msgs::msg::Pose> shapes_poses;
+    convertCollisionModel(geometry_information, current_shapes, shapes_poses);
+
+    int num_transforms = geometry_information.geometry_transforms.size();
+    for (int i = 0; i < num_transforms; i++)
+    {
+        Eigen::Affine3d obj_pose;
+        tf2::fromMsg(shapes_poses[i], obj_pose);
+        if (current_shapes[i].which() == 0)
+        {
+            robot_collision_checking::FCLObjectPtr obj = std::make_shared<robot_collision_checking::FCLObject>(
+                boost::get<shape_msgs::msg::SolidPrimitive>(current_shapes[i]), obj_pose);
+
+            // Create the collision object
+            robot_collision_checking::FCLCollisionGeometryPtr cg = robot_collision_checking::fcl_interface::createCollisionGeometry(obj);
+            // Cache geometry of robot
+            robot_collision_geometry_.push_back(cg);
+        }
+        else if (current_shapes[i].which() == 1)
+        {
+            robot_collision_checking::FCLObjectPtr obj = std::make_shared<robot_collision_checking::FCLObject>(
+                boost::get<shape_msgs::msg::Mesh>(current_shapes[i]), robot_collision_checking::MESH, obj_pose);
+
+            // Create the collision object
+            robot_collision_checking::FCLCollisionGeometryPtr cg = robot_collision_checking::fcl_interface::createCollisionGeometry(obj);
+            // Cache geometry of robot
+            robot_collision_geometry_.push_back(cg);
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Collision geometry not supported");
+        }
+    }
+}
+
 std::unique_ptr<shapes::Shape> ConstrainedManipulability::constructShape(const urdf::Geometry* geom) const
 {
     assert(geom != nullptr);
@@ -1276,26 +1369,26 @@ void ConstrainedManipulability::getCollisionModel(const KDL::JntArray& kdl_joint
     }
 }
 
-void ConstrainedManipulability::getJacobian(const sensor_msgs::msg::JointState& joint_states, Eigen::Matrix<double, 6, Eigen::Dynamic>& Jac) const
+void ConstrainedManipulability::getJacobian(const sensor_msgs::msg::JointState& joint_state, Eigen::Matrix<double, 6, Eigen::Dynamic>& Jac) const
 {
     KDL::JntArray kdl_joint_positions(ndof_);
     Eigen::Affine3d base_T_ee;
-    jointStatetoKDLJointArray(chain_, joint_states, kdl_joint_positions);
+    jointStatetoKDLJointArray(chain_, joint_state, kdl_joint_positions);
     getKDLKinematicInformation(kdl_joint_positions, base_T_ee, Jac);
 }
 
-void ConstrainedManipulability::getTransform(const sensor_msgs::msg::JointState& joint_states, Eigen::Affine3d& T) const
+void ConstrainedManipulability::getTransform(const sensor_msgs::msg::JointState& joint_state, Eigen::Affine3d& T) const
 {
     KDL::JntArray kdl_joint_positions(ndof_);
     Eigen::Matrix<double, 6, Eigen::Dynamic> Jac;
-    jointStatetoKDLJointArray(chain_, joint_states, kdl_joint_positions);
+    jointStatetoKDLJointArray(chain_, joint_state, kdl_joint_positions);
     getKDLKinematicInformation(kdl_joint_positions, T, Jac);
 }
 
-void ConstrainedManipulability::getCartPos(const sensor_msgs::msg::JointState& joint_states, geometry_msgs::msg::Pose& geo_pose) const
+void ConstrainedManipulability::getCartPos(const sensor_msgs::msg::JointState& joint_state, geometry_msgs::msg::Pose& geo_pose) const
 {
     KDL::JntArray kdl_joint_positions(ndof_);
-    jointStatetoKDLJointArray(chain_, joint_states, kdl_joint_positions);
+    jointStatetoKDLJointArray(chain_, joint_state, kdl_joint_positions);
 
     KDL::Frame cartpos;
     kdl_fk_solver_->JntToCart(kdl_joint_positions, cartpos);

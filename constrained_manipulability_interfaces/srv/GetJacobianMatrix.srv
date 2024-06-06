@@ -1,4 +1,3 @@
-
-sensor_msgs/JointState joint_states  # Configuration at which to calculate jacobian 
+sensor_msgs/JointState joint_state                      # Configuration at which to calculate Jacobian 
 ---
-constrained_manipulability_interfaces/Matrix jacobian
+constrained_manipulability_interfaces/Matrix jacobian   # Resulting Jacobian as a custom Matrix type

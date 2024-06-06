@@ -27,13 +27,14 @@ class Polytope
         Polytope(const std::string& name, const Eigen::MatrixXd& A_left, const Eigen::VectorXd& b_left, const Eigen::Vector3d& offset);
         ~Polytope() {}
 
+        inline bool isValid() const { return (name_ != "invalid_polytope"); }
         inline std::string getName() const { return name_; }
         inline double getVolume() const { return volume_; }
         inline shape_msgs::msg::Mesh getMesh() const { return mesh_; }
         inline std::vector<geometry_msgs::msg::Point> getPoints() const { return points_; }
         
         // Transform polytope to Cartesian space (offset provided to recompute mesh)
-        void transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>& Jp, const Eigen::Vector3d& offset);
+        void transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>& Jp);
 
         // yz plane = 0
         // xz plane = 1
@@ -57,7 +58,7 @@ class Polytope
          *  A shape_msgs::Mesh message is created from the convex hull
          *  The return value is a flag for whether the computation was successful or not
          */
-        bool constructMesh(const Eigen::Vector3d& offset);
+        bool constructMesh();
 
         // Polytope properties
         std::string name_;
@@ -68,5 +69,6 @@ class Polytope
         Eigen::MatrixXd vertex_set_;
         Eigen::MatrixXd AHrep_;
         Eigen::VectorXd bHrep_;
+        Eigen::VectorXd offset_position_;
 };
 } // namespace constrained_manipulability

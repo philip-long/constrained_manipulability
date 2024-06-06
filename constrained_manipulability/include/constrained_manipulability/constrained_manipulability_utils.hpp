@@ -30,7 +30,7 @@ bool screwTransform(const Eigen::Matrix<double, 6, Eigen::Dynamic>& J0N_in,
 
 // Convert a joint state message to a KDL joint array based on segment names
 void jointStatetoKDLJointArray(const KDL::Chain& chain, 
-                               const sensor_msgs::msg::JointState& joint_states, 
+                               const sensor_msgs::msg::JointState& joint_state, 
                                KDL::JntArray& kdl_joint_positions);
 
 // Project translational Jacobian matrix along a vector
@@ -217,13 +217,46 @@ inline std::vector<std::vector<T>> parseNestedVector(const std::vector<std::stri
     return result;
 }
 
-std::vector<double> eigenAffineToVectorPosAngleAxis(const Eigen::Affine3d& T);
+inline std::vector<double> eigenAffineToVectorPosAngleAxis(const Eigen::Affine3d& T)
+{
+    Eigen::VectorXd pos = T.translation();
+    Eigen::AngleAxisd angles_axis(T.linear());
+    double a = angles_axis.angle();
 
-std::vector<double> eigenAffineToVectorPosQuatwxyz(const Eigen::Affine3d& T);
+    Eigen::Vector3d axis = angles_axis.axis();
+    std::vector<double> p = {pos(0), pos(1), pos(2), a, axis(0), axis(1), axis(2)};
+    return p;
+}
+
+inline std::vector<double> eigenAffineToVectorPosQuatwxyz(const Eigen::Affine3d& T)
+{
+    Eigen::VectorXd pos = T.translation();
+    Eigen::Quaterniond quat(T.linear());
+    std::vector<double> p = {pos(0), pos(1), pos(2), quat.w(), quat.x(), quat.y(), quat.z()};
+    return p;
+}
 
 inline std::vector<double> eigenToVector(const Eigen::VectorXd& x)
 {
     return std::vector<double>(x.data(), x.data() + x.size());
+}
+
+inline constrained_manipulability_interfaces::msg::Matrix eigenToMatrix(const Eigen::MatrixXd& A)
+{
+    constrained_manipulability_interfaces::msg::Matrix mat;
+    mat.rows = A.rows();
+    mat.columns = A.cols();
+    mat.data.resize(A.size());
+
+    int ii = 0;
+    for (uint i = 0; i < A.rows(); ++i)
+    {
+        for (int j = 0; j < A.cols(); ++j)
+        {
+            mat.data[ii++] = A.coeff(i, j);
+        }
+    }
+    return mat;
 }
 
 inline Eigen::VectorXd vectorToEigen(const std::vector<double>& x)
@@ -240,7 +273,4 @@ inline Eigen::MatrixXd vectorToEigenMatrix(const Eigen::VectorXd& x, int n)
 {
     return Eigen::Map<const Eigen::MatrixXd>(x.data(), n, x.size() / n);
 }
-
-constrained_manipulability_interfaces::msg::Matrix eigenToMatrix(const Eigen::MatrixXd& A);
-
 } // namespace constrained_manipulability

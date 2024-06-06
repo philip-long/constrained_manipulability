@@ -114,6 +114,17 @@ ament_target_dependencies(abstract_scene_example
   ${dependencies}
 )
 
+add_executable(slicing_polytope_example
+  examples/slicing_polytope_example.cpp
+)
+target_link_libraries(slicing_polytope_example
+  ${PROJECT_NAME}
+)
+ament_target_dependencies(slicing_polytope_example
+  ${dependencies}
+)
+
+
 ### Install ###
 
 install(TARGETS ${PROJECT_NAME}
@@ -122,7 +133,7 @@ install(TARGETS ${PROJECT_NAME}
   RUNTIME DESTINATION bin
 )
 
-install(TARGETS constrained_manipulability_node abstract_scene_example
+install(TARGETS constrained_manipulability_node abstract_scene_example slicing_polytope_example
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -132,11 +143,11 @@ install(DIRECTORY include/
 
 install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
 
-# install(PROGRAMS 
-#   scripts/cm_client.py
-#   scripts/lin_limit_pub.py
-#   DESTINATION lib/${PROJECT_NAME}
-# )
+install(PROGRAMS 
+  scripts/cm_client.py
+  scripts/lin_limit_pub.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ### Ament stuff ###
 

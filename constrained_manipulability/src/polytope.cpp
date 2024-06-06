@@ -25,7 +25,7 @@ Polytope::Polytope() : name_("invalid_polytope"), volume_(0.0)
 }
 
 Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& vertex_set, const Eigen::Vector3d& offset) 
-    : name_(polytope_name), vertex_set_(vertex_set)
+    : name_(polytope_name), vertex_set_(vertex_set), offset_position_(offset)
 {
     // Convert from V rep to H rep
     Eigen::Polyhedron poly;
@@ -42,7 +42,7 @@ Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& vert
 
         volume_ = computeVolume();
 
-        if (!constructMesh(offset))
+        if (!constructMesh())
         {
             RCLCPP_ERROR(getLogger(), "Failed to construct mesh");
         }
@@ -54,7 +54,7 @@ Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& vert
 }
 
 Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& A_left, const Eigen::VectorXd& b_left, const Eigen::Vector3d& offset)
-    : name_(polytope_name), AHrep_(A_left), bHrep_(b_left)
+    : name_(polytope_name), AHrep_(A_left), bHrep_(b_left), offset_position_(offset)
 {
     // Convert from H rep to V rep
     Eigen::Polyhedron poly;
@@ -73,7 +73,7 @@ Polytope::Polytope(const std::string& polytope_name, const Eigen::MatrixXd& A_le
         else 
         {   
             // If V rep has rows try constructing mesh
-            if (!constructMesh(offset))
+            if (!constructMesh())
             {
                 RCLCPP_ERROR(getLogger(), "Failed to construct mesh");
             }
@@ -121,7 +121,7 @@ double Polytope::computeVolume() const
     return chull.getTotalVolume();
 }
 
-bool Polytope::constructMesh(const Eigen::Vector3d& offset)
+bool Polytope::constructMesh()
 {
     if (name_ == "invalid_polytope")
     {
@@ -133,9 +133,9 @@ bool Polytope::constructMesh(const Eigen::Vector3d& offset)
 
     for (int var = 0; var < vertex_set_.rows(); ++var)
     {
-        pcl::PointXYZ p(vertex_set_(var, 0) + offset(0),
-                        vertex_set_(var, 1) + offset(1),
-                        vertex_set_(var, 2) + offset(2));
+        pcl::PointXYZ p(vertex_set_(var, 0) + offset_position_(0),
+                        vertex_set_(var, 1) + offset_position_(1),
+                        vertex_set_(var, 2) + offset_position_(2));
         cloud_projected->points.push_back(p);
     }
 
@@ -148,7 +148,7 @@ bool Polytope::constructMesh(const Eigen::Vector3d& offset)
     }
     catch (...)
     {
-        // RCLCPP_ERROR(getLogger(), "plot: Qhull error");
+        // RCLCPP_WARN(getLogger(), "plot: Qhull error");
         return false;
     }
 
@@ -206,7 +206,7 @@ bool Polytope::constructMesh(const Eigen::Vector3d& offset)
     return true;
 }
 
-void Polytope::transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>& Jp, const Eigen::Vector3d& offset)
+void Polytope::transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>& Jp)
 {
     if (name_ == "invalid_polytope")
     {
@@ -229,7 +229,7 @@ void Polytope::transformCartesian(const Eigen::Matrix<double, 3, Eigen::Dynamic>
 
     // Changing state, so make sure to re-compute volume and mesh
     volume_ = computeVolume();
-    constructMesh(offset);
+    constructMesh();
 }
 
 Polytope Polytope::slice(const std::string& name, SLICING_PLANE index, double plane_width) const
@@ -273,7 +273,7 @@ Polytope Polytope::slice(const std::string& name, SLICING_PLANE index, double pl
     bHrep_other[static_cast<int> (index)] = plane_width;
     bHrep_other[(static_cast<int> (index)) + 3] = plane_width;
 
-    // Concacentate the polytope constraints to get the intersection
+    // Concatenate the polytope constraints to get the intersection
     return getPolytopeIntersection(name, AHrep_other, bHrep_other);
 }
 
@@ -297,6 +297,7 @@ Polytope Polytope::getPolytopeIntersection(const std::string& name,
     bHrep_out.head(bHrep_.rows()) = bHrep_;
     bHrep_out.tail(bHrep_other.rows()) = bHrep_other;
 
-    return Polytope(name, AHrep_out, bHrep_out);
+    // Use offset of source polytope in interaction
+    return Polytope(name, AHrep_out, bHrep_out, offset_position_);
 }
 } // namespace constrained_manipulability

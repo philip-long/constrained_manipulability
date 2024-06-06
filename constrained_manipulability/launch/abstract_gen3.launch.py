@@ -12,7 +12,7 @@ def generate_launch_description():
     abstract_robot_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
             get_package_share_directory('constrained_manipulability'), 'launch'),
-            '/abstract_scene_example.launch.py']),
+            '/abstract_robot.launch.py']),
         launch_arguments={
             'scene_config': 'example_scene_gen3',
             'root': 'base_link',
