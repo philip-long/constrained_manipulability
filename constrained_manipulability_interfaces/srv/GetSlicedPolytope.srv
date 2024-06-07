@@ -1,0 +1,15 @@
+int32 ALLOWABLE_MOTION_POLYTOPE=1
+int32 CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE=2
+int32 VELOCITY_POLYTOPE=3
+int32 CONSTRAINED_VELOCITY_POLYTOPE=4
+
+int32 YZ_PLANE=0
+int32 XZ_PLANE=1
+int32 XY_PLANE=2
+
+int32 polytope_type                   # Polytope type
+int32 slicing_plane                   # Which plane to slice from polytope
+sensor_msgs/JointState joint_state    # Configuration at which to calculate the sliced polytope 
+float64 plane_width 
+---
+constrained_manipulability_interfaces/Polytope polytope

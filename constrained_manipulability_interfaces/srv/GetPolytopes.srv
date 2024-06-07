@@ -1,0 +1,10 @@
+int32 ALLOWABLE_MOTION_POLYTOPE=1
+int32 CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE=2
+int32 VELOCITY_POLYTOPE=3
+int32 CONSTRAINED_VELOCITY_POLYTOPE=4
+
+int32 polytopes_type                    # The type of the polytopes at the joint states
+sensor_msgs/JointState[] joint_states   # Joint configurations at which to calculate polytope constraints
+bool show_polytopes                     # Whether to show the polytopes or not
+---
+constrained_manipulability_interfaces/Polytope[] polytopes
