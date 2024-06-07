@@ -1,3 +1,8 @@
+// Following three includes due to Qhull printing to console
+#include <iostream>
+#include <fstream>
+#include <cstdio>
+
 #include <eigen-cddlib/Polyhedron.h>
 
 #include <pcl/point_types.h>
@@ -7,6 +12,13 @@
 #include <rclcpp/logging.hpp>
 
 #include "constrained_manipulability/polytope.hpp"
+
+// Sink for Qhull prints
+#ifdef _WIN32
+#define DEV_NULL "nul"
+#else
+#define DEV_NULL "/dev/null"
+#endif
 
 namespace constrained_manipulability
 {
@@ -95,7 +107,7 @@ double Polytope::computeVolume() const
     PointCloudPtr cloud_hull(new PointCloud);
     PointCloudPtr cloud_projected(new PointCloud);
 
-    // Use PCL for the convex hull interface to qhull
+    // Use PCL for the convex hull interface to Qhull
     for (int var = 0; var < vertex_set_.rows(); ++var)
     {
         pcl::PointXYZ p(vertex_set_(var, 0),
@@ -106,17 +118,38 @@ double Polytope::computeVolume() const
 
     pcl::ConvexHull<pcl::PointXYZ> chull;
     std::vector<pcl::Vertices> polygons;
+    
+    // TODO: Report issue or find better fix
+    // IF suppressing out, but has potential risks in multi-threaded environment as stdout/stderr affect global state
+    // Redirect stdout and stderr to /dev/null or nul depending on platform
+    FILE* original_stdout = stdout;
+    FILE* original_stderr = stderr;
+    FILE* null_stream = fopen(DEV_NULL, "w");
+
+    stdout = null_stream;
+    stderr = null_stream;
+
     try
     {
-        chull.setComputeAreaVolume(false);
+        chull.setComputeAreaVolume(true);
         chull.setInputCloud(cloud_projected);
         chull.reconstruct(*cloud_hull, polygons);
     }
     catch (...)
     {
+        // Restore the original stdout and stderr in case of an exception
+        stdout = original_stdout;
+        stderr = original_stderr;
+        fclose(null_stream);
+
         RCLCPP_ERROR(getLogger(), "Qhull error");
         return 0.0;
     }
+
+    // Restore the original stdout and stderr
+    stdout = original_stdout;
+    stderr = original_stderr;
+    fclose(null_stream);
 
     return chull.getTotalVolume();
 }

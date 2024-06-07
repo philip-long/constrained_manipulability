@@ -1,162 +1,144 @@
 # Constrained Manipulability
+
 Constrained Manipulability is a library used to compute and vizualize a robot's constrained capacities. 
 
 ## Features
  - Compute a robot's constrained allowable Cartesian motions due to collision avoidance constraints and joint limits
  - Compute a robot's constrained manipulability polytope due to dangerfield constraints
- - Static functions that allow the above quantities to be used in optimization algorithms for collision free trajectory optimization
+ - A ROS 2 interface that allows the above quantities to be used in IK optimization algorithms for collision-free trajectory optimization
 
 ## Installation 
+
 ### Dependencies
-- [ROS](http://wiki.ros.org/catkin) 
-    - [eigen_conversions](http://wiki.ros.org/eigen_conversions) 
-    - [geometric_shapes](http://wiki.ros.org/geometric_shapes)
-    - [pcl_ros](http://wiki.ros.org/pcl_ros)
-    - [kdl_parser](https://wiki.ros.org/kdl_parser)
+
+- [ROS 2 Humble](https://docs.ros.org/en/humble/index.html) 
+    - [tf2_eigen](https://docs.ros2.org/foxy/api/tf2_eigen/) 
+    - [geometric_shapes](https://github.com/moveit/geometric_shapes/tree/ros2)
+    - [pcl_ros](https://github.com/ros-perception/perception_pcl)
+    - [kdl_parser](https://github.com/ros/kdl_parser/tree/ros2)
 - [Eigen 3](https://eigen.tuxfamily.org/dox/GettingStarted.html)
 - [robot_collision_checking](https://github.com/philip-long/robot_collision_checking)
 - [eigen-cddlib](https://github.com/philip-long/eigen-cddlib)
 - [octomap_filter](https://github.com/mazrk7/octomap_filter)
 
-### Install instructions
+### Install Instructions
+
 Clone repo into your current workspace as follows:
 ```
-cd catkin_ws/src
+cd polytope_ws/src
 git clone https://github.com/philip-long/constrained_manipulability.git
 cd ..
-catkin build
+colcon build --symlink-install
 ```
 
 ### Examples
-Demos can be launched for a robot, using the provided test file:
+
+An template robot launch can run using the `abstract_robot.launch.py` file:
 ```
-roslaunch constrained_manipulability abstract_robot.launch root_link:=<your root link> root_link:=<your end effector>  config:=<your scene stored in .yaml>
+ ros2 launch constrained_manipulability abstract_robot.launch.py root:=<your root link> tip:=<your end-effector link>  scene_config:=<your scene config stored in a .yaml file>
 ```
-There are several example scenes in scene_config folder, which have been tested for the Universal Robot (requires [ur_description](https://wiki.ros.org/ur_description)) and Kinova Gen3 (requires [kortex_description](https://github.com/Kinovarobotics/ros_kortex/tree/noetic-devel/kortex_description)) arms. Please launch for reference:
+However, a robot state description will need to be provided/launched separately. For instance, there are several other complete example robot launches and scenes in `config` folder. Please include in your workshape the necessary ROS 2 Universal Robot repositories (either [Universal_Robots_ROS2_Description](https://github.com/UniversalRobots/Universal_Robots_ROS2_Description) for just the state description or [Universal_Robots_ROS2_Driver](https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver) for the real robot) and/or Kinova Gen3 repository (requires [ros2_kortex](https://github.com/Kinovarobotics/ros2_kortex)) if testing with either/both. The launch file for the UR3e can be run as:
 ```
- roslaunch constrained_manipulability abstract_ur3e.launch
- roslaunch constrained_manipulability abstract_gen3.launch
+ros2 launch constrained_manipulability abstract_ur3e.launch.py
+```
+And for the Kinova Gen3 as:
+```
+ros2 launch constrained_manipulability abstract_gen3.launch.py
 ```
 
-## Launching Shrinking (changing linearization limit) Polytope Test
+Please note in the default RViz config file that appears, you should add the `/visualization_marker` topic to see the scene and polytopes.
+
+## Shrinking Polytopes
+
+You can explore an example of shrinking polytopes (changing the linearization limits) by running this launch file:
 ```
- roslaunch constrained_manipulability shrinking_polytope_test.launch
- rosrun constrained_manipulability lin_limit_pub.py 
+ros2 launch constrained_manipulability shrinking_polytope.launch.py
 ```
 
-## Launching IK Teleoperation Test
-First launch the polytope server:
+Modify the limits using the sliding bar that appears and again add the `/visualization_marker` topic to your RViz display.
+
+## IK Teleoperation
+
+The following example illustrates how to perform IK teleoperation based on the polytope constraints computed in the `constrained_manipulability` package. Please first run the server with a UR3e configuration (as well as an octomap scene):
 ```
-roslaunch constrained_manipulability cm_server_test.launch
+ros2 constrained_manipulability cm_server_example.launch.py
 ```
-Then launch the sample IK file. This calls the polytope server then uses the convex constraints in an optimization routine use sim parameter for visualization only or else pass the robot's joint states:
+Then run the IK client node, which uses the convex constraints in an optimization routine:
 ```
-rosrun constrained_manipulability cm_client.py _joint_state:=robot_joint_state
+ros2 run constrained_manipulability cm_client.py
 ```
+If using a real robot's joint states (default topic: `/in_joint_states`), or use the `sim` parameter if for visualization only:
 ```
-rosrun constrained_manipulability cm_client.py _sim:=true
+ros2 run constrained_manipulability cm_client.py --ros-args -p sim:=true
 ```
 
 We use [cvxpy](https://www.cvxpy.org/) (pip install cvxpy) as the solver cost function:
 ```
-cost=cp.sum_squares(jacobian@dq - dx)
+cost = cp.sum_squares(jacobian@dq - dx)
 ```
 subject to 
 ```
-A@dq<= b
+A@dq <= b
 ```
-where dx is a desired change in position for instance and input twist. the input twist can be generated by a teleop command
+where "dx" is a desired change in position and input `geometry_msgs/Twist`. The input Twist can be generated by a teleop command (recommended setting for speed is ~0.03 and turn ~0.014):
 ```
-rosrun teleop_twist_keyboard teleop_twist_keyboard.py _speed:=0.03 _turn:=0.014
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
 
 ## Computation:
-The polytopes are calculated by obtaining the minimum distance from each link on the robot to objects in the collision world. FCL is used to compute these distance and access via the interface package [robot_collision_checking]((https://github.com/philip-long/ros_collision_checking)). The volume of the polytopes in _Cartesian_ space is return from the get functions as follows:
+
+The `ConstrainedManipulability` node reads a kinematic chain from ROS 2 parameters, starting at the root of the robot and running until its tip or end-effector. The joint position and velocity limits are also read and are used to define the different polytopes. A collision world is also maintained, with a variety of objects that can be added/removed using [shape_msgs](https://docs.ros2.org/foxy/api/shape_msgs/index-msg.html) and `Eigen::Affine3d`.
+
+The polytopes are calculated by obtaining the minimum distance from each link on the robot to objects in the collision world. FCL is used to compute these distances and is accessible via the interface package [robot_collision_checking](https://github.com/philip-long/ros_collision_checking). Polytopes in _Cartesian_ space can be returned from getter functions, like:
 
 ```
-    double getConstrainedAllowableMotionPolytope ( const sensor_msgs::JointState & joint_states,
-            Eigen::MatrixXd & AHrep,
-            Eigen::VectorXd & bhrep,
-            bool show_polytope,
-            std::vector<double>  color_pts= {0.0,0.0,0.5,1.0},
-            std::vector<double>  color_line= {0.0,0.0,1.0,0.8} );
+Polytope getConstrainedAllowableMotionPolytope(const sensor_msgs::msg::JointState& joint_state,
+                                               bool show_polytope, 
+                                               Eigen::MatrixXd& AHrep,
+                                               Eigen::VectorXd& bHrep,
+                                               Eigen::Vector3d& offset_position,
+                                               const std::vector<double>& color_pts = {0.0, 0.0, 0.5, 0.0}, 
+                                               const std::vector<double>& color_line = {1.0, 0.0, 0.0, 0.4});
 ```
-AHrep and bhrep represent the joint space polytope constraints i.e.
+"AHrep" and "bHrep" represent the joint space polytope constraints, i.e.:
 ```
-AHrep*dq <= bhrep
+AHrep*dq <= bHrep
 ```
-conversion from H-representation to V-representation is achieved using the Double Description method accessed via [eigen-cddlib]((https://github.com/philip-long/eigen-cddlib)). Static functions are also available for all the different polytopes where, both the urdf model, the KDL chain and the object set must be explicity passed:
-```
-    static double getConstrainedAllowableMotionPolytope ( KDL::Chain &  chain,
-            urdf::Model & model,
-            FCLObjectSet objects,
-            const sensor_msgs::JointState & joint_states,
-            Eigen::MatrixXd & AHrep,
-            Eigen::VectorXd & bhrep,
-            double linearization_limit=0.1,
-            double distance_threshold=0.3 );
-```
+Conversion from H-representation to V-representation is achieved using the Double Description method via [eigen-cddlib](https://github.com/philip-long/eigen-cddlib).
 
-Different Polytopes are available more information about allowable motion polytope is available here __Optimization-Based Human-in-the-Loop Manipulation  Using Joint Space Polytopes, Long et al 2019__ more information about the constrained velocity polytope is available here __Evaluating Robot Manipulability in Constrained Environments by Velocity Polytope Reduction Long et al 2018.__ 
-
-
-## Usage:
-The main object is initialized as follows:
-```
-    ConstrainedManipulability ( ros::NodeHandle nh,
-                                std::string root,
-                                std::string tip,
-				std::string robot_description="robot_description",
-                                double distance_threshold=0.3,
-                                double linearization_limit=0.1,
-                                double dangerfield=10
-                              );
-```
-
-It reads a kinematic chain from the parameter server starting a the root and running until the tip. The joint position and velocity limits are also read and are used to define the different polytopes. The collision model of the report is also pared. A collision world is maintained, objects can be added using ros_shape_msgs and Eigen::Affine3d
-
-```
-bool addCollisionObject ( const shape_msgs::SolidPrimitive & s1,
-                              const  Eigen::Affine3d  & wT1,unsigned int object_id );
-bool addCollisionObject ( const shape_msgs::Mesh & s1,
-                              const  Eigen::Affine3d  & wT1,unsigned int object_id );
-```
-Objects are removed by id.
-```
-bool removeCollisionObject (unsigned int object_id );
-```
+Different polytopes can be computed. More information about the allowable motion polytope is available here: __Optimization-Based Human-in-the-Loop Manipulation Using Joint Space Polytopes, Long et al 2019__. And more information about the constrained velocity polytope is available here: __Evaluating Robot Manipulability in Constrained Environments by Velocity Polytope Reduction Long et al 2018__. 
 
 #### Octomaps
 
-Octomaps can now be used to as objects, but require the [octomap_filter](https://github.com/mazrk7/octomap_filter) to remove the robot body from the OcTree representation.
+Octomaps can also be used to as objects, but require the [octomap_filter](https://github.com/mazrk7/octomap_filter) to remove the robot body from the OcTree representation.
 
 ![Octomaps as collision object](doc/cmp-octomap.png)
 
-
 ## Applications:
-A video showing the applications of the constrained allowable motion polytope is available [here](https://youtu.be/oeqj-m25t9c). A video showing the uses of the constrained velocity polytope for humanoid robots can be seen [here](https://www.youtube.com/watch?v=1Nouc4f_rIY) and [here](https://www.youtube.com/watch?v=FzlhsLH5IPU).
 
+A video showing the applications of the constrained allowable motion polytope is available [here](https://youtu.be/oeqj-m25t9c). A video showing the utility of the constrained velocity polytope for humanoid robots can be found [here](https://www.youtube.com/watch?v=1Nouc4f_rIY) and [here](https://www.youtube.com/watch?v=FzlhsLH5IPU).
 
 #### 1. Motion planning
-Planning collision free paths can be achieved by maximizing the volume of the allowable motion polytope, however since no analytical gradient is available this is typically slower than other motion planning algorithms. Nevertheless, since the polytopes are returned they can be used for fast on-line inverse kinematic solutions and guard teleoperation. 
+
+Planning collision free paths can be achieved by maximizing the volume of the allowable motion polytope, however since no analytical gradient is available this is typically slower than other motion planning algorithms. Nevertheless, since the polytopes are returned they can be used for fast on-line IK solutions and guarded teleoperation. 
 
 ![Planning collision free path by maximizing volume](doc/trajplanning.png)
 
 #### 2. Guarded teleoperation
-The polytopes are convex constraints that represent feasible configuration for the whole robot. By respecting them a guaranteed feasible inverse kinematic solution can be obtained very quickly, this can be useful for generating virtual fixtures for teleoperation tasks. The polytope can be vizualized (in red below) showing an operator the Cartesian motions available at all times due to joint limits, kinematic constraints and obstacles in the workspace. The original polytope is shown below in blue/
+
+The polytopes are convex constraints that represent feasible configuration for the whole robot. By respecting these constraints, a guaranteed feasible IK solution can be obtained very quickly, which can be useful for generating virtual fixtures in teleoperation tasks. The polytope vizualized in red below shows an operator the Cartesian motions available at all times due to joint limits, kinematic constraints, and obstacles in the workspace. The original polytope is shown below in blue.
 
 ![Comparison of UR's allowable motions with and without constraints](doc/ur.png)
 
 #### 3. Workspace Analysis
-By evaluating the volume of the CMP at points in the workspace, a reachability map can be obtained see this [video](https://youtu.be/jc7X4WakdoE)
 
+By evaluating the volume of the constrained manipulability polytope at points in the workspace, a reachability map can be obtained as in this [video](https://youtu.be/jc7X4WakdoE).
 
 ![Planar 2DOF workspace analysis](doc/wksp2.png) ![Humanoid workspace analysis](doc/wrkspval.png)
 
-## Citing
+## References
 
 If you use this package, please cite either:
-
 ```
 @inproceedings{Long2019Optimization,
   title={Optimization-Based Human-in-the-Loop Manipulation  Using Joint Space Polytopes},
@@ -166,9 +148,7 @@ If you use this package, please cite either:
   organization={IEEE}
 }
 ```
-
 or 
-
 ```
 @INPROCEEDINGS{Long2018Evaluating,
   author={P. {Long} and T. {Padir}},
@@ -182,9 +162,7 @@ or
   ISSN={2164-0580},
   month={Nov},}
 ```
-
-And for the teleoperation use-case, especially alongside AR/VR, then please also cite:
-
+and for the teleoperation use-case, especially alongside AR/VR, then please also cite:
 ```
 @ARTICLE{Zolotas2021Motion,
   AUTHOR={Zolotas, Mark and Wonsick, Murphy and Long, Philip and Padır, Taşkın},   

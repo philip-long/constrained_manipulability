@@ -319,6 +319,9 @@ class ConstrainedManipulability : public rclcpp::Node
         bool show_vp_;
         bool show_cvp_;
 
+        // Whether to filter the robot's body from being considered in the octomap collision model or not
+        bool filter_robot_;
+
         // Collision checking
         std::shared_ptr<robot_collision_checking::FCLInterfaceCollisionWorld> collision_world_;
         boost::mutex collision_world_mutex_;

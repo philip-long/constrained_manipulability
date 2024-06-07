@@ -38,6 +38,12 @@ ConstrainedManipulability::ConstrainedManipulability(const rclcpp::NodeOptions& 
     show_vp_ = this->declare_parameter<bool>("show_vp", false);
     show_cvp_ = this->declare_parameter<bool>("show_cvp", false);
 
+    filter_robot_ = this->declare_parameter<bool>("filter_robot", false);
+
+    // TF properties
+    buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+    listener_ = std::make_shared<tf2_ros::TransformListener>(*buffer_);
+
     // Can set robot_description name from parameters
     std::string robot_description_name = "robot_description";
     this->get_parameter_or("robot_description_name", robot_description_name, robot_description_name);
@@ -217,6 +223,7 @@ void ConstrainedManipulability::addRemoveMeshCallback(const std::shared_ptr<cons
 {
     res->result = false;
 
+    boost::mutex::scoped_lock lock(collision_world_mutex_);
     if (req->remove)
     {
         removeCollisionObject(req->object_id);
@@ -239,6 +246,7 @@ void ConstrainedManipulability::addRemoveSolidCallback(const std::shared_ptr<con
 {
     res->result = false;
 
+    boost::mutex::scoped_lock lock(collision_world_mutex_);
     if (req->remove)
     {
         removeCollisionObject(req->object_id);
@@ -387,11 +395,11 @@ void ConstrainedManipulability::getSlicedPolytopeCallback(const std::shared_ptr<
 
 void ConstrainedManipulability::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
-    boost::mutex::scoped_lock lock(joint_state_mutex_);
+    joint_state_mutex_.lock();
     joint_state_ = *msg;
-
     KDL::JntArray kdl_joint_positions(ndof_);
     jointStatetoKDLJointArray(chain_, joint_state_, kdl_joint_positions);
+    joint_state_mutex_.unlock();
 
     GeometryInformation geometry_information;
     getCollisionModel(kdl_joint_positions, geometry_information);
@@ -400,27 +408,30 @@ void ConstrainedManipulability::jointStateCallback(const sensor_msgs::msg::Joint
     std::vector<geometry_msgs::msg::Pose> shapes_poses;
     convertCollisionModel(geometry_information, current_shapes, shapes_poses);
 
-    int num_shapes = current_shapes.size();
-    for (int i = 0; i < num_shapes; i++)
+    if (filter_robot_)
     {
-        geometry_msgs::msg::PoseStamped shape_stamped;
-        shape_stamped.header.stamp = msg->header.stamp;
-        shape_stamped.header.frame_id = base_link_;
-        shape_stamped.pose = shapes_poses[i];
-        // Filter robot from octomap
-        if (current_shapes[i].which() == 0)
+        int num_shapes = current_shapes.size();
+        for (int i = 0; i < num_shapes; i++)
         {
-            octomap_filter_interfaces::msg::FilterPrimitive filter_primitive;
-            filter_primitive.primitive = boost::get<shape_msgs::msg::SolidPrimitive>(current_shapes[i]);
-            filter_primitive.pose = shape_stamped;
-            filt_prim_pub_->publish(filter_primitive);
-        }
-        else if (current_shapes[i].which() == 1)
-        {
-            octomap_filter_interfaces::msg::FilterMesh filter_mesh;
-            filter_mesh.mesh = boost::get<shape_msgs::msg::Mesh>(current_shapes[i]);
-            filter_mesh.pose = shape_stamped;
-            filt_mesh_pub_->publish(filter_mesh);
+            geometry_msgs::msg::PoseStamped shape_stamped;
+            shape_stamped.header.stamp = msg->header.stamp;
+            shape_stamped.header.frame_id = base_link_;
+            shape_stamped.pose = shapes_poses[i];
+            // Filter robot from octomap
+            if (current_shapes[i].which() == 0)
+            {
+                octomap_filter_interfaces::msg::FilterPrimitive filter_primitive;
+                filter_primitive.primitive = boost::get<shape_msgs::msg::SolidPrimitive>(current_shapes[i]);
+                filter_primitive.pose = shape_stamped;
+                filt_prim_pub_->publish(filter_primitive);
+            }
+            else if (current_shapes[i].which() == 1)
+            {
+                octomap_filter_interfaces::msg::FilterMesh filter_mesh;
+                filter_mesh.mesh = boost::get<shape_msgs::msg::Mesh>(current_shapes[i]);
+                filter_mesh.pose = shape_stamped;
+                filt_mesh_pub_->publish(filter_mesh);
+            }
         }
     }
 
@@ -446,6 +457,7 @@ void ConstrainedManipulability::octomapCallback(const octomap_msgs::msg::Octomap
 
     Eigen::Affine3d octomap_pose_wrt_base = tf2::transformToEigen(octomap_wrt_base.transform);
 
+    boost::mutex::scoped_lock lock(collision_world_mutex_);
     // Remove the old octomap from the world
     collision_world_->removeCollisionObject(OCTOMAP_ID);
     // Update with the new octomap
@@ -465,6 +477,7 @@ void ConstrainedManipulability::checkCollisionCallback()
     joint_state_mutex_.lock();
     sensor_msgs::msg::JointState curr_joint_state = joint_state_;
     joint_state_mutex_.unlock();
+    
     checkCollision(curr_joint_state);
 }
 
@@ -499,13 +512,11 @@ void ConstrainedManipulability::polytopePubCallback()
 
 bool ConstrainedManipulability::addCollisionObject(const robot_collision_checking::FCLObjectPtr& obj, int object_id)
 {
-    boost::mutex::scoped_lock lock(collision_world_mutex_);
     return collision_world_->addCollisionObject(obj, object_id);
 }
 
 bool ConstrainedManipulability::removeCollisionObject(int object_id)
 {
-    boost::mutex::scoped_lock lock(collision_world_mutex_);
     return collision_world_->removeCollisionObject(object_id);
 }
 
@@ -913,7 +924,6 @@ Polytope ConstrainedManipulability::getConstrainedVelocityPolytope(const sensor_
         createRobotCollisionModel(geometry_information);
     }
     
-
     bool collision_free = getPolytopeHyperPlanes(kdl_joint_positions, geometry_information, joint_state.header.stamp, AHrep, bHrep, true);
     if (!collision_free)
     {
@@ -1147,7 +1157,7 @@ void ConstrainedManipulability::displayCollisionModel(const GeometryInformation&
         }
         else if (obj_type == "OCTOMAP")
         {
-            RCLCPP_WARN(this->get_logger(), "Unable to display octomap");
+            // RCLCPP_WARN(this->get_logger(), "Unable to display octomap");
             i++;
         }
         else if (obj_type == "VOXEL_GRID")
