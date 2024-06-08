@@ -61,7 +61,7 @@ Modify the limits using the sliding bar that appears and again add the `/visuali
 
 The following example illustrates how to perform IK teleoperation based on the polytope constraints computed in the `constrained_manipulability` package. Please first run the server with a UR3e configuration (as well as an octomap scene):
 ```
-ros2 constrained_manipulability cm_server_example.launch.py
+ros2 launch constrained_manipulability cm_server_example.launch.py
 ```
 Then run the IK client node, which uses the convex constraints in an optimization routine:
 ```
