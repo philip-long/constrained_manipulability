@@ -158,7 +158,13 @@ Using the double description method, an equivalent polytope in the $\mathcal{V}$
 \dot{\mathbf{q}}^{v}_{q} 
 \end{array}  \},
 \end{equation}
-where $\dot{\mathbf{q}}^{v}_{i}$ denotes the $i^{th}$ vertex of the polytope $\mathcal{Q}$, given $q$ vertices in $n$-dimensional space. A linear transformation of a polytope produces another polytope. Ergo, a manipulability polytope, denoted as $\mathcal{MP}$, representing the Cartesian-space velocities can then be obtained by transforming the vertices of \autoref{eq:qv_repr} to Cartesian space using \autoref{eq:dk}. $\mathcal{MP}$'s vertex set representation of $p$ vertices in 3-dimensional space is given as:
+where $\dot{\mathbf{q}}^{v}_{i}$ denotes the $i^{th}$ vertex of the polytope $\mathcal{Q}$, given $q$ vertices in $n$-dimensional space. 
+
+A linear transformation of a polytope produces another polytope. 
+
+Ergo, a manipulability polytope, denoted as $\mathcal{MP}$, representing the Cartesian-space velocities can then be obtained by transforming the vertices of \autoref{eq:qv_repr} to Cartesian space using \autoref{eq:dk}. 
+
+$\mathcal{MP}$'s vertex set representation of $p$ vertices in 3-dimensional space is given as:
 \begin{equation} \label{eq:mpv_task_repr}
 \mathcal{MP}^{V}= 
 \{ \begin{array}{ccc} 
