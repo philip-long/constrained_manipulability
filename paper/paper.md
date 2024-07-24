@@ -163,7 +163,7 @@ where $\dot{\mathbf{q}}^{v}_{i}$ denotes the $i^{th}$ vertex of the polytope $\m
 A linear transformation of a polytope produces another polytope. Ergo, a manipulability polytope, denoted as $\mathcal{MP}$, representing the Cartesian-space velocities can then be obtained by transforming the vertices of \autoref{eq:qv_repr} to Cartesian space using \autoref{eq:dk}. $\mathcal{MP}$'s vertex set representation of $p$ vertices in 3-dimensional space is given as:
 
 \begin{equation} \label{eq:mpv_task_repr}
-\mathcal{MP}^{V}= 
+\mathcal{MP}^{V}=
 \{ \begin{array}{ccc} 
 \boldsymbol{\nu}^{v}_{1}, \ \ldots, \ \boldsymbol{\nu}^{v}_{p} \\
 \end{array} \}
@@ -172,6 +172,7 @@ A linear transformation of a polytope produces another polytope. Ergo, a manipul
 \mathbf{J}_{n} \dot{\mathbf{q}}^{v}_{1}, \ \ldots, \ \mathbf{J}_{n}\dot{\mathbf{q}}^{v}_{p}
 \end{array} \},
 \end{equation}
+
 with $\delta \mathbf{x}^v_{j} = \mathbf{J}_{n} \dot{\mathbf{q}}^{v}_{j}$ and $p \leq q$. The convexity of a polytope is preserved under affine transformation, thus a bounded volume of $\mathcal{MP}$ that represents the system's manipulability can easily be obtained to serve as an exact indicator of robot performance.
 
 The above considers a constrained velocity polytope based on the constraints specified in \autoref{eq:qh_repr}. To obtain the constrained motion polytope for a manipulator, a joint space polytope is first defined using position deviations instead of instantaneous velocities, following from its position limits stated in \autoref{eq:pos_dev_limits}. 
