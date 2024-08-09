@@ -16,7 +16,7 @@ def generate_launch_description():
         parameters=[{'root': 'base_link',
                      'tip': 'wrist_3_link',
                      'show_mp': False,
-                     'show_cmp': False,
+                     'show_cmp': True,
                      'filter_robot': False}]
     )
     
