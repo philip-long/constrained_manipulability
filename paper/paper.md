@@ -86,7 +86,7 @@ For a point $\mathcal{I}$ on the robot's kinematic chain whose position with res
 \begin{equation} \label{eq:joint_lin}
 \delta \mathbf{x}^{k}_{i}=\mathbf{J}_{i} \delta \mathbf{q}^{k},
 \end{equation}
-where $\mathbf{J}_{i} \in  \mathbb{R}^{3 \times n} $ denotes the kinematic Jacobian matrix that relates velocities of antecedent joints along the kinematic chain to the translational velocity at point $\mathcal{I}$, with columns of zeros for joints that do not generate velocity at $\mathcal{I}$. 
+where $\mathbf{J}_{i} \in  \mathbb{R}^{3 \times n}$ denotes the kinematic Jacobian matrix that relates velocities of antecedent joints along the kinematic chain to the translational velocity at point $\mathcal{I}$, with columns of zeros for joints that do not generate velocity at $\mathcal{I}$. 
 
 Using the linearization from \autoref{eq:joint_lin}, limits of translational motion for any point on the manipulator body can be defined based on the location of environmental obstacles. Suppose there is an environmental obstacle $\mathcal{O}$ in the robot's proximity, with a location in the world frame described as $\mathbf{r}_{o}$. Then at instant $k$, the translational motion of point $\mathcal{I}$ towards $\mathbf{r}_{o}$, written as $\delta \mathbf{x}^{k}_{i,o}$, is defined as:
 \begin{equation}
@@ -110,7 +110,7 @@ This inequality constraint can be repeated for a set of $l$ points discretized a
 \lVert \mathbf{r}_{lo}\rVert
 \end{array} \right]. 
 \end{align}
-In our implementation, we select at every instant the point along each link nearest to an environmental obstacle, i.e., $l=n$. Hence, \cref{eq:one_obs_all_pts} represents the set of instantaneous collision-free joint deviations for each link on the robot's kinematic chain, considering obstacle $\mathcal{O}$. We can extend this formulation to $m$ obstacles in the robot's workspace, obtaining $(l \times m)$ constraints to ensure collision-free motions. This can be reduced by neglecting obstacles where $\lVert \mathbf{r}_{io} \rVert$ is greater than a threshold.
+In our implementation, we select at every instant the point along each link nearest to an environmental obstacle, i.e., $l=n$. Hence, \autoref{eq:one_obs_all_pts} represents the set of instantaneous collision-free joint deviations for each link on the robot's kinematic chain, considering obstacle $\mathcal{O}$. We can extend this formulation to $m$ obstacles in the robot's workspace, obtaining $(l \times m)$ constraints to ensure collision-free motions. This can be reduced by neglecting obstacles where $\lVert \mathbf{r}_{io} \rVert$ is greater than a threshold.
 
 Aside from obstacles, a robot's motion is restricted by positional limits of the joints. To integrate these limits into our joint space polytope, the following linear inequalities are included:
  \begin{align} \label{eq:pos_dev_limits}
