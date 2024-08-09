@@ -78,7 +78,7 @@ At trajectory step $k$, the end-effector pose and the instantaneous joint veloci
 \end{align}
 where $\delta \mathbf{q}^{k}$ denotes the displacement in joint variables over the timestep and is defined as:
 \begin{equation}
-\quad \delta \mathbf{q}^{k}&=\dot{\mathbf{q}}^{k} \delta t.
+\quad \delta \mathbf{q}^{k}=\dot{\mathbf{q}}^{k} \delta t.
 \end{equation}
 In a cluttered environment, the end-effector's allowable motion is conditioned on the allowable motion of its attached links. Even if the end-effector is located nominally in free space, certain allowable motions may be restricted by obstacles close to the chain's preceding links.
 
