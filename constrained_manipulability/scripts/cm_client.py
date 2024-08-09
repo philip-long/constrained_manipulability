@@ -133,7 +133,7 @@ class ConstrainedManipulabilityClient(Node):
     async def call_polytope_server(self, sampled_joint_states):
         constr_req = GetPolytopes.Request()
         constr_req.polytopes_type = constr_req.CONSTRAINED_ALLOWABLE_MOTION_POLYTOPE
-        constr_req.show_polytopes = True
+        constr_req.show_polytopes = False
         constr_req.joint_states = sampled_joint_states
         
         return await self.get_polytopes.call_async(constr_req)
