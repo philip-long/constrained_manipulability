@@ -15,12 +15,17 @@ authors:
     orcid: 0000-0002-0784-8720
     equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
     affiliation: 2
+  - name: Taskin Padir
+    orcid: 0000-0001-5123-5801
+    affiliation: "1, 3"
 affiliations:
  - name: Northeastern University, USA (at the time of this work)
    index: 1
  - name: Atlantic Technological University, Ireland
    index: 2
-date: 20 July 2024
+ - name: Amazon
+   index: 3
+date: 09 August 2024
 bibliography: paper.bib
 ---
 
@@ -205,6 +210,6 @@ A diagram summarizing the `constrained_manipulability` package architecture and 
 
 # Acknowledgements
 
-We thank ...
+Taskin Padir holds concurrent appointments as a Professor of Electrical and Computer Engineering at Northeastern University and as an Amazon Scholar. This paper describes work performed at Northeastern University and is not associated with Amazon.
 
 # References
