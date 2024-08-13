@@ -23,9 +23,9 @@ affiliations:
    index: 1
  - name: Atlantic Technological University, Ireland
    index: 2
- - name: Amazon
+ - name: Amazon Robotics, USA
    index: 3
-date: 09 August 2024
+date: 13 August 2024
 bibliography: paper.bib
 ---
 
