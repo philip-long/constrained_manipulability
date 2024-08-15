@@ -210,6 +210,8 @@ A diagram summarizing the `constrained_manipulability` package architecture and 
 
 # Acknowledgements
 
+Mark Zolotas is currently at Toyota Research Institute (TRI), Cambridge, MA, USA. This paper describes work performed at Northeastern University and is not associated with TRI.
+
 Taskin Padir holds concurrent appointments as a Professor of Electrical and Computer Engineering at Northeastern University and as an Amazon Scholar. This paper describes work performed at Northeastern University and is not associated with Amazon.
 
 # References
