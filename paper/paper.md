@@ -53,21 +53,9 @@ The `constrained_manipulability` ROS 2 package aims to fulfil this need for cons
 ## Polytope and Manipulator Model
 A polytope, $\mathcal{P}$, can be represented as the convex hull of its vertex set, or as a volume bounded by a finite number of half-spaces,known as the $\mathcal{V}$-representation and $\mathcal{H}$-representation and denoted as $\mathcal{P}^{V}$ and $\mathcal{P}^{H}$, respectively. Converting between the $\mathcal{V}$ and $\mathcal{H}$ representations can be carried out in several ways, however the `constrained_manipulability` package uses the double description method [@Fukuda1996Double]. 
 
-Consider a $n$ degrees-of-freedom serial manipulator, whose end-effector pose is represented by a vector $\mathbf{x}_n \in \mathbb{R}^6$, which can be obtain from the forward kinematic chain $\mathit{fk}$ as follows:
-\begin{equation} \label{eq:fk}
-    \mathbf{x}_n = \mathit{fk}(\mathbf{q}),
-\end{equation}
-where $\mathbf{q}=[q_1, ..., q_n]$ are the joint configuration variables. The twist at the end-effector's $n^{th}$ frame, $\boldsymbol{\nu}_n$, can then be obtained as:
-\begin{equation} \label{eq:dk}
-    \boldsymbol{\nu}_n = \begin{bmatrix} \mathbf{v} \\ \boldsymbol{\omega} \end{bmatrix} = \mathbf{J}_n \dot{\mathbf{q}},
-\end{equation}
-with $\mathbf{v}$ and $\boldsymbol{\omega}$ denoting translational and angular velocities, respectively. $\mathbf{J}_n$ is the 6$\times n$ Jacobian matrix defined at $n$ and $\dot{\mathbf{q}} = [\dot{q}_1, ..., \dot{q}_n]^\intercal$ is the joint velocity. 
-
 The `constrained_manipulability` provides two types of polytope representation, Constrained Motion Polytopes which modify the classical manipulability velocity polytope [@kokkinis1989kinetostatic] to include joint limits and capacities reductions due to nearby obstacles and the Allowable Motion Polytope a linearisation of the above to generate a measure of free space or allowable motions in which a robot can move while satisfying all constraints. 
 
-## Constrained Motion Polytopes
-The velocity capacity can be obtained by first constructing the joint velocity space polytope in the $\mathcal{H}$-representation according to its velocity limits:
-\begin{equation} \label{eq:qh_repr}
+In both cases, the polytope is contructed as follows. First a system of linear inequalities is constructed in joint space, for instance based on the joint velocities limits: \begin{equation} \label{eq:qh_repr}
 \begin{split} 
 \mathcal{Q}^{H}=
 \left[\begin{array}{ccc} 
@@ -78,18 +66,14 @@ The velocity capacity can be obtained by first constructing the joint velocity s
 \end{array} \right], 
 \end{split} 
 \end{equation}
-where $\dot{\mathbf{q}}^{max}$ and $\dot{\mathbf{q}}^{min}$ are the robot's maximum and minimum joint velocities.
-
-Using the double description method, an equivalent polytope in the $\mathcal{V}$-representation (i.e., defined by its vertices) is written as:
+where $\dot{\mathbf{q}}^{max}$ and $\dot{\mathbf{q}}^{min}$ are the robot's maximum and minimum joint velocities. Using the double description method, an equivalent polytope in the $\mathcal{V}$-representation (i.e., defined by its vertices) is written as:
 \begin{equation} \label{eq:qv_repr}
 \mathcal{Q}^{V}=
 \{ \begin{array}{cccc} 
 \dot{\mathbf{q}}^{v}_{1}, \ \dot{\mathbf{q}}^{v}_{2}, \ \ldots, \ \dot{\mathbf{q}}^{v}_{q} 
 \end{array}  \},
 \end{equation}
-where $\dot{\mathbf{q}}^{v}_{i}$ denotes the $i^{th}$ vertex of the polytope $\mathcal{Q}$, given $q$ vertices in $n$-dimensional space. 
-
-A manipulability polytope, denoted as $\mathcal{MP}$, representing the Cartesian-space velocities can be obtained by transforming the vertices of \autoref{eq:qv_repr} to Cartesian space using \autoref{eq:dk}. $\mathcal{MP}$'s vertex set representation of $p$ vertices in 3-dimensional space is given as:
+where $\dot{\mathbf{q}}^{v}_{i}$ denotes the $i^{th}$ vertex of the polytope $\mathcal{Q}$, given $q$ vertices in $n$-dimensional space.  A Cartesian polytope, denoted as $\mathcal{MP}$,  can be obtained by transforming the vertices of \autoref{eq:qv_repr} to Cartesian space using the forward kinematics. $\mathcal{MP}$'s vertex set representation of $p$ vertices in 3-dimensional space is given as:
 \begin{equation} \label{eq:mpv_task_repr}
 \mathcal{MP}^{V}=
 \{ \begin{array}{ccc} 
@@ -100,89 +84,9 @@ A manipulability polytope, denoted as $\mathcal{MP}$, representing the Cartesian
 \mathbf{J}_{n} \dot{\mathbf{q}}^{v}_{1}, \ \ldots, \ \mathbf{J}_{n}\dot{\mathbf{q}}^{v}_{p}
 \end{array} \},
 \end{equation}
-with $\delta \mathbf{x}^v_{j} = \mathbf{J}_{n} \dot{\mathbf{q}}^{v}_{j}$ and $p \leq q$. The convexity of a polytope is preserved under affine transformation, thus a bounded volume of $\mathcal{MP}$ that represents the system's manipulability can easily be obtained to serve as an exact indicator of robot performance.
+with $\boldsymbol{\nu}^{v}_{j} = \mathbf{J}_{n} \dot{\mathbf{q}}^{v}_{j}$ and $p \leq q$. The convexity of a polytope is preserved under affine transformation, thus a bounded volume of $\mathcal{MP}$ that represents the system's manipulability can easily be obtained to serve as an exact indicator of robot performance.
 
-The above considers a constrained velocity polytope based on the constraints specified in \autoref{eq:qh_repr}. To obtain the constrained motion polytope for a manipulator, a joint space polytope is first defined using position deviations instead of instantaneous velocities, following from its position limits stated in \autoref{eq:pos_dev_limits}. 
 
-Therefore, by stacking \autoref{eq:one_obs_all_pts}, \autoref{eq:pos_dev_limits}, and \autoref{eq:lin_limits}, an $\mathcal{H}$-representation of a joint space polytope that approximates, at any instant $k$, the maximum range of joint displacements with respect to the system's constraints is derived:
-\begin{equation}
-\mathbf{A}^{k} \delta{\mathbf{q}}^{k} \leq \mathbf{b}^{k}.
-\label{eq:joint_space_h_repr}
-\end{equation} 
-
-The polytope can then be transformed to a $\mathcal{V}$-representation using the double description method [@Fukuda1996Double], as in \autoref{eq:qv_repr}, after which the Cartesian task space representation is obtained using the differential kinematic model \autoref{eq:dk}, as in \autoref{eq:mpv_task_repr}. Overall, \autoref{eq:joint_space_h_repr} defines a set of Cartesian displacements for the manipulator's end effector, at an instant $k$, for which an IK solution can be obtained that is collision-free and within the positional joint limits.
-
-## Allowable Motions
-
-At trajectory step $k$, the pose and joint velocity are given by $\mathbf{x}^k_n$ and $\dot{\mathbf{q}}^k$, respectively. If the end-effector travels a distance of $\delta \mathbf{x}^k_n$ over a period of $\delta t$ seconds, then the resulting pose at instant $k+1$ can be obtained by linearizing \autoref{eq:fk} using \autoref{eq:dk}:
-
-\begin{equation}
-\begin{split}
-\mathbf{x}^{k+1}_n &= \mathbf{x}^{k}_n +\delta \mathbf{x}^{k}_n  \approx \mathit{fk}(\mathbf{q}^{k} +  \delta \mathbf{q}^{k}), \label{eq:lin_1} \\ \delta \mathbf{x}^{k}_n &= \mathbf{J}_{n} \delta \mathbf{q}^{k},
-\end{split}
-\end{equation}
-where $\delta \mathbf{q}^{k}$ denotes the joint variable displacement:
-\begin{equation}
-\quad \delta \mathbf{q}^{k}=\dot{\mathbf{q}}^{k} \delta t.
-\end{equation}
-
-The end-effector's allowable motion is conditioned on the allowable motion of its attached links i.e., even if the end-effector is nominally in free space, certain  motions may be restricted by obstacles close to the robot's links.
-
-For a point $\mathcal{I}$ on the robot's kinematic chain whose position is denoted by the vector $\mathbf{r}_{i}$, the displacement due to $\delta \mathbf{q}^{k}$ is written as:
-\begin{equation} \label{eq:joint_lin}
-\delta \mathbf{x}^{k}_{i}=\mathbf{J}_{i} \delta \mathbf{q}^{k},
-\end{equation}
-where $\mathbf{J}_{i} \in  \mathbb{R}^{3 \times n}$ denotes the kinematic Jacobian matrix that relates velocities of antecedent joints along the kinematic chain to the translational velocity at point $\mathcal{I}$. 
-
-Using the linearization from \autoref{eq:joint_lin}, the translational motion limits for a point is dependent on environmental obstacles. Suppose an obstacle $\mathcal{O}$ in the robot's proximity, with a location described as $\mathbf{r}_{o}$. Then at instant $k$, the translational motion of point $\mathcal{I}$ towards $\mathbf{r}_{o}$, written as $\delta \mathbf{x}^{k}_{i,o}$, is defined as:
-\begin{equation}
-\delta \mathbf{x}^{k}_{i,o} = \hat{\mathbf{r}}^\intercal_{io} \mathbf{J}_{i} \delta \mathbf{q}^{k},
-\end{equation}
-where $\mathbf{r}_{io}= \mathbf{r}_{i} -\mathbf{r}_{o}$ is the relative position between $\mathcal{O}$ and $\mathcal{I}$, while $\hat{\mathbf{r}}_{io}$ is the corresponding normalized unit vector. Hence, to prevent a collision between $\mathcal{I}$ and $\mathcal{O}$, an allowable motion constraint can be expressed as follows:
-\begin{equation} \label{eq:one_obs_one_pt}
-\hat{\mathbf{r}}^\intercal_{io} \mathbf{J}_{i} \delta \mathbf{q}^{k} \leq \lVert \mathbf{r}_{io} \rVert,
-\end{equation}
-with $\lVert \mathbf{r}_{io} \rVert$ as the Euclidean norm of the vector $\mathbf{r}_{io}$. This inequality constraint can be repeated for a set of $l$ points discretized along the kinematic chain, leading to the following:
-\begin{equation} \label{eq:one_obs_all_pts} 
-\begin{split}  
-\left[\begin{array}{cc} 
-\hat{\mathbf{r}}^{T}_{1o} \mathbf{J}_{1}  \\ \vdots   \\ \hat{\mathbf{r}}^{T}_{lo} \mathbf{J}_{l}  \\
-\end{array} \right] \delta \mathbf{q}^{k} 
-& \leq
-\left[\begin{array}{ccc} 
-\lVert \mathbf{r}_{1o}\rVert\\ \vdots \\ \lVert \mathbf{r}_{lo}\rVert
-\end{array} \right]. 
-\end{split}
-\end{equation}
-
-In our implementation, we select at every instant the point along each link nearest to an environmental obstacle, i.e., $l=n$. Hence, \autoref{eq:one_obs_all_pts} represents the set of instantaneous collision-free joint deviations for each link on the robot's kinematic chain, considering obstacle $\mathcal{O}$. We can extend this formulation to $m$ obstacles in the robot's workspace, obtaining $(l \times m)$ constraints to ensure collision-free motions. This can be reduced by neglecting obstacles where $\lVert \mathbf{r}_{io} \rVert$ is greater than a threshold.
-
-Aside from obstacles, a robot's motion is restricted by positional limits of the joints. To integrate these limits into our joint space polytope, the following linear inequalities are included:
-\begin{equation} \label{eq:pos_dev_limits}
-\begin{split} 
-\left[\begin{array}{ccc} 
-\mathbb{I}_{n}\\ -\mathbb{I}_{n}\\
-\end{array} \right]   \delta{\mathbf{q}}^{k} \leq
-\left[\begin{array}{ccc} 
- \mathbf{q}^{max}-\mathbf{q}^{k}\\ \mathbf{q}^{k}-\mathbf{q}^{min}\\
-\end{array} \right], 
-\end{split}
-\end{equation}
-where $\mathbb{I}_{n}$ is the $n \times n$ identity matrix, while $\mathbf{q}^{max}$ and $\mathbf{q}^{min}$ are vectors of upper and lower positional joint limits, respectively.
-
-As joint displacement increases, so does the linearization error. A maximum linearization limit is thus imposed:
-\begin{equation} \label{eq:lin_limits}
-\begin{split} 
-\left[\begin{array}{ccc} 
-\mathbb{I}_{n}\\ -\mathbb{I}_{n}\\
-\end{array} \right]   \delta{\mathbf{q}}^{k} \leq
-\left[\begin{array}{ccc} 
- \delta \mathbf{q}^{max}\\ \delta \mathbf{q}^{max}\\
-\end{array} \right],
-\end{split}
-\end{equation}
-
-where $\delta \mathbf{q}^{max}$ is the vector of linearization limits. Increasing the values of $\delta \mathbf{q}^{max}$ expands the free space virtual fixture at a cost of reduced fidelity. While not necessary, we use a scalar linearization limit for all joints that can also be altered at run time e.g. could be increased to enlarge the solution  or shrunk  to guide the user towards a defined goal configuration, as described in [@Zolotas2021Motion].
 
 
 
