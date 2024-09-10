@@ -84,11 +84,9 @@ where $\dot{\mathbf{q}}^{v}_{i}$ denotes the $i^{th}$ vertex of the polytope $\m
 \mathbf{J}_{n} \dot{\mathbf{q}}^{v}_{1}, \ \ldots, \ \mathbf{J}_{n}\dot{\mathbf{q}}^{v}_{p}
 \end{array} \},
 \end{equation}
-with $\boldsymbol{\nu}^{v}_{j} = \mathbf{J}_{n} \dot{\mathbf{q}}^{v}_{j}$ and $p \leq q$. The convexity of a polytope is preserved under affine transformation, thus a bounded volume of $\mathcal{MP}$ that represents the system's manipulability can easily be obtained to serve as an exact indicator of robot performance.
+with $\boldsymbol{\nu}^{v}_{j} = \mathbf{J}_{n} \dot{\mathbf{q}}^{v}_{j}$ and $p \leq q$. The convexity of a polytope is preserved under affine transformation, thus a bounded volume of $\mathcal{MP}$ that represents the system's manipulability can easily be obtained to serve as an exact indicator of robot performance. 
 
-
-
-
+For the Constrained Motion Polytopes, the following constraints are supported, joint velocity limits, joint velocity damping due to positional joint limits, joint velocity damping due obstacle proximity to the kinematic chain. For the allowable motion polytope the following constraints are supported, positional joint limits, positional limits due obstacle proximity to the kinematic chain, linearization limits. Increasing the values of the linearisation expands the free space virtual fixture at a cost of reduced fidelity. Our implementation uses a scalar linearization limit for all joints that can also be altered at run time e.g. could be increased to enlarge the solution  or shrunk  to guide the user towards a defined goal configuration, as described in [@Zolotas2021Motion]. Finally, in our implementation, we select at every instant the point along each link nearest to all environmental obstacles. Hence, the system considers the set of instantaneous collision-free joint motion for each link on the robot's kinematic chain, considering all obstacles $\mathcal{O}$. 
 
 ## Block Diagram
 
