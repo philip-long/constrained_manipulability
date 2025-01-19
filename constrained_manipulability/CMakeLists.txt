@@ -149,6 +149,32 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+### Testing ###
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  # Polytope class test
+  ament_add_gtest(polytope_test tests/polytope_test.cpp)
+  target_include_directories(polytope_test PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+  ament_target_dependencies(polytope_test
+    ${dependencies}
+  )
+  target_link_libraries(polytope_test ${PROJECT_NAME})
+  # Utility functions unit tests
+  ament_add_gtest(utils_test tests/utils_test.cpp)
+  target_include_directories(utils_test PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+  ament_target_dependencies(utils_test
+    ${dependencies}
+  )
+  target_link_libraries(utils_test ${PROJECT_NAME})
+endif()
+
 ### Ament stuff ###
 
 ament_export_include_directories(include)

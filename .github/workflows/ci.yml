@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build_and_test:
+    name: Build and Test ROS 2 Humble constrained_manipulability package
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: false # Do not push to registry
+          tags: test-image:latest # Use a local tag for the image
+          load: true # Load the image into the local Docker daemon
+
+      - name: Run constrained_manipulability Tests in Container
+        run: |
+          docker run --rm test-image:latest bash -c "
+            source /ros2_ws/install/setup.bash && \
+            colcon test --packages-select constrained_manipulability && \
+            colcon test-result --all --verbose"
