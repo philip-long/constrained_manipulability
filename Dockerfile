@@ -37,6 +37,11 @@ RUN cd /tmp && git clone --recursive https://github.com/philip-long/eigen-cddlib
     && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
     && make -j$(nproc) && make install
 
+# Install cvxpy for IK solver utilities
+USER $USERNAME
+RUN pip install cvxpy
+USER root
+
 # Create ROS workspace
 WORKDIR /ros2_ws/src
 
@@ -55,7 +60,3 @@ RUN sudo apt-get update && rosdep update && sudo rosdep install \
     --rosdistro humble --from-paths src --ignore-src -y
 RUN . /opt/ros/humble/setup.sh && \
     colcon build --symlink-install
-
-# Install cvxpy for IK solver utilities
-USER $USERNAME
-RUN pip install cvxpy
