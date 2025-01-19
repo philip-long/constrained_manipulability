@@ -38,9 +38,7 @@ RUN cd /tmp && git clone --recursive https://github.com/philip-long/eigen-cddlib
     && make -j$(nproc) && make install
 
 # Install cvxpy for IK solver utilities
-USER $USERNAME
 RUN pip install cvxpy
-USER root
 
 # Create ROS workspace
 WORKDIR /ros2_ws/src
