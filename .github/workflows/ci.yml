@@ -30,10 +30,6 @@ jobs:
           tags: test-image:latest # Use a local tag for the image
           load: true # Load the image into the local Docker daemon
 
-      - name: Verify Image Availability
-        run: |
-          docker images
-
       - name: Run constrained_manipulability Tests in Container
         run: |
           docker run --rm test-image:latest bash -c "
