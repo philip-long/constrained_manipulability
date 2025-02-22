@@ -55,6 +55,15 @@ docker build --tag 'constrained_manipulability' . && docker run -it --rm --privi
 ```
 The additional NVIDIA commands are to enable [RViz](https://docs.ros.org/en/humble/Tutorials/Intermediate/RViz/RViz-User-Guide/RViz-User-Guide.html) to run properly (assuming you use NVIDIA graphics card drivers).
 
+To launch examples in the Docker image that require a GUI, like those that launch an RViz display, you should also run this command in your local host's terminal (i.e., not in the Docker image):
+```
+xhost +local:docker
+```
+**Note:** This command allows Docker containers to connect to the host's X server, which is by default restricted for security reasons. As this command potentially opens the X server to unauthorized access, please also consider alternatives or reverting the changes after use:
+```
+xhost -local:docker
+```
+
 The Docker image is preconfigured with all the core libraries for `constrained_manipulability` (e.g., `robot_collision_checking` and its dependencies, `octomap_filter`, `eigen-cddlib`, etc.). After building the image and starting the container, a ROS workspace `ros2_ws` will have been created and built with all the necessary dependencies. The final step is to source `ros2_ws` before testing out the package (from within the docker):
 ```
 source /ros2_ws/install/setup.bash 
