@@ -16,7 +16,7 @@ def generate_launch_description():
         launch_arguments={
             'scene_config': 'example_scene_ur3',
             'root': 'base_link',
-            'tip': 'wrist_3_link',
+            'tip': 'tool0',
             'show_mp': 'True',
             'show_cmp': 'True'}.items()
     )
