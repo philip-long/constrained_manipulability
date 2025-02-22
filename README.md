@@ -88,10 +88,11 @@ The launch file for the UR3e can be run as:
 ```
 ros2 launch constrained_manipulability abstract_ur3e.launch.py
 ```
-And for the Kinova Gen3 as (if using Gen3, refer to [#10](https://github.com/philip-long/constrained_manipulability/issues/10) for an explanation as to why you should build [ros2_kortex](https://github.com/Kinovarobotics/ros2_kortex/tree/main) from source):
+And for the Kinova Gen3:
 ```
 ros2 launch constrained_manipulability abstract_gen3.launch.py
 ```
+If using the Gen3 manipulator, refer to [#10](https://github.com/philip-long/constrained_manipulability/issues/10) for an explanation as to why you should build [ros2_kortex](https://github.com/Kinovarobotics/ros2_kortex/tree/main) from source.
 
 Please note in the default RViz config file that appears, you should add the `/visualization_marker` topic to see the scene and polytopes. Additionally, the default configuration of the Kinova Gen3 robot launched by the above command will generate convex hull errors - please adjust the manipulator's configuration (using the joint position slider GUI) to visualize the polytopes.
 
