@@ -1037,8 +1037,8 @@ bool ConstrainedManipulability::checkCollision(const sensor_msgs::msg::JointStat
     }
     
     boost::mutex::scoped_lock lock(collision_world_mutex_);
-    int num_transforms = geometry_information.geometry_transforms.size();
-    for (int i = 0; i < num_transforms; i++)
+    int num_shapes = geometry_information.shapes.size();
+    for (int i = 0; i < num_shapes; i++)
     {
         Eigen::Affine3d obj_pose;
         tf2::fromMsg(shapes_poses[i], obj_pose);
@@ -1084,8 +1084,8 @@ void ConstrainedManipulability::displayCollisionModel(const GeometryInformation&
 {
     auto marker_array_msg = std::make_shared<visualization_msgs::msg::MarkerArray>();
 
-    int num_transforms = geometry_information.geometry_transforms.size();
-    for (int i = 0; i < num_transforms; ++i)
+    int num_shapes = geometry_information.shapes.size();
+    for (int i = 0; i < num_shapes; ++i)
     {
         visualization_msgs::msg::Marker mkr;
         shapes::constructMarkerFromShape(geometry_information.shapes[i].get(), mkr);
@@ -1216,11 +1216,11 @@ void ConstrainedManipulability::convertCollisionModel(const GeometryInformation&
                                                       std::vector<shapes::ShapeMsg>& current_shapes,
                                                       std::vector<geometry_msgs::msg::Pose>& shapes_poses) const
 {
-    int num_transforms = geometry_information.geometry_transforms.size();
-    current_shapes.resize(num_transforms);
-    shapes_poses.resize(num_transforms);
+    int num_shapes = geometry_information.shapes.size();
+    current_shapes.resize(num_shapes);
+    shapes_poses.resize(num_shapes);
 
-    for (int i = 0; i < num_transforms; i++)
+    for (int i = 0; i < num_shapes; i++)
     {
         shapes::ShapeMsg current_shape;
         shapes::constructMsgFromShape(geometry_information.shapes[i].get(), current_shapes[i]);
@@ -1235,8 +1235,8 @@ void ConstrainedManipulability::createRobotCollisionModel(const GeometryInformat
     std::vector<geometry_msgs::msg::Pose> shapes_poses;
     convertCollisionModel(geometry_information, current_shapes, shapes_poses);
 
-    int num_transforms = geometry_information.geometry_transforms.size();
-    for (int i = 0; i < num_transforms; i++)
+    int num_shapes = geometry_information.shapes.size();
+    for (int i = 0; i < num_shapes; i++)
     {
         Eigen::Affine3d obj_pose;
         tf2::fromMsg(shapes_poses[i], obj_pose);
@@ -1346,36 +1346,48 @@ void ConstrainedManipulability::getCollisionModel(const KDL::JntArray& kdl_joint
     int num_segments = chain_.getNrOfSegments();
     for (int i = 0; i < num_segments; ++i)
     {
-        KDL::Segment seg = chain_.getSegment(i); // Get current segment
+        // Get current segment
+        KDL::Segment seg = chain_.getSegment(i);
+        // Get collision geometry
+        urdf::CollisionSharedPtr link_coll = model_->links_.at(seg.getName())->collision;
+        // If collision geometry does not exist at this link of the kinematic chain
+        if (link_coll == nullptr)
+        {
+            Eigen::Affine3d base_T_ee;
+            Eigen::Matrix<double, 6, Eigen::Dynamic> base_J_ee;
+            getKDLKinematicInformation(kdl_joint_positions, base_T_ee, base_J_ee);
+            geometry_information.geometry_transforms.push_back(base_T_ee);
+        }
+        else
+        {
+            // Get collision geometry's shape
+            std::unique_ptr<shapes::Shape> shape = constructShape(link_coll->geometry.get());
+            // Get collision origin
+            Eigen::Vector3d origin_Trans_collision(link_coll->origin.position.x, 
+                                                   link_coll->origin.position.y, 
+                                                   link_coll->origin.position.z);
 
-        // Get Collision Geometry
-        std::unique_ptr<shapes::Shape> shape = constructShape(model_->links_.at(seg.getName())->collision->geometry.get());
+            Eigen::Quaterniond origin_Quat_collision(link_coll->origin.rotation.w, 
+                                                     link_coll->origin.rotation.x, 
+                                                     link_coll->origin.rotation.y, 
+                                                     link_coll->origin.rotation.z);
 
-        // Get Collision Origin
-        Eigen::Vector3d origin_Trans_collision(model_->links_.at(seg.getName())->collision->origin.position.x,
-                                                model_->links_.at(seg.getName())->collision->origin.position.y,
-                                                model_->links_.at(seg.getName())->collision->origin.position.z);
-        Eigen::Quaterniond origin_Quat_collision(
-            model_->links_.at(seg.getName())->collision->origin.rotation.w,
-            model_->links_.at(seg.getName())->collision->origin.rotation.x,
-            model_->links_.at(seg.getName())->collision->origin.rotation.y,
-            model_->links_.at(seg.getName())->collision->origin.rotation.z);
+            link_origin_T_collision_origin.translation() = origin_Trans_collision;
+            link_origin_T_collision_origin.linear() = origin_Quat_collision.toRotationMatrix();
 
-        link_origin_T_collision_origin.translation() = origin_Trans_collision;
-        link_origin_T_collision_origin.linear() = origin_Quat_collision.toRotationMatrix();
+            // Finds cartesian pose w.r.t to base frame
+            Eigen::Matrix<double, 6, Eigen::Dynamic> base_J_collision_origin, base_J_link_origin;
+            getKDLKinematicInformation(kdl_joint_positions, base_T_link_origin, base_J_link_origin, i + 1);
+            base_T_collision_origin = base_T_link_origin * link_origin_T_collision_origin;
+            Eigen::Vector3d base_L_link_collision = (base_T_link_origin.linear() * link_origin_T_collision_origin.translation());
+            // Screw transform to collision origin
+            screwTransform(base_J_link_origin, base_L_link_collision, base_J_collision_origin);
 
-        // Finds cartesian pose w.r.t to base frame
-        Eigen::Matrix<double, 6, Eigen::Dynamic> base_J_collision_origin, base_J_link_origin;
-        getKDLKinematicInformation(kdl_joint_positions, base_T_link_origin, base_J_link_origin, i + 1);
-        base_T_collision_origin = base_T_link_origin * link_origin_T_collision_origin;
-        Eigen::Vector3d base_L_link_collision = (base_T_link_origin.linear() * link_origin_T_collision_origin.translation());
-        // Screw transform to collision origin
-        screwTransform(base_J_link_origin, base_L_link_collision, base_J_collision_origin);
-
-        // Push back solutions
-        geometry_information.shapes.push_back(std::move(shape));
-        geometry_information.geometry_transforms.push_back(base_T_collision_origin);
-        geometry_information.geometry_jacobians.push_back(base_J_collision_origin);
+            // Push back solutions
+            geometry_information.shapes.push_back(std::move(shape));
+            geometry_information.geometry_transforms.push_back(base_T_collision_origin);
+            geometry_information.geometry_jacobians.push_back(base_J_collision_origin);
+        }
     }
 }
 
