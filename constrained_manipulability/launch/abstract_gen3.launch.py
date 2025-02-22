@@ -21,8 +21,11 @@ def generate_launch_description():
             'show_cmp': 'True'}.items()
     )
     
-    # UR launch
-    ur_launch = IncludeLaunchDescription(
+    # Kinova Gen3 launch
+    # Beware that if using the ROS 2 Humble distro release, a joint_state_publisher
+    # is in `view_robot.launch.py` and it will conflict with the constrained_manipulability
+    # method of updating the joint states via the GUI. See Git Issue #10 for more info.
+    gen3_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
             get_package_share_directory('kortex_description'), 'launch'),
             '/view_robot.launch.py']),
@@ -33,5 +36,5 @@ def generate_launch_description():
 
     return LaunchDescription([
         abstract_robot_launch,
-        ur_launch
+        gen3_launch
     ])
