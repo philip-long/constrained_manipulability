@@ -88,7 +88,7 @@ The launch file for the UR3e can be run as:
 ```
 ros2 launch constrained_manipulability abstract_ur3e.launch.py
 ```
-And for the Kinova Gen3 as:
+And for the Kinova Gen3 as (if using Gen3, refer to [#10](https://github.com/philip-long/constrained_manipulability/issues/10) for an explanation as to why you should build [ros2_kortex](https://github.com/Kinovarobotics/ros2_kortex/tree/main) from source):
 ```
 ros2 launch constrained_manipulability abstract_gen3.launch.py
 ```
