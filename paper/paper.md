@@ -90,7 +90,9 @@ where $\dot{\mathbf{q}}^{v}_{i}$ denotes the $i^{th}$ vertex of the polytope $\m
 \end{equation}
 with $\boldsymbol{\nu}^{v}_{j} = \mathbf{J}_{n} \dot{\mathbf{q}}^{v}_{j}$ and $p \leq q$. The convexity of a polytope is preserved under affine transformation, thus a bounded volume of $\mathcal{MP}$ that represents the system's manipulability can easily be obtained to serve as an exact indicator of robot performance. 
 
-For constrained motion polytopes, the following constraints are supported: joint velocity limits, joint velocity damping due to positional joint limits, and joint velocity damping due to obstacle proximity to the kinematic chain. For allowable motion polytopes the following constraints are supported: positional joint limits, positional limits due to obstacle proximity to the kinematic chain, and linearization limits. Increasing the values of the linearization expands the free space virtual fixture at a cost of reduced fidelity. Our implementation uses a scalar linearization limit for all joints that can also be altered at run time, e.g., could be increased to enlarge the solution or shrunk to guide the user towards a defined goal configuration, as described in [@Zolotas2021Motion]. Finally, in our implementation, we select at every instant the point along each link nearest to all environmental obstacles. Hence, the system considers the set of instantaneous collision-free joint motion for each link along the robot's kinematic chain, considering all surrounding obstacles. 
+For constrained motion polytopes, the following constraints are supported: joint velocity limits, joint velocity damping due to positional joint limits, and joint velocity damping due to obstacle proximity to the kinematic chain. For allowable motion polytopes the following constraints are supported: positional joint limits, positional limits due to obstacle proximity to the kinematic chain, and linearization limits. Increasing the values of the linearization expands the free space virtual fixture at a cost of reduced fidelity. Our implementation uses a scalar linearization limit for all joints that can also be altered at run time, e.g., could be increased to enlarge the solution or shrunk to guide the user towards a defined goal configuration, as defined in Eq. 20 of [@Zolotas2021Motion]. Finally, in our implementation, we select at every instant the point along each link nearest to all environmental obstacles. Hence, the system considers the set of instantaneous collision-free joint motion for each link along the robot's kinematic chain, considering all surrounding obstacles. 
+
+A more detailed formulation of the polytopes discussed here is available in Section II.B of [@Long2019Optimization].
 
 ## Block Diagram
 
@@ -110,6 +112,10 @@ where `AHrep` and `bHrep` represent joint space polytope constraints.
 A diagram summarizing the `constrained_manipulability` package architecture and ROS 2 communication flow is displayed in \autoref{fig:block_diagram}.
 
 ![Block diagram for the constrained_manipulability ROS 2 package.\label{fig:block_diagram}](figures/cm_block_diagram.jpg)
+
+# Future Work
+
+The `constrained_manipulability` package will continue to be maintained as a ROS 2 library for computing and vizualizing a robot manipulator's constrained capacities as polytopes. To extend the widespread utility of this package, future work could also involve creating a standalone library that is independent of ROS. For example, by creating Python bindings for the core C++ library and its underlying algorithms. This would enable easier interfacing with other popular robotics software, such as Pinocchio [@Carpentier2021Proximal].
 
 # Conflict of Interest
 The authors declare that the research was conducted in the absence of any commercial or financial relationships that could be constructed as a potential conflict of interest.
