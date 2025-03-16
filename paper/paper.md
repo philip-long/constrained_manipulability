@@ -16,6 +16,7 @@ authors:
     equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
     affiliation: 2
   - name: Keerthi Sagar
+    orcid: 0000-0003-0008-5414
     affiliation: 3
   - name: Taskin Padir
     orcid: 0000-0001-5123-5801
