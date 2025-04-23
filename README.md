@@ -1,5 +1,8 @@
 # Constrained Manipulability
 
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.07481/status.svg)](https://doi.org/10.21105/joss.07481)
+[![CI](https://github.com/philip-long/constrained_manipulability/actions/workflows/ci.yml/badge.svg)](https://github.com/philip-long/constrained_manipulability/actions/workflows/ci.yml)
+
 Constrained Manipulability is a library used to compute and vizualize a robot's constrained capacities. 
 
 ## Features
